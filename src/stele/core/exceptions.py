@@ -40,3 +40,7 @@ class OptionalDependencyError(SteleError):
 class IndexingError(SteleError):
     """Indexing failed."""
 
+
+class ValidationError(SteleError):
+    """Input failed validation before any backend call."""
+
