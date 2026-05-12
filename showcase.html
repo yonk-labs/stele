@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stele Showcase</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #182026;
+      --muted: #5f6b73;
+      --line: #d7dee3;
+      --panel: #ffffff;
+      --page: #f6f8f9;
+      --teal: #0f766e;
+      --blue: #2563eb;
+      --green: #15803d;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --shadow: 0 16px 44px rgba(24, 32, 38, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      padding: 22px 0 26px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 34px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      font-size: 20px;
+      line-height: 1.2;
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 650;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-top: 10px;
+      max-width: 780px;
+      font-size: 16px;
+    }
+
+    .stamp {
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 22px 0;
+    }
+
+    .metric,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric {
+      padding: 16px;
+      min-height: 132px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 32px;
+      line-height: 1;
+      letter-spacing: 0;
+      margin: 10px 0 8px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .ok {
+      color: var(--green);
+    }
+
+    .warn {
+      color: var(--amber);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.18fr 0.82fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .panel {
+      padding: 18px;
+      overflow: hidden;
+    }
+
+    .backend-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .backend-row {
+      display: grid;
+      grid-template-columns: 132px minmax(120px, 1fr) 78px 86px 88px;
+      gap: 12px;
+      align-items: center;
+      min-height: 44px;
+      font-size: 14px;
+    }
+
+    .backend-name {
+      font-weight: 700;
+    }
+
+    .bar-track {
+      height: 10px;
+      background: #e8edf0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar {
+      height: 100%;
+      width: var(--w);
+      background: var(--teal);
+      border-radius: inherit;
+    }
+
+    .number {
+      font-variant-numeric: tabular-nums;
+      color: var(--ink);
+      text-align: right;
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    td.num,
+    th.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--green);
+      flex: 0 0 auto;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: #fbfcfd;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .commands {
+      display: grid;
+      gap: 10px;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    .cmd {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #101820;
+      color: #e6edf3;
+      padding: 12px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      header,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stamp {
+        text-align: left;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .backend-row {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .backend-row .bar-track {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 560px) {
+      main {
+        width: min(100vw - 20px, 1180px);
+        padding-top: 18px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        padding: 8px 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Stele Fast Showcase</h1>
+        <p class="subtitle">
+          Fast local smoke and contract evidence for clean-room off-prompt artifact storage.
+          These are real runs, but they are not the hours-long industry benchmark suite.
+        </p>
+      </div>
+      <div class="stamp">
+        <div>Version 0.1.0</div>
+        <div>Data generated 2026-05-11 21:24 UTC</div>
+      </div>
+    </header>
+
+    <section class="metrics" aria-label="Benchmark summary">
+      <div class="metric">
+        <h3>Local Payload Reduction</h3>
+        <strong>96.5%</strong>
+        <span>Mean across 25 workload/backend runs</span>
+      </div>
+      <div class="metric">
+        <h3>PII Leakage</h3>
+        <strong class="ok">0</strong>
+        <span>Detected leaks in showcase model-visible output</span>
+      </div>
+      <div class="metric">
+        <h3>Fixture Answer Span</h3>
+        <strong class="ok">100%</strong>
+        <span>Deterministic recall fixture vs direct-context oracle</span>
+      </div>
+      <div class="metric">
+        <h3>Backends Verified</h3>
+        <strong>5</strong>
+        <span>Memory, SQLite, Postgres, MariaDB, ClickHouse</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Backend Results</h2>
+        <div class="backend-list">
+          <div class="backend-row small">
+            <div>Backend</div>
+            <div>Reduction</div>
+            <div class="number">Fetch</div>
+            <div class="number">Search</div>
+            <div class="number">PII</div>
+          </div>
+          <div class="backend-row">
+            <div class="backend-name">Memory</div>
+            <div class="bar-track"><div class="bar" style="--w:96.495%"></div></div>
+            <div class="number">0.027 ms</div>
+            <div class="number">0.608 ms</div>
+            <div class="number ok">0</div>
+          </div>
+          <div class="backend-row">
+            <div class="backend-name">SQLite</div>
+            <div class="bar-track"><div class="bar" style="--w:96.495%"></div></div>
+            <div class="number">0.055 ms</div>
+            <div class="number">0.187 ms</div>
+            <div class="number ok">0</div>
+          </div>
+          <div class="backend-row">
+            <div class="backend-name">Postgres</div>
+            <div class="bar-track"><div class="bar" style="--w:96.495%"></div></div>
+            <div class="number">0.745 ms</div>
+            <div class="number">6.917 ms</div>
+            <div class="number ok">0</div>
+          </div>
+          <div class="backend-row">
+            <div class="backend-name">MariaDB</div>
+            <div class="bar-track"><div class="bar" style="--w:96.495%"></div></div>
+            <div class="number">0.444 ms</div>
+            <div class="number">1.016 ms</div>
+            <div class="number ok">0</div>
+          </div>
+          <div class="backend-row">
+            <div class="backend-name">ClickHouse</div>
+            <div class="bar-track"><div class="bar" style="--w:96.495%"></div></div>
+            <div class="number">7.213 ms</div>
+            <div class="number">12.135 ms</div>
+            <div class="number ok">0</div>
+          </div>
+        </div>
+        <p class="note">
+          Values are backend means from `benchmarks/runs/2026-05-11/Showcase.json`.
+          ClickHouse delete is mutation-based; exact fetch and contract behavior passed in Docker.
+        </p>
+      </div>
+
+      <div class="panel">
+        <h2>Contract Status</h2>
+        <table>
+          <tbody>
+            <tr>
+              <td><span class="status"><span class="dot"></span>Local unit and contract suite</span></td>
+              <td class="num">43 passed</td>
+            </tr>
+            <tr>
+              <td><span class="status"><span class="dot"></span>Five-backend Docker suite</span></td>
+              <td class="num">42 passed</td>
+            </tr>
+            <tr>
+              <td><span class="status"><span class="dot"></span>Showcase workload rows</span></td>
+              <td class="num">25</td>
+            </tr>
+            <tr>
+              <td><span class="status"><span class="dot"></span>Recall fixture cases</span></td>
+              <td class="num">5</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="pill-row">
+          <span class="pill">Exact fetch</span>
+          <span class="pill">PII scrubbing</span>
+          <span class="pill">JSONL replay</span>
+          <span class="pill">Chunkshop chunking</span>
+          <span class="pill">TTL cleanup</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Workloads</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Workload</th>
+              <th class="num">Runs</th>
+              <th class="num">Min Reduction</th>
+              <th class="num">Max Reduction</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>legal_contract_qa</td>
+              <td class="num">5</td>
+              <td class="num">96.963%</td>
+              <td class="num">96.963%</td>
+            </tr>
+            <tr>
+              <td>sql_database_exploration</td>
+              <td class="num">5</td>
+              <td class="num">98.449%</td>
+              <td class="num">98.449%</td>
+            </tr>
+            <tr>
+              <td>log_triage_incident</td>
+              <td class="num">5</td>
+              <td class="num">98.057%</td>
+              <td class="num">98.057%</td>
+            </tr>
+            <tr>
+              <td>json_api_docs_lookup</td>
+              <td class="num">5</td>
+              <td class="num">96.018%</td>
+              <td class="num">96.018%</td>
+            </tr>
+            <tr>
+              <td>code_diff_review</td>
+              <td class="num">5</td>
+              <td class="num">92.988%</td>
+              <td class="num">92.988%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Recall Evidence</h2>
+        <table>
+          <tbody>
+            <tr>
+              <td>Direct-context oracle accuracy</td>
+              <td class="num">1.0</td>
+            </tr>
+            <tr>
+              <td>Retrieval answer-span accuracy</td>
+              <td class="num ok">1.0</td>
+            </tr>
+            <tr>
+              <td>Recall@1</td>
+              <td class="num">0.8</td>
+            </tr>
+            <tr>
+              <td>MRR</td>
+              <td class="num">0.9</td>
+            </tr>
+            <tr>
+              <td>Meets 90% target</td>
+              <td class="num ok">true</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note">
+          This is deterministic fixture evidence from `Recall.json`, not the hours-long LongMemEval,
+          RAGBench, LongBench, CRAG, or LoCoMo benchmark lane.
+        </p>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
+      <h2>Industry Benchmark Lane</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Benchmark</th>
+            <th>Purpose</th>
+            <th>Status</th>
+            <th class="num">Expected Runtime</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>LongMemEval</td>
+            <td>Long-term memory across information extraction, multi-session reasoning, updates, temporal reasoning, and abstention</td>
+            <td class="warn">Not run in fast showcase</td>
+            <td class="num">hours</td>
+          </tr>
+          <tr>
+            <td>RAGBench</td>
+            <td>Industry RAG quality with explainable retrieval and answer labels</td>
+            <td class="warn">Not run in fast showcase</td>
+            <td class="num">hours</td>
+          </tr>
+          <tr>
+            <td>LongBench</td>
+            <td>Long-context QA, summarization, synthetic tasks, and code completion</td>
+            <td class="warn">Not run in fast showcase</td>
+            <td class="num">hours</td>
+          </tr>
+          <tr>
+            <td>CRAG</td>
+            <td>Comprehensive factual RAG with dynamic QA and mock APIs</td>
+            <td class="warn">Not run in fast showcase</td>
+            <td class="num">hours</td>
+          </tr>
+          <tr>
+            <td>LoCoMo</td>
+            <td>Long-term conversational memory and temporal consistency</td>
+            <td class="warn">Not run in fast showcase</td>
+            <td class="num">hours</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">
+        Claim-grade accuracy numbers should come from this lane, not from the fast local showcase.
+        The current page proves the product path is repeatable; it does not claim industry benchmark parity.
+      </p>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
+      <h2>Long-Term Memory Comparables</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>System</th>
+            <th>Why It Matters</th>
+            <th>Comparison Type</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Mem0</td>
+            <td>Popular managed/open-source user memory API with framework integrations</td>
+            <td>Personalized fact memory</td>
+            <td class="warn">External baseline, not run here</td>
+          </tr>
+          <tr>
+            <td>Zep / Graphiti</td>
+            <td>Temporal knowledge graph memory for mutable facts and time-aware recall</td>
+            <td>Temporal graph memory</td>
+            <td class="warn">External baseline, not run here</td>
+          </tr>
+          <tr>
+            <td>Letta</td>
+            <td>Agent memory OS with explicit tools and paged context management</td>
+            <td>Stateful agent framework</td>
+            <td class="warn">External baseline, not run here</td>
+          </tr>
+          <tr>
+            <td>MemPalace</td>
+            <td>Local-first verbatim memory with benchmark focus and MCP surface</td>
+            <td>Local long-term recall</td>
+            <td class="warn">External baseline, not run here</td>
+          </tr>
+          <tr>
+            <td>Mastra Observational Memory</td>
+            <td>Published LongMemEval-focused observational memory design</td>
+            <td>Agent memory research baseline</td>
+            <td class="warn">External baseline, not run here</td>
+          </tr>
+          <tr>
+            <td>Supermemory</td>
+            <td>Published LongMemEval-S category breakdowns for temporal and update-heavy memory</td>
+            <td>Hybrid long-term memory</td>
+            <td class="warn">External baseline, not run here</td>
+          </tr>
+          <tr>
+            <td>LangMem / LangChain memory</td>
+            <td>Native memory SDK and agent-framework integration surface</td>
+            <td>Framework memory layer</td>
+            <td class="warn">External baseline, not run here</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">
+        Stele should be judged against these systems on long-term recall, but also on a different
+        core contract: structural tool-output interception, exact artifact fetch, and PII-safe prompt surfaces.
+      </p>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
+      <h2>Repeat The Run</h2>
+      <div class="commands">
+        <div class="cmd"><code>scripts/test-backends.sh</code></div>
+        <div class="cmd"><code>YMS_LONGRUN_REPEAT=100 YMS_LONGRUN_CONTENT_MULTIPLIER=16 scripts/run-long-benchmarks.sh</code></div>
+        <div class="cmd"><code>.venv/bin/python -m benchmarks.showcase</code></div>
+        <div class="cmd"><code>.venv/bin/python -m benchmarks.recall</code></div>
+      </div>
+      <p class="note">
+        The backend script runs shared contracts. The long-run script starts the same Docker
+        backends and runs the 35-scenario matrix repeatedly, writing incremental JSONL evidence.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

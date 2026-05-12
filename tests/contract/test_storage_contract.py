@@ -1,0 +1,114 @@
+import os
+import uuid
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pytest
+
+from stele import ArtifactNotFound, Stele
+from stele.core.reference import parse_reference
+
+BACKENDS = ["memory", "sqlite"]
+if os.environ.get("STELE_PG_DSN"):
+    BACKENDS.append("postgres")
+if os.environ.get("STELE_MARIADB_DSN"):
+    BACKENDS.append("mariadb")
+if os.environ.get("STELE_CLICKHOUSE_DSN"):
+    BACKENDS.append("clickhouse")
+
+
+def _stash_for_backend(tmp_path: Path, backend: str) -> Stele:
+    if backend == "sqlite":
+        return Stele.from_config(
+            {
+                "backend": {"type": "sqlite", "path": str(tmp_path / "stele.db")},
+                "pii": {"raw_fetch_enabled": True},
+            }
+        )
+    if backend == "postgres":
+        return Stele.from_config(
+            {
+                "backend": {"type": "postgres", "dsn": os.environ["STELE_PG_DSN"]},
+                "pii": {"raw_fetch_enabled": True},
+            }
+        )
+    if backend == "mariadb":
+        return Stele.from_config(
+            {
+                "backend": {
+                    "type": "mariadb",
+                    "dsn": os.environ["STELE_MARIADB_DSN"],
+                },
+                "pii": {"raw_fetch_enabled": True},
+            }
+        )
+    if backend == "clickhouse":
+        return Stele.from_config(
+            {
+                "backend": {
+                    "type": "clickhouse",
+                    "dsn": os.environ["STELE_CLICKHOUSE_DSN"],
+                },
+                "pii": {"raw_fetch_enabled": True},
+            }
+        )
+    return Stele.from_config(
+        {"backend": {"type": "memory"}, "pii": {"raw_fetch_enabled": True}}
+    )
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_exact_store_fetch_delete(tmp_path: Path, backend: str) -> None:
+    stash = _stash_for_backend(tmp_path, backend)
+    namespace = f"ns_{uuid.uuid4().hex}"
+    stored = stash.store("needle content", namespace=namespace, session_id="s1")
+
+    fetched = stash.fetch(stored.reference, raw=True)
+
+    assert fetched.content == "needle content"
+    assert stash.delete(stored.reference) is True
+    with pytest.raises(ArtifactNotFound):
+        stash.fetch(stored.reference)
+    stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_list_by_namespace_and_session(tmp_path: Path, backend: str) -> None:
+    stash = _stash_for_backend(tmp_path, backend)
+    namespace_a = f"a_{uuid.uuid4().hex}"
+    namespace_b = f"b_{uuid.uuid4().hex}"
+    stash.store("one", namespace=namespace_a, session_id="s1")
+    stash.store("two", namespace=namespace_b, session_id="s1")
+    stash.store("three", namespace=namespace_a, session_id="s2")
+
+    assert len(stash.list(namespace=namespace_a).items) == 2
+    assert len(stash.list(namespace=namespace_a, session_id="s1").items) == 1
+    stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_ttl_cleanup(tmp_path: Path, backend: str) -> None:
+    stash = _stash_for_backend(tmp_path, backend)
+    namespace = f"ttl_{uuid.uuid4().hex}"
+    stored = stash.store("expires", namespace=namespace, lifecycle="ttl", ttl_seconds=60)
+    record = stash.storage.fetch(parse_reference(stored.reference))
+    stash.storage.store(
+        record.model_copy(update={"expires_at": datetime.now(UTC) - timedelta(seconds=1)})
+    )
+
+    result = stash.cleanup_expired()
+
+    assert result.deleted_count >= 1
+    with pytest.raises(ArtifactNotFound):
+        stash.fetch(stored.reference)
+    stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_large_round_trip(tmp_path: Path, backend: str) -> None:
+    stash = _stash_for_backend(tmp_path, backend)
+    content = "x" * 1_000_000
+    stored = stash.store(content)
+
+    assert stash.fetch(stored.reference, raw=True).content == content
+    stash.close()

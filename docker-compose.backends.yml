@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: stele-postgres
+    environment:
+      POSTGRES_USER: yonk
+      POSTGRES_PASSWORD: yonk
+      POSTGRES_DB: stele
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yonk -d stele"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  mariadb:
+    image: mariadb:11.7
+    container_name: stele-mariadb
+    environment:
+      MARIADB_USER: yonk
+      MARIADB_PASSWORD: yonk
+      MARIADB_DATABASE: stele
+      MARIADB_ROOT_PASSWORD: yonkroot
+    ports:
+      - "53306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 5s
+      retries: 40
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.10
+    container_name: stele-clickhouse
+    environment:
+      CLICKHOUSE_DB: stele
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    ports:
+      - "58123:8123"
+      - "59000:9000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 40

@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+# Distribution name: bare `stele` on PyPI is held by an inactive package
+# (Open Law Library, v0.0.0, Nov 2022). Publishing as `stele-core`; the
+# import name remains `stele`. PEP 541 reclaim of bare `stele` is a
+# follow-up, not a blocker for first publish.
+[project]
+name = "stele-core"
+version = "0.1.0"
+description = "Sovereign, source-backed memory and living knowledge for LLM agents."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2,<3",
+  "pyyaml>=6,<7",
+  "lede>=0.3,<0.4",
+]
+
+[project.optional-dependencies]
+postgres = [
+  "psycopg[binary]>=3.2,<4",
+]
+mariadb = [
+  "pymysql>=1.1,<2",
+]
+clickhouse = [
+  "clickhouse-connect>=0.8,<1",
+]
+chunkshop = [
+  "chunkshop>=0.1",
+]
+judge = [
+  "openai>=1.0,<2",
+]
+all-backends = [
+  "psycopg[binary]>=3.2,<4",
+  "pymysql>=1.1,<2",
+  "clickhouse-connect>=0.8,<1",
+]
+dev = [
+  "pytest>=8",
+  "ruff>=0.7",
+  "mypy>=1.11",
+  "psycopg[binary]>=3.2,<4",
+  "pymysql>=1.1,<2",
+  "clickhouse-connect>=0.8,<1",
+]
+
+[project.scripts]
+stele-showcase = "benchmarks.showcase:main"
+stele-recall = "benchmarks.recall:main"
+stele-longrun = "benchmarks.longrun:main"
+stele-answer-workflow = "benchmarks.answer_workflow:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stele", "benchmarks"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+markers = [
+  "memory: memory backend contract tests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["stele"]
+
+[[tool.mypy.overrides]]
+module = [
+  "yaml",
+  "lede",
+  "pymysql",
+  "pymysql.cursors",
+  "clickhouse_connect",
+  "chunkshop.*",
+  "openai",
+]
+ignore_missing_imports = true
