@@ -5,8 +5,17 @@ Operations (add/search/list/etc.) land in subsequent tasks.
 
 from __future__ import annotations
 
+import json
 import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
+
+from stele.core.exceptions import ArtifactNotFound
+from stele.core.memory_record import (
+    MemoryRecord,
+    MemoryScope,
+    memory_text_hash,
+)
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS memories (
@@ -63,6 +72,61 @@ CREATE TRIGGER IF NOT EXISTS memories_fts_update
 """
 
 
+def _record_to_row(r: MemoryRecord) -> dict[str, object]:
+    return {
+        "id": r.id,
+        "text": r.text,
+        "kind": r.kind,
+        "user_id": r.scope.user_id,
+        "agent_id": r.scope.agent_id,
+        "app_id": r.scope.app_id,
+        "session_id": r.scope.session_id,
+        "namespace": r.scope.namespace,
+        "source_refs": json.dumps(r.source_refs),
+        "source_chunk_ids": json.dumps(r.source_chunk_ids),
+        "confidence": r.confidence,
+        "status": r.status,
+        "supersedes": json.dumps(r.supersedes),
+        "text_hash": memory_text_hash(r.text, r.scope),
+        "created_at": r.created_at.isoformat(),
+        "updated_at": r.updated_at.isoformat(),
+        "effective_from": r.effective_from.isoformat(),
+        "effective_until": r.effective_until.isoformat() if r.effective_until else None,
+        "metadata": json.dumps(r.metadata),
+        "pii_flags": json.dumps(r.pii_flags),
+    }
+
+
+def _row_to_record(row: dict[str, object]) -> MemoryRecord:
+    return MemoryRecord(
+        id=str(row["id"]),
+        text=str(row["text"]),
+        kind=str(row["kind"]),  # type: ignore[arg-type]
+        scope=MemoryScope(
+            user_id=row["user_id"],  # type: ignore[arg-type]
+            agent_id=row["agent_id"],  # type: ignore[arg-type]
+            app_id=row["app_id"],  # type: ignore[arg-type]
+            session_id=row["session_id"],  # type: ignore[arg-type]
+            namespace=str(row["namespace"]),
+        ),
+        source_refs=json.loads(str(row["source_refs"])),
+        source_chunk_ids=json.loads(str(row["source_chunk_ids"])),
+        confidence=float(row["confidence"]),  # type: ignore[arg-type]
+        status=str(row["status"]),  # type: ignore[arg-type]
+        supersedes=json.loads(str(row["supersedes"])),
+        created_at=datetime.fromisoformat(str(row["created_at"])),
+        updated_at=datetime.fromisoformat(str(row["updated_at"])),
+        effective_from=datetime.fromisoformat(str(row["effective_from"])),
+        effective_until=(
+            datetime.fromisoformat(str(row["effective_until"]))
+            if row["effective_until"]
+            else None
+        ),
+        metadata=json.loads(str(row["metadata"])),
+        pii_flags=json.loads(str(row["pii_flags"])),
+    )
+
+
 class SQLiteMemoryStore:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
@@ -78,3 +142,71 @@ class SQLiteMemoryStore:
 
     def close(self) -> None:
         self.conn.close()
+
+    def add(
+        self,
+        record: MemoryRecord,
+        supersedes: list[str],
+    ) -> tuple[MemoryRecord, list[str]]:
+        now = datetime.now(UTC).isoformat()
+        cur = self.conn.cursor()
+        try:
+            cur.execute("BEGIN")
+            for old_id in supersedes:
+                affected = cur.execute(
+                    "UPDATE memories SET status='superseded', "
+                    "effective_until=?, updated_at=? WHERE id=?",
+                    (now, now, old_id),
+                ).rowcount
+                if affected == 0:
+                    raise ArtifactNotFound(f"memory not found: {old_id}")
+            row = _record_to_row(record)
+            cur.execute(
+                "INSERT INTO memories ("
+                "id, text, kind, user_id, agent_id, app_id, session_id, namespace,"
+                "source_refs, source_chunk_ids, confidence, status, supersedes,"
+                "text_hash, created_at, updated_at, effective_from, effective_until,"
+                "metadata, pii_flags"
+                ") VALUES ("
+                ":id, :text, :kind, :user_id, :agent_id, :app_id, :session_id, :namespace,"
+                ":source_refs, :source_chunk_ids, :confidence, :status, :supersedes,"
+                ":text_hash, :created_at, :updated_at, :effective_from, :effective_until,"
+                ":metadata, :pii_flags"
+                ")",
+                row,
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+        return record, list(supersedes)
+
+    def get(self, memory_id: str) -> MemoryRecord | None:
+        cur = self.conn.execute(
+            "SELECT * FROM memories WHERE id=?", (memory_id,)
+        )
+        row = cur.fetchone()
+        if row is None:
+            return None
+        return _row_to_record(dict(row))
+
+    def find_duplicate(
+        self,
+        scope: MemoryScope,
+        text_hash: str,
+    ) -> str | None:
+        cur = self.conn.execute(
+            "SELECT id FROM memories WHERE text_hash=? AND namespace=? "
+            "AND user_id IS ? AND agent_id IS ? AND app_id IS ? AND session_id IS ? "
+            "AND status NOT IN ('deleted','superseded') LIMIT 1",
+            (
+                text_hash,
+                scope.namespace,
+                scope.user_id,
+                scope.agent_id,
+                scope.app_id,
+                scope.session_id,
+            ),
+        )
+        row = cur.fetchone()
+        return row["id"] if row else None
