@@ -246,3 +246,63 @@ class SQLiteMemoryStore:
         params.append(query.limit)
         cur = self.conn.execute(" ".join(sql), params)
         return [_row_to_record(dict(row)) for row in cur.fetchall()]
+
+    def list(
+        self,
+        scope: MemoryScope,
+        status_filter: list[str] | None = None,
+        limit: int = 100,
+    ) -> list[MemoryRecord]:
+        effective: list[str] = (
+            list(status_filter) if status_filter is not None else ["active", "superseded"]
+        )
+        placeholders = ",".join("?" * len(effective))
+        params: list[object] = [scope.namespace]
+        sql = [
+            "SELECT * FROM memories WHERE namespace = ?",
+            f"AND status IN ({placeholders})",
+        ]
+        params.extend(effective)
+        for field, value in (
+            ("user_id", scope.user_id),
+            ("agent_id", scope.agent_id),
+            ("app_id", scope.app_id),
+            ("session_id", scope.session_id),
+        ):
+            if value is not None:
+                sql.append(f"AND {field} = ?")
+                params.append(value)
+        sql.append("ORDER BY effective_from DESC LIMIT ?")
+        params.append(limit)
+        cur = self.conn.execute(" ".join(sql), params)
+        return [_row_to_record(dict(row)) for row in cur.fetchall()]
+
+    def update_metadata(
+        self,
+        memory_id: str,
+        metadata_patch: dict[str, object],
+    ) -> MemoryRecord:
+        existing = self.get(memory_id)
+        if existing is None:
+            raise ArtifactNotFound(f"memory not found: {memory_id}")
+        merged = dict(existing.metadata)
+        merged.update(metadata_patch)
+        now = datetime.now(UTC).isoformat()
+        self.conn.execute(
+            "UPDATE memories SET metadata=?, updated_at=? WHERE id=?",
+            (json.dumps(merged), now, memory_id),
+        )
+        self.conn.commit()
+        return existing.model_copy(
+            update={"metadata": merged, "updated_at": datetime.fromisoformat(now)}
+        )
+
+    def soft_delete(self, memory_id: str) -> None:
+        now = datetime.now(UTC).isoformat()
+        affected = self.conn.execute(
+            "UPDATE memories SET status='deleted', updated_at=? WHERE id=?",
+            (now, memory_id),
+        ).rowcount
+        if affected == 0:
+            raise ArtifactNotFound(f"memory not found: {memory_id}")
+        self.conn.commit()
