@@ -12,6 +12,7 @@ from pathlib import Path
 
 from stele.core.exceptions import ArtifactNotFound
 from stele.core.memory_record import (
+    MemoryQuery,
     MemoryRecord,
     MemoryScope,
     memory_text_hash,
@@ -210,3 +211,38 @@ class SQLiteMemoryStore:
         )
         row = cur.fetchone()
         return row["id"] if row else None
+
+    def search(self, query: MemoryQuery) -> list[MemoryRecord]:
+        as_of = (query.as_of or datetime.now(UTC)).isoformat()
+        params: list[object] = [query.query, as_of]
+        sql = [
+            "SELECT memories.* FROM memories",
+            "JOIN memories_fts ON memories.rowid = memories_fts.rowid",
+            "WHERE memories_fts MATCH ?",
+            "AND memories.effective_from <= ?",
+        ]
+        if not query.include_superseded:
+            sql.append("AND (memories.effective_until IS NULL OR memories.effective_until > ?)")
+            params.append(as_of)
+            sql.append(
+                "AND (memories.status = 'active'"
+                " OR (memories.status = 'superseded' AND memories.effective_until > ?))"
+            )
+            params.append(as_of)
+        else:
+            sql.append("AND memories.status != 'deleted'")
+        sql.append("AND memories.namespace = ?")
+        params.append(query.scope.namespace)
+        for field, value in (
+            ("user_id", query.scope.user_id),
+            ("agent_id", query.scope.agent_id),
+            ("app_id", query.scope.app_id),
+            ("session_id", query.scope.session_id),
+        ):
+            if value is not None:
+                sql.append(f"AND memories.{field} = ?")
+                params.append(value)
+        sql.append("ORDER BY memories.effective_from DESC LIMIT ?")
+        params.append(query.limit)
+        cur = self.conn.execute(" ".join(sql), params)
+        return [_row_to_record(dict(row)) for row in cur.fetchall()]
