@@ -59,6 +59,23 @@ class SigningConfig(BaseModel):
     default_ttl_seconds: int | None = None
 
 
+class ExtractionConfig(BaseModel):
+    enabled: bool = True
+    min_confidence: float = 0.6
+    max_candidates_per_doc: int = 50
+    overlay_patterns_enabled: bool = True
+    summary_kind: Literal[
+        "fact",
+        "preference",
+        "decision",
+        "instruction",
+        "commitment",
+        "issue",
+        "summary",
+    ] = "summary"
+    auto_stash_messages: bool = True
+
+
 class StashConfig(BaseModel):
     backend: BackendConfig = Field(default_factory=BackendConfig)
     summary: SummaryConfig = Field(default_factory=SummaryConfig)
@@ -67,6 +84,7 @@ class StashConfig(BaseModel):
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     indexing: IndexingConfig = Field(default_factory=IndexingConfig)
     signing: SigningConfig = Field(default_factory=SigningConfig)
+    extraction: ExtractionConfig = Field(default_factory=ExtractionConfig)
 
     @classmethod
     def load(cls, value: StashConfig | dict[str, Any] | str | Path | None) -> StashConfig:
