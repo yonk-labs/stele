@@ -22,6 +22,14 @@ from stele.core.exceptions import (
     ReferenceError,
     SignatureError,
     SteleError,
+    ValidationError,
+)
+from stele.core.memory import Memory
+from stele.core.memory_record import (
+    MemoryAddResult,
+    MemoryQuery,
+    MemoryRecord,
+    MemoryScope,
 )
 from stele.core.stash import Stele
 
@@ -36,6 +44,11 @@ __all__ = [
     "ExportResult",
     "FetchResult",
     "ImportResult",
+    "Memory",
+    "MemoryAddResult",
+    "MemoryQuery",
+    "MemoryRecord",
+    "MemoryScope",
     "Stele",
     "SteleError",
     "OptionalDependencyError",
@@ -46,4 +59,5 @@ __all__ = [
     "SignatureError",
     "StashConfig",
     "StoredResult",
+    "ValidationError",
 ]

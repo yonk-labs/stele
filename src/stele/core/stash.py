@@ -7,7 +7,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from stele.core.artifact import (
     Artifact,
@@ -48,6 +48,9 @@ from stele.storage.memory import MemoryStorageBackend
 from stele.storage.postgres import PostgresStorageBackend
 from stele.storage.sqlite import SQLiteStorageBackend
 from stele.summary.lede_adapter import LedeSummaryProvider
+
+if TYPE_CHECKING:
+    from stele.core.memory import Memory
 
 
 class Stele:
@@ -309,6 +312,50 @@ class Stele:
 
     def close(self) -> None:
         self.storage.close()
+
+    @property
+    def memory(self) -> Memory:  # forward ref; imported below
+        if not hasattr(self, "_memory"):
+            from stele.core.memory import Memory
+            from stele.storage.memory_store.memory import InProcessMemoryStore
+            from stele.storage.memory_store.sqlite import SQLiteMemoryStore
+
+            store: object
+            if self.config.backend.type == "memory":
+                store = InProcessMemoryStore()
+            elif self.config.backend.type == "sqlite":
+                path = self.config.backend.path or ".stele/stele.db"
+                from pathlib import Path
+
+                memory_db = str(Path(path).with_name("memory_" + Path(path).name))
+                store = SQLiteMemoryStore(memory_db)
+            elif self.config.backend.type == "postgres":
+                from stele.storage.memory_store.postgres import (  # type: ignore[import-not-found]
+                    PostgresMemoryStore,
+                )
+
+                if not self.config.backend.dsn:
+                    raise ConfigError("Postgres memory store requires backend.dsn")
+                store = PostgresMemoryStore(self.config.backend.dsn)
+            elif self.config.backend.type == "mariadb":
+                from stele.storage.memory_store.mariadb import (  # type: ignore[import-not-found]
+                    MariaDBMemoryStore,
+                )
+
+                store = MariaDBMemoryStore()
+            elif self.config.backend.type == "clickhouse":
+                from stele.storage.memory_store.clickhouse import (  # type: ignore[import-not-found]
+                    ClickHouseMemoryStore,
+                )
+
+                store = ClickHouseMemoryStore()
+            else:
+                raise ConfigError(
+                    f"Memory store not implemented for backend: {self.config.backend.type}"
+                )
+            store.initialize()  # type: ignore[attr-defined]
+            self._memory = Memory(store, self.pii_scrubber)  # type: ignore[arg-type]
+        return self._memory
 
     def _scrub_text(self, text: str) -> ScrubResult:
         if not self.config.pii.enabled:
