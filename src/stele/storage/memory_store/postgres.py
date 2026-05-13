@@ -156,7 +156,13 @@ class PostgresMemoryStore:
         ]
         params: list[object] = [query.query, as_of, as_of, query.scope.namespace]
         if not query.include_superseded:
-            sql.append("AND status = 'active'")
+            # Include records active at as_of: status='active', or superseded
+            # after as_of (i.e. was still active at that point in time).
+            sql.append(
+                "AND (status = 'active'"
+                " OR (status = 'superseded' AND effective_until > %s))"
+            )
+            params.append(as_of)
         else:
             sql.append("AND status != 'deleted'")
         for field, value in (
