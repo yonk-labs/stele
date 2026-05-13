@@ -51,6 +51,7 @@ from stele.summary.lede_adapter import LedeSummaryProvider
 
 if TYPE_CHECKING:
     from stele.core.memory import Memory
+    from stele.extraction.extractor import MemoryExtractor
 
 
 class Stele:
@@ -314,6 +315,9 @@ class Stele:
         memory = getattr(self, "_memory", None)
         if memory is not None:
             memory.close()
+        extractor = getattr(self, "_extractor", None)
+        if extractor is not None:
+            extractor.close()
         self.storage.close()
 
     @property
@@ -359,6 +363,19 @@ class Stele:
             store.initialize()
             self._memory = Memory(store, self.pii_scrubber)  # type: ignore[arg-type]
         return self._memory
+
+    @property
+    def extract(self) -> MemoryExtractor:  # forward ref imported below
+        if not hasattr(self, "_extractor"):
+            from stele.extraction.extractor import MemoryExtractor
+
+            self._extractor = MemoryExtractor(
+                stele=self,
+                memory=self.memory,
+                scrubber=self.pii_scrubber,
+                config=self.config.extraction,
+            )
+        return self._extractor
 
     def _scrub_text(self, text: str) -> ScrubResult:
         if not self.config.pii.enabled:
