@@ -1,0 +1,14 @@
+{
+  "category": "preferences",
+  "expected_kind": "preference",
+  "positive": [
+    "I prefer dark mode for the dashboard.",
+    "My favorite editor is Helix.",
+    "I'm not a fan of CamelCase in Python."
+  ],
+  "abstention": [
+    "The dashboard supports both light and dark themes.",
+    "Helix is a modern modal editor.",
+    "Python uses snake_case by convention."
+  ]
+}

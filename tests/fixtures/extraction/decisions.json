@@ -1,0 +1,14 @@
+{
+  "category": "decisions",
+  "expected_kind": "decision",
+  "positive": [
+    "We decided to switch to RBAC.",
+    "Let's go with PostgreSQL for the new service.",
+    "Decision: ship the migration on May 30."
+  ],
+  "abstention": [
+    "The migration is complicated.",
+    "PostgreSQL has a permissive license.",
+    "RBAC is a common authorization model."
+  ]
+}

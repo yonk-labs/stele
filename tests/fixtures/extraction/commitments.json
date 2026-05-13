@@ -1,0 +1,14 @@
+{
+  "category": "commitments",
+  "expected_kind": "commitment",
+  "positive": [
+    "I'll send the report by Friday.",
+    "TODO: rewrite the auth middleware.",
+    "The deliverable is due by next Monday."
+  ],
+  "abstention": [
+    "The report covers Q3 metrics.",
+    "Auth middleware sits between requests and handlers.",
+    "Monday is the first day of the week."
+  ]
+}

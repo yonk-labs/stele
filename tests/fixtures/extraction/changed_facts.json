@@ -1,0 +1,14 @@
+{
+  "category": "changed_facts",
+  "expected_kind": "fact",
+  "positive": [
+    "The new release date is 2026-06-30.",
+    "Revenue is now 12 million.",
+    "The deployment region has moved to us-west-2."
+  ],
+  "abstention": [
+    "Release dates can shift.",
+    "Revenue numbers are reported quarterly.",
+    "Cloud regions are geographic deployment zones."
+  ]
+}

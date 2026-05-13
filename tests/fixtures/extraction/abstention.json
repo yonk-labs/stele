@@ -1,0 +1,10 @@
+{
+  "category": "abstention",
+  "expected_kind": "fact",
+  "positive": [],
+  "abstention": [
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    "The quick brown fox jumps over the lazy dog.",
+    "Population: 67 million. GDP: 2.9 trillion. Capital: Paris."
+  ]
+}
