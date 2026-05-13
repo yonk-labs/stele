@@ -14,7 +14,7 @@ from stele.core.memory_record import (
 from stele.storage.memory_store.sqlite import SQLiteMemoryStore
 
 
-def _make(record_id: str, text: str = "hello", scope: MemoryScope | None = None):
+def _make(record_id: str, text: str = "hello", scope: MemoryScope | None = None) -> MemoryRecord:
     scope = scope or MemoryScope(user_id="alice")
     now = datetime.now(UTC)
     return MemoryRecord(

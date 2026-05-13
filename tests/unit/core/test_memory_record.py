@@ -1,6 +1,7 @@
 """Tests for MemoryRecord model (SC-010 source_refs validation)."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -13,8 +14,8 @@ from stele.core.memory_record import (
 )
 
 
-def _record(**overrides):
-    base = dict(
+def _record(**overrides: Any) -> MemoryRecord:
+    base: dict[str, Any] = dict(
         id="m1",
         text="user prefers Helix editor",
         kind="preference",
@@ -28,7 +29,7 @@ def _record(**overrides):
     return MemoryRecord(**base)
 
 
-def test_memory_record_defaults_active_no_expiry():
+def test_memory_record_defaults_active_no_expiry() -> None:
     r = _record()
     assert r.status == "active"
     assert r.effective_until is None
@@ -36,30 +37,30 @@ def test_memory_record_defaults_active_no_expiry():
     assert r.confidence == 1.0
 
 
-def test_memory_record_rejects_empty_source_refs():
+def test_memory_record_rejects_empty_source_refs() -> None:
     with pytest.raises(ValidationError) as exc:
         _record(source_refs=[])
     assert "stele://" in str(exc.value)
 
 
-def test_memory_record_rejects_non_stele_source_ref():
+def test_memory_record_rejects_non_stele_source_ref() -> None:
     with pytest.raises(ValidationError) as exc:
         _record(source_refs=["https://example.com/doc"])
     assert "stele://" in str(exc.value)
 
 
-def test_memory_record_accepts_multiple_source_refs():
+def test_memory_record_accepts_multiple_source_refs() -> None:
     r = _record(source_refs=["stele://ns/a", "stele://ns/b"])
     assert len(r.source_refs) == 2
 
 
-def test_canonical_scope_key_is_stable():
+def test_canonical_scope_key_is_stable() -> None:
     s1 = MemoryScope(user_id="alice", namespace="default")
     s2 = MemoryScope(namespace="default", user_id="alice")
     assert canonical_scope_key(s1) == canonical_scope_key(s2)
 
 
-def test_memory_text_hash_differs_on_text_or_scope_change():
+def test_memory_text_hash_differs_on_text_or_scope_change() -> None:
     s = MemoryScope(user_id="alice")
     h1 = memory_text_hash("hello", s)
     h2 = memory_text_hash("hello", MemoryScope(user_id="bob"))
