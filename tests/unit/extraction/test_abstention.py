@@ -15,8 +15,9 @@ FIXTURE_DIR = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "extr
 AGENT_LOOP_KINDS = {"preference", "decision", "commitment", "instruction", "issue"}
 
 
-def _load(name: str) -> dict[str, list[str]]:
-    return json.loads((FIXTURE_DIR / name).read_text(encoding="utf-8"))
+def _load(name: str) -> dict[str, object]:
+    result: dict[str, object] = json.loads((FIXTURE_DIR / name).read_text(encoding="utf-8"))
+    return result
 
 
 @pytest.mark.parametrize(
@@ -31,8 +32,11 @@ def _load(name: str) -> dict[str, list[str]]:
 )
 def test_abstention_samples_never_produce_agent_loop_kinds(fixture_name: str) -> None:
     fixture = _load(fixture_name)
+    abstention_samples = fixture["abstention"]
+    assert isinstance(abstention_samples, list)
     stele = Stele(StashConfig())
-    for text in fixture["abstention"]:
+    for text in abstention_samples:
+        assert isinstance(text, str)
         report = stele.extract.from_text(
             text=text,
             source_refs=["stele://default/abc"],
@@ -54,8 +58,12 @@ def test_positive_samples_produce_expected_kind() -> None:
     ):
         fixture = _load(fixture_name)
         expected = fixture["expected_kind"]
+        assert isinstance(expected, str)
+        positive_samples = fixture["positive"]
+        assert isinstance(positive_samples, list)
         stele = Stele(StashConfig())
-        for text in fixture["positive"]:
+        for text in positive_samples:
+            assert isinstance(text, str)
             report = stele.extract.from_text(
                 text=text,
                 source_refs=["stele://default/abc"],

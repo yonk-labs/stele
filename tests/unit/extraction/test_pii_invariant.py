@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from stele import Stele
+from stele import Stele  # noqa: E402
 from stele.core.config import StashConfig
 from stele.core.memory_record import MemoryQuery, MemoryScope
 from stele.pii.regex import RegexPIIScrubber
-
 
 PII_INPUT = (
     "Contact alice@example.com or call 415-555-0199 for migration questions. "

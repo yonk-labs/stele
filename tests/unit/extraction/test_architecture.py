@@ -32,9 +32,8 @@ def _imports(path: Path) -> set[str]:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 names.add(alias.name)
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                names.add(node.module)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            names.add(node.module)
     return names
 
 
