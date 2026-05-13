@@ -105,3 +105,33 @@ def test_from_artifact_raises_for_missing_id() -> None:
             scope=MemoryScope(user_id="alice"),
         )
     stele.close()
+
+
+def test_from_messages_auto_stashes_and_extracts() -> None:
+    stele = _make_stele()
+    report = stele.extract.from_messages(
+        messages=[
+            {"role": "user", "content": "I prefer dark mode."},
+            {"role": "assistant", "content": "Got it. Anything else?"},
+        ],
+        scope=MemoryScope(user_id="alice"),
+    )
+    assert len(report.source_refs) == 1
+    assert report.source_refs[0].startswith("stele://")
+    # The stashed artifact must be retrievable.
+    ref = report.source_refs[0]
+    fetched = stele.fetch(ref)
+    assert "dark mode" in str(fetched.content)
+    stele.close()
+
+
+def test_from_messages_empty_list_returns_empty_report() -> None:
+    stele = _make_stele()
+    report = stele.extract.from_messages(
+        messages=[],
+        scope=MemoryScope(user_id="alice"),
+    )
+    assert report.candidates == []
+    assert report.accepted == []
+    # source_refs may be [] when nothing was stashed.
+    stele.close()
