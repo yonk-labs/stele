@@ -196,3 +196,18 @@ def test_extract_raises_capability_error_when_disabled() -> None:
             scope=MemoryScope(user_id="alice"),
         )
     stele.close()
+
+
+def test_accepted_memories_carry_config_fingerprint() -> None:
+    stele = _make_stele()
+    report = stele.extract.from_text(
+        text="I prefer dark mode.",
+        source_refs=["stele://default/abc"],
+        scope=MemoryScope(user_id="alice"),
+    )
+    assert report.accepted
+    for accepted in report.accepted:
+        stored = stele.memory.get(accepted.stored_id)
+        assert stored is not None
+        assert stored.metadata.get("extraction_config") == report.config_fingerprint
+    stele.close()
