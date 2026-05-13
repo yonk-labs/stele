@@ -1,0 +1,18 @@
+SC-001 → tests/unit/extraction/test_models.py
+SC-002 → tests/unit/extraction/test_candidates.py::test_extract_candidates_returns_memory_candidates + test_architecture.py
+SC-003 → tests/unit/extraction/test_candidates.py::test_extract_candidates_deterministic
+SC-004 → tests/unit/extraction/test_classifier.py::test_type_based_defaults
+SC-005 → tests/unit/extraction/test_classifier.py::test_overlay_wins_when_pattern_matches_with_higher_weight + test_overlay_tie_break_by_declaration_order
+SC-006 → tests/unit/extraction/test_classifier.py::test_overlay_disabled_falls_back_to_type_based + test_candidates.py::test_extract_candidates_overlay_disabled_means_no_overrides
+SC-007 → tests/unit/extraction/test_patterns.py + test_abstention.py::test_positive_samples_produce_expected_kind
+SC-008 → tests/unit/extraction/test_extractor.py::test_from_artifact_derives_source_refs
+SC-009 → tests/unit/extraction/test_extractor.py::test_from_messages_auto_stashes_and_extracts
+SC-010 → tests/unit/extraction/test_extractor.py::test_from_text_rejects_empty_source_refs + test_from_text_rejects_non_stele_refs
+SC-011 → tests/unit/extraction/test_extractor.py::test_duplicate_candidate_appears_in_rejected
+SC-012 → tests/unit/extraction/test_abstention.py::test_abstention_samples_never_produce_agent_loop_kinds + test_extractor.py::test_from_text_empty_text_returns_empty_accepted
+SC-013 → tests/contract/test_extraction_contract.py + test_architecture.py
+SC-014 → tests/unit/extraction/test_pii_invariant.py (all 4 tests)
+SC-015 → tests/contract/test_extraction_contract.py::test_extraction_contract_basic_flow (parametrized)
+SC-016 → tests/unit/extraction/test_extractor.py::test_extract_raises_capability_error_when_disabled
+SC-017 → tests/unit/extraction/test_extractor.py::test_accepted_memories_carry_config_fingerprint
+SC-018 → tests/unit/extraction/test_extractor.py::test_lede_failure_raises_steleerror_no_partial_commits
