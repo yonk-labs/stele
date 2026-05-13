@@ -333,7 +333,7 @@ class Stele:
                 memory_db = str(Path(path).with_name("memory_" + Path(path).name))
                 store = SQLiteMemoryStore(memory_db)
             elif self.config.backend.type == "postgres":
-                from stele.storage.memory_store.postgres import (  # type: ignore[import-not-found]
+                from stele.storage.memory_store.postgres import (
                     PostgresMemoryStore,
                 )
 
@@ -341,13 +341,13 @@ class Stele:
                     raise ConfigError("Postgres memory store requires backend.dsn")
                 store = PostgresMemoryStore(self.config.backend.dsn)
             elif self.config.backend.type == "mariadb":
-                from stele.storage.memory_store.mariadb import (  # type: ignore[import-not-found]
+                from stele.storage.memory_store.mariadb import (
                     MariaDBMemoryStore,
                 )
 
                 store = MariaDBMemoryStore()
             elif self.config.backend.type == "clickhouse":
-                from stele.storage.memory_store.clickhouse import (  # type: ignore[import-not-found]
+                from stele.storage.memory_store.clickhouse import (
                     ClickHouseMemoryStore,
                 )
 
@@ -356,7 +356,7 @@ class Stele:
                 raise ConfigError(
                     f"Memory store not implemented for backend: {self.config.backend.type}"
                 )
-            store.initialize()  # type: ignore[attr-defined]
+            store.initialize()
             self._memory = Memory(store, self.pii_scrubber)  # type: ignore[arg-type]
         return self._memory
 
