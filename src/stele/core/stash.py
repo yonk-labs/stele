@@ -311,6 +311,9 @@ class Stele:
         )
 
     def close(self) -> None:
+        memory = getattr(self, "_memory", None)
+        if memory is not None:
+            memory.close()
         self.storage.close()
 
     @property

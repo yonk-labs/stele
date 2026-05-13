@@ -42,12 +42,14 @@ class Memory:
     ) -> MemoryAddResult:
         scrubbed = self._scrubber.scrub(text)
         now = datetime.now(UTC)
+        supersedes_ids = supersedes or []
         record = MemoryRecord(
             id=uuid.uuid4().hex,
             text=scrubbed.text,
             kind=kind,
             scope=scope,
             source_refs=source_refs,
+            supersedes=supersedes_ids,
             confidence=confidence,
             created_at=now,
             updated_at=now,
@@ -58,7 +60,7 @@ class Memory:
         dup_id = self._store.find_duplicate(
             scope, memory_text_hash(record.text, scope)
         )
-        stored, superseded_ids = self._store.add(record, supersedes or [])
+        stored, superseded_ids = self._store.add(record, supersedes_ids)
         return MemoryAddResult(
             record=stored,
             duplicate_of=dup_id,
@@ -101,3 +103,6 @@ class Memory:
 
     def delete(self, memory_id: str) -> None:
         self._store.soft_delete(memory_id)
+
+    def close(self) -> None:
+        self._store.close()
