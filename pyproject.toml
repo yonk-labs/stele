@@ -80,6 +80,7 @@ packages = ["stele"]
 module = [
   "yaml",
   "lede",
+  "lede.*",
   "pymysql",
   "pymysql.cursors",
   "clickhouse_connect",
