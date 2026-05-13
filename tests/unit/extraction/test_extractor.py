@@ -135,3 +135,20 @@ def test_from_messages_empty_list_returns_empty_report() -> None:
     assert report.accepted == []
     # source_refs may be [] when nothing was stashed.
     stele.close()
+
+
+def test_below_threshold_candidates_appear_in_rejected() -> None:
+    from stele.core.config import StashConfig
+
+    # Set min_confidence very high so all candidates fall below.
+    cfg = StashConfig.load({"extraction": {"min_confidence": 0.99}})
+    stele = Stele(cfg)
+    report = stele.extract.from_text(
+        text="The capital of France is Paris.",
+        source_refs=["stele://default/abc"],
+        scope=MemoryScope(user_id="alice"),
+    )
+    assert report.accepted == []
+    assert report.rejected
+    assert all(r.reason == "below_threshold" for r in report.rejected)
+    stele.close()
