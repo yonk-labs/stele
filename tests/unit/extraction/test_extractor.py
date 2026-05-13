@@ -76,3 +76,32 @@ def test_from_text_accepted_have_stored_ids() -> None:
         assert stored is not None
         assert stored.text == accepted.candidate.text
     stele.close()
+
+
+def test_from_artifact_derives_source_refs() -> None:
+    stele = _make_stele()
+    stored = stele.store(
+        "I prefer dark mode. Q1 revenue grew 12%.",
+        namespace="default",
+    )
+    report = stele.extract.from_artifact(
+        artifact_id=stored.artifact_id,
+        scope=MemoryScope(user_id="alice"),
+    )
+    # FetchResult.reference is the full stele:// URI; derived source_ref
+    # equals the StoredResult.reference for the same artifact.
+    assert report.source_refs == [stored.reference]
+    assert report.stats.candidate_count >= 1
+    stele.close()
+
+
+def test_from_artifact_raises_for_missing_id() -> None:
+    from stele.core.exceptions import ArtifactNotFound
+
+    stele = _make_stele()
+    with pytest.raises(ArtifactNotFound):
+        stele.extract.from_artifact(
+            artifact_id="nonexistent_id",
+            scope=MemoryScope(user_id="alice"),
+        )
+    stele.close()
