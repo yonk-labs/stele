@@ -176,3 +176,23 @@ def test_duplicate_candidate_appears_in_rejected() -> None:
     for dup in duplicates:
         assert dup.duplicate_of is not None
     stele.close()
+
+
+def test_extract_raises_capability_error_when_disabled() -> None:
+    from stele.core.config import StashConfig
+    from stele.core.exceptions import CapabilityError
+
+    cfg = StashConfig.load({"extraction": {"enabled": False}})
+    stele = Stele(cfg)
+    with pytest.raises(CapabilityError, match="disabled"):
+        stele.extract.from_text(
+            text="anything",
+            source_refs=["stele://default/abc"],
+            scope=MemoryScope(user_id="alice"),
+        )
+    with pytest.raises(CapabilityError, match="disabled"):
+        stele.extract.from_messages(
+            messages=[{"role": "user", "content": "x"}],
+            scope=MemoryScope(user_id="alice"),
+        )
+    stele.close()
