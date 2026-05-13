@@ -70,13 +70,12 @@ class InProcessMemoryStore:
                 continue
             if not _is_valid_at(r, as_of):
                 continue
-            if not query.include_superseded:
-                # Include only records that were active-at-as_of:
-                # either currently active, or superseded after as_of.
-                if r.status == "superseded" and (
-                    r.effective_until is None or r.effective_until <= as_of
-                ):
-                    continue
+            if (
+                not query.include_superseded
+                and r.status == "superseded"
+                and (r.effective_until is None or r.effective_until <= as_of)
+            ):
+                continue
             if q_lower not in r.text.lower():
                 continue
             results.append(r)
