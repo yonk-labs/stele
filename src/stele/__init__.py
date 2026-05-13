@@ -32,8 +32,16 @@ from stele.core.memory_record import (
     MemoryScope,
 )
 from stele.core.stash import Stele
+from stele.extraction.models import (
+    AcceptedCandidate,
+    ExtractionReport,
+    ExtractionStats,
+    MemoryCandidate,
+    RejectedCandidate,
+)
 
 __all__ = [
+    "AcceptedCandidate",
     "Artifact",
     "ArtifactNotFound",
     "ArtifactRecord",
@@ -42,13 +50,17 @@ __all__ = [
     "CleanupResult",
     "ConfigError",
     "ExportResult",
+    "ExtractionReport",
+    "ExtractionStats",
     "FetchResult",
     "ImportResult",
     "Memory",
     "MemoryAddResult",
+    "MemoryCandidate",
     "MemoryQuery",
     "MemoryRecord",
     "MemoryScope",
+    "RejectedCandidate",
     "Stele",
     "SteleError",
     "OptionalDependencyError",
