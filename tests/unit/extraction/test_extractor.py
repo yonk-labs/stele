@@ -152,3 +152,27 @@ def test_below_threshold_candidates_appear_in_rejected() -> None:
     assert report.rejected
     assert all(r.reason == "below_threshold" for r in report.rejected)
     stele.close()
+
+
+def test_duplicate_candidate_appears_in_rejected() -> None:
+    stele = _make_stele()
+    text = "I prefer dark mode."
+    report_a = stele.extract.from_text(
+        text=text,
+        source_refs=["stele://default/abc"],
+        scope=MemoryScope(user_id="alice"),
+    )
+    # First run should accept the preference.
+    assert any(a.candidate.kind == "preference" for a in report_a.accepted)
+
+    # Second run on identical text → duplicate detection fires.
+    report_b = stele.extract.from_text(
+        text=text,
+        source_refs=["stele://default/abc"],
+        scope=MemoryScope(user_id="alice"),
+    )
+    duplicates = [r for r in report_b.rejected if r.reason == "duplicate"]
+    assert duplicates, "expected at least one duplicate rejection on re-run"
+    for dup in duplicates:
+        assert dup.duplicate_of is not None
+    stele.close()
