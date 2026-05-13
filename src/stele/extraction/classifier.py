@@ -47,10 +47,21 @@ def classify_kind(
             classifier_path="type_based",
             pattern_match=None,
         )
-    # Overlay layer arrives in Task 5; for now, stub to type-based.
+
+    from stele.extraction.patterns import match_first_kind
+
+    pack = match_first_kind(text)
+    if pack is None or pack.kind_weight <= default_confidence:
+        return ClassifierOutput(
+            kind=default_kind,
+            confidence=default_confidence,
+            classifier_path="type_based",
+            pattern_match=None,
+        )
+
     return ClassifierOutput(
-        kind=default_kind,
-        confidence=default_confidence,
-        classifier_path="type_based",
-        pattern_match=None,
+        kind=pack.kind,
+        confidence=pack.kind_weight,
+        classifier_path="pattern_overlay",
+        pattern_match=pack.kind,
     )
