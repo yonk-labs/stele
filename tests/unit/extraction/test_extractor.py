@@ -211,3 +211,24 @@ def test_accepted_memories_carry_config_fingerprint() -> None:
         assert stored is not None
         assert stored.metadata.get("extraction_config") == report.config_fingerprint
     stele.close()
+
+
+def test_lede_failure_raises_steleerror_no_partial_commits(monkeypatch: pytest.MonkeyPatch) -> None:
+    from stele.core.exceptions import SteleError
+
+    def _boom(text: str, *_: object, **__: object) -> object:
+        raise RuntimeError("simulated lede failure")
+
+    monkeypatch.setattr("lede.extract.key_facts", _boom)
+
+    stele = _make_stele()
+    pre_count = len(stele.memory.list(scope=MemoryScope(user_id="alice")))
+    with pytest.raises(SteleError, match="Extraction failed"):
+        stele.extract.from_text(
+            text="I prefer dark mode.",
+            source_refs=["stele://default/abc"],
+            scope=MemoryScope(user_id="alice"),
+        )
+    post_count = len(stele.memory.list(scope=MemoryScope(user_id="alice")))
+    assert pre_count == post_count, "no memory rows should be stored after a lede failure"
+    stele.close()
