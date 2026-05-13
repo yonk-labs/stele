@@ -2,6 +2,64 @@
 
 Date: 2026-05-12
 
+## Active Phase 1 Pause
+
+Stele Phase 1 memory supersession work is paused after Task 9 review.
+
+Source of truth:
+
+- Mission brief: `skill-output/mission-brief/Mission-Brief-stele-memory-supersession-slice.md`
+- Plan: `docs/superpowers/plans/2026-05-12-phase1-memory-supersession.md`
+
+Completed Phase 1 tasks:
+
+| Task | Commit |
+| --- | --- |
+| 0. git init + baseline | `2da73f5` |
+| 1. ValidationError | `33d89ef` |
+| 2. MemoryRecord model + tests | `78a220a` |
+| 3. MemoryStore Protocol | `4604a01` |
+| 4. InProcessMemoryStore | `3808b0d` |
+| 5. SQLite schema + DC-001 | `7116223` |
+| 6. SQLite add/get/find_duplicate | `bc5c772` |
+| 7. SQLite search with as_of | `023564f` |
+| 8. SQLite list/update_metadata/soft_delete | `a754004` |
+| 9. Memory facade + Stele.memory | `4d9eb91`, review fix `c8d8430` |
+
+Task 9 review outcome:
+
+- Approved after fixing persisted `supersedes` links on new records.
+- Approved after wiring initialized memory stores into `Stele.close()`.
+- Future backend lazy import ignores in `src/stele/core/stash.py` remain intentional until Tasks 13 and 14 add the modules/stubs.
+
+Latest Phase 1 verification:
+
+- `.venv/bin/pytest tests/unit/core/test_memory_facade.py -v`: 6 passed
+- `.venv/bin/ruff check src/stele/core/memory.py src/stele/core/stash.py tests/unit/core/test_memory_facade.py`: passed
+- `.venv/bin/mypy src/stele`: passed
+- `.venv/bin/pytest`: 78 passed
+
+Pending Phase 1 tasks:
+
+1. Task 10: Update text-rejection test (SC-004)
+2. Task 11: Duplicate-detection facade test (SC-006)
+3. Task 12: PII scrub test (SC-009)
+4. Task 13: Postgres MemoryStore
+5. Task 14: MariaDB + ClickHouse stubs
+6. Task 15: Contract test + DC-002
+7. Task 16: Architecture layering test (SC-011)
+8. Task 17: source_refs validation test (SC-010)
+9. Task 18: Demo script
+10. Task 19: Longrun SUPERSESSION_ENABLED + DC-003
+11. Task 20: Full repo ruff + mypy + pytest
+12. Task 21: DC-FINAL coverage check
+
+Remaining drift checkpoints:
+
+- DC-002 after Task 15
+- DC-003 after Task 19
+- DC-FINAL during Task 21
+
 ## Summary
 
 `stele` is now a functional clean-room baseline with exact artifact
