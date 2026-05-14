@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from stele.core.exceptions import ConfigError
 from stele.core.types import FailureMode, RetrievalMode
@@ -59,6 +59,41 @@ class SigningConfig(BaseModel):
     default_ttl_seconds: int | None = None
 
 
+StrategyName = Literal[
+    "summary_only",
+    "memory_search",
+    "artifact_search",
+    "graph_search",
+    "adaptive",
+    "raw_fetch",
+    "abstain",
+]
+
+
+class RecallConfig(BaseModel):
+    enabled: bool = True
+    default_strategy: StrategyName = "adaptive"
+    confidence_floor: float = Field(default=0.4, ge=0.0, le=1.0)
+    max_memory_hits: int = Field(default=5, ge=1)
+    max_artifact_hits: int = Field(default=5, ge=1)
+    max_context_chars: int = Field(default=16_000, ge=256)
+    adaptive_tier_order: list[StrategyName] = Field(
+        default_factory=lambda: cast(
+            list[StrategyName],
+            ["memory_search", "artifact_search", "raw_fetch", "abstain"],
+        )
+    )
+    adaptive_skip_raw_fetch_without_artifact_id: bool = True
+    abstain_default_reason: str = "no_sufficient_context"
+
+    @field_validator("adaptive_tier_order")
+    @classmethod
+    def _abstain_last(cls, v: list[str]) -> list[str]:
+        if not v or v[-1] != "abstain":
+            raise ValueError("adaptive_tier_order must end with 'abstain'")
+        return v
+
+
 class ExtractionConfig(BaseModel):
     enabled: bool = True
     min_confidence: float = 0.6
@@ -85,6 +120,7 @@ class StashConfig(BaseModel):
     indexing: IndexingConfig = Field(default_factory=IndexingConfig)
     signing: SigningConfig = Field(default_factory=SigningConfig)
     extraction: ExtractionConfig = Field(default_factory=ExtractionConfig)
+    recall: RecallConfig = Field(default_factory=RecallConfig)
 
     @classmethod
     def load(cls, value: StashConfig | dict[str, Any] | str | Path | None) -> StashConfig:
