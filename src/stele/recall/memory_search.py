@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from stele.core.artifact import estimate_tokens
+from stele.core.reference import make_reference
 from stele.recall.base import _RecallDeps
 from stele.recall.models import (
     Citation,
@@ -20,7 +21,10 @@ class MemorySearchStrategy:
     def execute(self, request: RecallRequest, deps: _RecallDeps) -> RecallResult:
         source_ref_filter = None
         if request.artifact_id is not None:
-            fetched = deps.stele.fetch(request.artifact_id)
+            ref = make_reference(
+                request.scope.namespace, request.artifact_id
+            ).canonical_without_params
+            fetched = deps.stele.fetch(ref)
             source_ref_filter = fetched.reference
 
         hits = deps.memory.search_with_score(

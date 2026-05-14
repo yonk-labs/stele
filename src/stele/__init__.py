@@ -39,10 +39,24 @@ from stele.extraction.models import (
     MemoryCandidate,
     RejectedCandidate,
 )
+from stele.recall.models import (
+    Citation,
+    Escalation,
+    RecallContext,
+    RecallRequest,
+    RecallResult,
+    RecallStats,
+)
 
 __all__ = [
     "AcceptedCandidate",
     "Artifact",
+    "Citation",
+    "Escalation",
+    "RecallContext",
+    "RecallRequest",
+    "RecallResult",
+    "RecallStats",
     "ArtifactNotFound",
     "ArtifactRecord",
     "BackendError",

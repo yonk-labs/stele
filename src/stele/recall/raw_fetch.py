@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from stele.core.artifact import estimate_tokens
 from stele.core.exceptions import ValidationError
+from stele.core.reference import make_reference
 from stele.recall.base import _RecallDeps
 from stele.recall.models import (
     Citation,
@@ -20,7 +21,10 @@ class RawFetchStrategy:
     def execute(self, request: RecallRequest, deps: _RecallDeps) -> RecallResult:
         if request.artifact_id is None:
             raise ValidationError("raw_fetch requires artifact_id")
-        fetched = deps.stele.fetch(request.artifact_id, raw=True)
+        ref = make_reference(
+            request.scope.namespace, request.artifact_id
+        ).canonical_without_params
+        fetched = deps.stele.fetch(ref, raw=True)
         content = (
             fetched.content
             if isinstance(fetched.content, str)
