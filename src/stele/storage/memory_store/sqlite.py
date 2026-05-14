@@ -15,6 +15,7 @@ from stele.core.memory_record import (
     MemoryQuery,
     MemoryRecord,
     MemoryScope,
+    ScoredMemoryHit,
     memory_text_hash,
 )
 
@@ -246,6 +247,53 @@ class SQLiteMemoryStore:
         params.append(query.limit)
         cur = self.conn.execute(" ".join(sql), params)
         return [_row_to_record(dict(row)) for row in cur.fetchall()]
+
+    def search_with_score(
+        self,
+        query: str,
+        scope: MemoryScope,
+        *,
+        limit: int = 5,
+        source_ref_filter: str | None = None,
+    ) -> list[ScoredMemoryHit]:
+        if not query.strip():
+            return []
+        params: list[object] = [
+            query,
+            scope.user_id, scope.agent_id, scope.app_id, scope.session_id, scope.namespace,
+        ]
+        source_ref_sql = ""
+        if source_ref_filter is not None:
+            source_ref_sql = (
+                " AND EXISTS ("
+                "  SELECT 1 FROM json_each(m.source_refs) j WHERE j.value = ?"
+                ")"
+            )
+            params.append(source_ref_filter)
+        params.append(limit)
+
+        sql = f"""
+            SELECT m.id, -bm25(memories_fts) AS raw_score
+            FROM memories_fts JOIN memories m ON memories_fts.rowid = m.rowid
+            WHERE memories_fts MATCH ?
+              AND m.status = 'active'
+              AND m.user_id IS ? AND m.agent_id IS ? AND m.app_id IS ?
+              AND m.session_id IS ? AND m.namespace = ?
+              {source_ref_sql}
+            ORDER BY raw_score DESC
+            LIMIT ?
+        """
+        rows = self.conn.execute(sql, params).fetchall()
+        if not rows:
+            return []
+        max_score = max(row["raw_score"] for row in rows) or 1.0
+        records_by_id = {row["id"]: self.get(row["id"]) for row in rows}
+        result: list[ScoredMemoryHit] = []
+        for row in rows:
+            rec = records_by_id[row["id"]]
+            if rec is not None:
+                result.append(ScoredMemoryHit(record=rec, score=row["raw_score"] / max_score))
+        return result
 
     def list(
         self,

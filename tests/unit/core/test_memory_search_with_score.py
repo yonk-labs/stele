@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import pathlib
 from datetime import UTC, datetime
 
 from stele.core.memory_record import MemoryRecord, MemoryScope, ScoredMemoryHit
 from stele.storage.memory_store.memory import InProcessMemoryStore
+from stele.storage.memory_store.sqlite import SQLiteMemoryStore
 
 
 def _record(id_: str, text: str, refs: list[str]) -> MemoryRecord:
@@ -66,3 +68,38 @@ def test_in_process_search_with_score_limit_respected() -> None:
         limit=3,
     )
     assert len(hits) <= 3
+
+
+def _make_sqlite_store(tmp_path: object) -> SQLiteMemoryStore:  # type: ignore[no-untyped-def]
+    return SQLiteMemoryStore(str(pathlib.Path(str(tmp_path)) / "memory.db"))
+
+
+def test_sqlite_search_with_score_keyword_match(tmp_path: object) -> None:  # type: ignore[no-untyped-def]
+    store = _make_sqlite_store(tmp_path)
+    store.initialize()
+    store.add(_record("m1", "user prefers dark mode for the dashboard", ["stele://default/a"]), [])
+    store.add(_record("m2", "user prefers cold brew", ["stele://default/b"]), [])
+
+    hits = store.search_with_score(
+        "dark mode",
+        scope=MemoryScope(user_id="alice"),
+        limit=5,
+    )
+    assert hits
+    assert hits[0].record.id == "m1"
+
+
+def test_sqlite_search_with_score_filters_by_source_ref(tmp_path: object) -> None:  # type: ignore[no-untyped-def]
+    store = _make_sqlite_store(tmp_path)
+    store.initialize()
+    store.add(_record("m1", "dark mode preferred", ["stele://default/a"]), [])
+    store.add(_record("m2", "dark mode preferred", ["stele://default/b"]), [])
+
+    hits = store.search_with_score(
+        "dark",
+        scope=MemoryScope(user_id="alice"),
+        limit=5,
+        source_ref_filter="stele://default/a",
+    )
+    assert len(hits) == 1
+    assert hits[0].record.id == "m1"
