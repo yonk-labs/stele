@@ -489,6 +489,26 @@ def _run_strategy(
     strategy: Strategy,
     answerer: Answerer,
 ) -> AnswerAttempt:
+    """Run a recall strategy, then ask the answerer with the assembled context.
+
+    Phase 3 migration: this function now delegates to `stash.recall(...)`.
+    The mapping from the old benchmark strategy names to the new StrategyName:
+      - summary_only        → "summary_only" (uses replacement summary directly)
+      - search_first        → "artifact_search"
+      - summary_then_search → "adaptive" (truncated to 2 tiers: summary_only synthesized
+                             from `replacement`, then artifact_search)
+      - adaptive            → "adaptive" with all tiers
+      - raw_fetch           → "raw_fetch"
+    """
+    from stele.core.memory_record import MemoryScope
+
+    scope = MemoryScope(namespace="default")
+    artifact_id = reference.rsplit("/", 1)[-1]
+
+    # summary_only and summary_then_search use the benchmark's pre-built `replacement`
+    # string (the artifact's summary at stash time) directly. The Phase 3 strategy
+    # SummaryOnlyStrategy resolves the summary via fetch, which may differ. Use
+    # replacement here for behavior preservation.
     if strategy == "summary_only":
         return _answer_with_context(
             answerer,
@@ -498,17 +518,24 @@ def _run_strategy(
             fetch_calls=0,
             llm_round_trips=1,
         )
+
     if strategy == "search_first":
-        hits = stash.search(reference, scenario.query, limit=3)
-        context = "\n\n".join(hit.text for hit in hits)
+        result = stash.recall(
+            query=scenario.query,
+            scope=scope,
+            strategy="artifact_search",
+            artifact_id=artifact_id,
+            max_artifact_hits=3,
+        )
         return _answer_with_context(
             answerer,
             scenario=scenario,
-            contexts=[("search", context)],
-            search_calls=1,
-            fetch_calls=0,
+            contexts=[("search", result.context)],
+            search_calls=result.stats.artifact_searches,
+            fetch_calls=result.stats.fetches,
             llm_round_trips=1,
         )
+
     if strategy == "summary_then_search":
         first = _answer_with_context(
             answerer,
@@ -520,60 +547,61 @@ def _run_strategy(
         )
         if _answer_is_sufficient(first.answer, scenario.expected_answer):
             return first
-        hits = stash.search(reference, scenario.query, limit=3)
+        result = stash.recall(
+            query=scenario.query,
+            scope=scope,
+            strategy="artifact_search",
+            artifact_id=artifact_id,
+            max_artifact_hits=3,
+        )
         return _answer_with_context(
             answerer,
             scenario=scenario,
-            contexts=[("summary", replacement), ("search", "\n\n".join(hit.text for hit in hits))],
-            search_calls=1,
-            fetch_calls=0,
+            contexts=[("summary", replacement), ("search", result.context)],
+            search_calls=result.stats.artifact_searches,
+            fetch_calls=result.stats.fetches,
             llm_round_trips=2,
         )
+
     if strategy == "adaptive":
-        first = _answer_with_context(
-            answerer,
-            scenario=scenario,
-            contexts=[("summary", replacement)],
-            search_calls=0,
-            fetch_calls=0,
-            llm_round_trips=1,
+        # Phase 3 adaptive uses hit-count + confidence floor — no oracle.
+        # Cost ceiling here matches the old behavior: cap at 3 LLM round trips.
+        result = stash.recall(
+            query=scenario.query,
+            scope=scope,
+            strategy="adaptive",
+            artifact_id=artifact_id,
         )
-        if _answer_is_sufficient(first.answer, scenario.expected_answer):
-            return first
-        hits = stash.search(reference, scenario.query, limit=3)
-        second = _answer_with_context(
-            answerer,
-            scenario=scenario,
-            contexts=[("summary", replacement), ("search", "\n\n".join(hit.text for hit in hits))],
-            search_calls=1,
-            fetch_calls=0,
-            llm_round_trips=2,
-        )
-        if _answer_is_sufficient(second.answer, scenario.expected_answer):
-            return second
-        fetched = stash.fetch(reference, raw=True)
+        # The benchmark previously did up to 3 LLM calls inside adaptive
+        # (summary, summary+search, summary+search+raw). Phase 3's adaptive
+        # never calls an LLM; we issue one final answerer call with the
+        # accumulated context for benchmark behavior parity.
         return _answer_with_context(
             answerer,
             scenario=scenario,
-            contexts=[
-                ("summary", replacement),
-                ("search", "\n\n".join(hit.text for hit in hits)),
-                ("raw", str(fetched.content)),
-            ],
-            search_calls=1,
-            fetch_calls=1,
-            llm_round_trips=3,
+            contexts=[("summary", replacement), ("recall", result.context)],
+            search_calls=result.stats.artifact_searches,
+            fetch_calls=result.stats.fetches,
+            llm_round_trips=1,
         )
+
     if strategy == "raw_fetch":
-        fetched = stash.fetch(reference, raw=True)
+        # Preserve the old benchmark behavior: pii.raw_fetch_enabled must be on.
+        result = stash.recall(
+            query=scenario.query,
+            scope=scope,
+            strategy="raw_fetch",
+            artifact_id=artifact_id,
+        )
         return _answer_with_context(
             answerer,
             scenario=scenario,
-            contexts=[("summary", replacement), ("raw", str(fetched.content))],
+            contexts=[("summary", replacement), ("raw", result.context)],
             search_calls=0,
-            fetch_calls=1,
+            fetch_calls=result.stats.fetches,
             llm_round_trips=1,
         )
+
     raise ValueError(f"Unknown strategy: {strategy}")
 
 
