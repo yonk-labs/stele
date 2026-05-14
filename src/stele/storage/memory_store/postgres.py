@@ -13,6 +13,7 @@ from stele.core.memory_record import (
     MemoryQuery,
     MemoryRecord,
     MemoryScope,
+    ScoredMemoryHit,
     memory_text_hash,
 )
 
@@ -180,6 +181,58 @@ class PostgresMemoryStore:
             cur.execute(" ".join(sql), params)
             rows = cur.fetchall()
         return [_to_record(r) for r in rows]
+
+    def search_with_score(
+        self,
+        query: str,
+        scope: MemoryScope,
+        *,
+        limit: int = 5,
+        source_ref_filter: str | None = None,
+    ) -> list[ScoredMemoryHit]:
+        if not query.strip():
+            return []
+        sql_parts = [
+            "SELECT id, ts_rank_cd(search_tsv, plainto_tsquery('english', %s)) AS raw_score",
+            "FROM memories",
+            "WHERE search_tsv @@ plainto_tsquery('english', %s)",
+            "  AND status = 'active'",
+            "  AND user_id IS NOT DISTINCT FROM %s",
+            "  AND agent_id IS NOT DISTINCT FROM %s",
+            "  AND app_id IS NOT DISTINCT FROM %s",
+            "  AND session_id IS NOT DISTINCT FROM %s",
+            "  AND namespace = %s",
+        ]
+        params: list[object] = [
+            query, query,
+            scope.user_id, scope.agent_id, scope.app_id, scope.session_id, scope.namespace,
+        ]
+        if source_ref_filter is not None:
+            sql_parts.append(
+                "  AND EXISTS ("
+                "    SELECT 1 FROM jsonb_array_elements_text(source_refs) elem"
+                "    WHERE elem = %s"
+                "  )"
+            )
+            params.append(source_ref_filter)
+        sql_parts.append("ORDER BY raw_score DESC")
+        sql_parts.append("LIMIT %s")
+        params.append(limit)
+        sql = "\n".join(sql_parts)
+
+        with self.conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+        if not rows:
+            return []
+        max_score = max(row["raw_score"] for row in rows) or 1.0
+        records_by_id = {row["id"]: self.get(row["id"]) for row in rows}
+        result: list[ScoredMemoryHit] = []
+        for row in rows:
+            rec = records_by_id[row["id"]]
+            if rec is not None:
+                result.append(ScoredMemoryHit(record=rec, score=row["raw_score"] / max_score))
+        return result
 
     def list(
         self,
