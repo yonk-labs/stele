@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from stele.core.exceptions import CapabilityError
+from stele.core.memory_record import MemoryScope, ScoredMemoryHit
 
 _MSG = (
     "memory support on the ClickHouse backend is not yet implemented; "
@@ -26,3 +27,16 @@ class ClickHouseMemoryStore:
 
             return _raise
         raise AttributeError(name)
+
+    def search_with_score(
+        self,
+        query: str,
+        scope: MemoryScope,
+        *,
+        limit: int = 5,
+        source_ref_filter: str | None = None,
+    ) -> list[ScoredMemoryHit]:
+        del query, scope, limit, source_ref_filter
+        raise CapabilityError(
+            "memory.search_with_score is not implemented for the ClickHouse backend"
+        )
