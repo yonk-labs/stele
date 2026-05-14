@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 from typing import Protocol
 
 from stele.core.memory_record import (
@@ -9,6 +10,7 @@ from stele.core.memory_record import (
     MemoryRecord,
     MemoryScope,
     MemoryStatus,
+    ScoredMemoryHit,
 )
 
 
@@ -50,6 +52,21 @@ class MemoryStore(Protocol):
         text_hash: str,
     ) -> str | None:
         """Return existing memory_id with matching (scope, text_hash) or None."""
+        ...
+
+    def search_with_score(
+        self,
+        query: str,
+        scope: MemoryScope,
+        *,
+        limit: int = 5,
+        source_ref_filter: str | None = None,
+    ) -> builtins.list[ScoredMemoryHit]:
+        """Like search, but returns hits with normalized score in [0, 1].
+
+        source_ref_filter: when set, hits are filtered (in the backend) to
+        memories whose source_refs include this URI. None = no filter.
+        """
         ...
 
     def close(self) -> None: ...
