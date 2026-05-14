@@ -190,6 +190,19 @@ class MemoryExtractor:
             source_refs=source_refs,
         )
 
+    def preview(
+        self,
+        *,
+        text: str,
+        source_refs: list[str],
+        scope: MemoryScope,
+    ) -> list[MemoryCandidate]:
+        """Run extraction's pure core without storing. Used by Phase 3 policy engine."""
+        self._check_enabled()
+        _validate_source_refs(source_refs)
+        del scope  # not consumed by the pure core; accepted for symmetry
+        return self._run_pure_core(text=text, source_refs=source_refs)
+
     # ----- internals shared by all three entry points -----
 
     def _commit_candidates(

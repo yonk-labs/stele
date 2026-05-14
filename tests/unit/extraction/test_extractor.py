@@ -232,3 +232,18 @@ def test_lede_failure_raises_steleerror_no_partial_commits(monkeypatch: pytest.M
     post_count = len(stele.memory.list(scope=MemoryScope(user_id="alice")))
     assert pre_count == post_count, "no memory rows should be stored after a lede failure"
     stele.close()
+
+
+def test_preview_returns_candidates_without_storing() -> None:
+    stele = _make_stele()
+    pre_count = len(stele.memory.list(scope=MemoryScope(user_id="alice")))
+    candidates = stele.extract.preview(
+        text="I prefer dark mode.",
+        source_refs=["stele://default/abc"],
+        scope=MemoryScope(user_id="alice"),
+    )
+    assert isinstance(candidates, list)
+    assert candidates
+    post_count = len(stele.memory.list(scope=MemoryScope(user_id="alice")))
+    assert pre_count == post_count, "preview must not store"
+    stele.close()
