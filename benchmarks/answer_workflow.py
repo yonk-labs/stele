@@ -501,9 +501,11 @@ def _run_strategy(
       - raw_fetch           → "raw_fetch"
     """
     from stele.core.memory_record import MemoryScope
+    from stele.core.reference import parse_reference
 
-    scope = MemoryScope(namespace="default")
-    artifact_id = reference.rsplit("/", 1)[-1]
+    ref_parsed = parse_reference(reference)
+    scope = MemoryScope(namespace=ref_parsed.namespace)
+    artifact_id = ref_parsed.artifact_id
 
     # summary_only and summary_then_search use the benchmark's pre-built `replacement`
     # string (the artifact's summary at stash time) directly. The Phase 3 strategy
