@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 from datetime import UTC, datetime
 
 from stele.core.exceptions import ArtifactNotFound
@@ -10,6 +11,7 @@ from stele.core.memory_record import (
     MemoryRecord,
     MemoryScope,
     MemoryStatus,
+    ScoredMemoryHit,
     canonical_scope_key,
     memory_text_hash,
 )
@@ -140,6 +142,38 @@ class InProcessMemoryStore:
             if memory_text_hash(r.text, r.scope) == text_hash:
                 return r.id
         return None
+
+    def search_with_score(
+        self,
+        query: str,
+        scope: MemoryScope,
+        *,
+        limit: int = 5,
+        source_ref_filter: str | None = None,
+    ) -> builtins.list[ScoredMemoryHit]:
+        terms = [t for t in query.lower().split() if t]
+        if not terms:
+            return []
+        candidates: list[tuple[MemoryRecord, int]] = []
+        for record in self._records.values():
+            if record.scope != scope:
+                continue
+            if record.status != "active":
+                continue
+            if source_ref_filter is not None and source_ref_filter not in record.source_refs:
+                continue
+            text_lower = record.text.lower()
+            score = sum(text_lower.count(t) for t in terms)
+            if score > 0:
+                candidates.append((record, score))
+        candidates.sort(key=lambda pair: pair[1], reverse=True)
+        top = candidates[:limit]
+        if not top:
+            return []
+        max_score = max(s for _, s in top) or 1
+        return [
+            ScoredMemoryHit(record=rec, score=raw / max_score) for rec, raw in top
+        ]
 
     def close(self) -> None:
         return None
