@@ -100,3 +100,24 @@ def test_stele_close_closes_initialized_memory_store(stele: Stele) -> None:
             source_refs=["stele://default/b"],
             scope=MemoryScope(user_id="alice"),
         )
+
+
+def test_memory_facade_search_with_score_delegates_to_store() -> None:
+    from stele import Stele
+    from stele.core.config import StashConfig
+    from stele.core.memory_record import MemoryScope, ScoredMemoryHit
+
+    stele = Stele(StashConfig())
+    stele.memory.add(
+        text="user prefers dark mode",
+        kind="preference",
+        source_refs=["stele://default/abc"],
+        scope=MemoryScope(user_id="alice"),
+    )
+    hits = stele.memory.search_with_score(
+        "dark mode",
+        scope=MemoryScope(user_id="alice"),
+    )
+    assert hits
+    assert all(isinstance(h, ScoredMemoryHit) for h in hits)
+    stele.close()

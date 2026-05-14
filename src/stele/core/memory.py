@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import uuid
 from datetime import UTC, datetime
 
@@ -13,6 +14,7 @@ from stele.core.memory_record import (
     MemoryRecord,
     MemoryScope,
     MemoryStatus,
+    ScoredMemoryHit,
     memory_text_hash,
 )
 from stele.pii.regex import RegexPIIScrubber
@@ -103,6 +105,21 @@ class Memory:
 
     def delete(self, memory_id: str) -> None:
         self._store.soft_delete(memory_id)
+
+    def search_with_score(
+        self,
+        query: str,
+        scope: MemoryScope,
+        *,
+        limit: int = 5,
+        source_ref_filter: str | None = None,
+    ) -> builtins.list[ScoredMemoryHit]:
+        return self._store.search_with_score(
+            query,
+            scope,
+            limit=limit,
+            source_ref_filter=source_ref_filter,
+        )
 
     def close(self) -> None:
         self._store.close()
