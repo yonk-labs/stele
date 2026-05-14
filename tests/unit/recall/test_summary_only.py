@@ -8,12 +8,14 @@ from stele import Stele
 from stele.core.config import StashConfig
 from stele.core.exceptions import ValidationError
 from stele.core.memory_record import MemoryScope
-from stele.recall.models import RecallRequest
 
 
 def test_summary_only_returns_artifact_summary() -> None:
     stele = Stele(StashConfig())
-    stored = stele.store(content="The quick brown fox jumps over the lazy dog. " * 30, namespace="default")
+    stored = stele.store(
+        content="The quick brown fox jumps over the lazy dog. " * 30,
+        namespace="default",
+    )
     result = stele.recall.summary_only(
         artifact_id=stored.artifact_id,
         scope=MemoryScope(user_id="alice"),
