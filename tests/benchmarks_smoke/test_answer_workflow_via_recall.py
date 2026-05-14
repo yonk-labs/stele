@@ -12,7 +12,6 @@ from benchmarks.longrun import build_scenarios
 from stele import Stele
 from stele.core.config import StashConfig
 
-
 # Subset the existing scenarios for fast smoke; full run lives in benchmarks/
 SAMPLE_SCENARIO_NAMES = (
     "preference_basic",
