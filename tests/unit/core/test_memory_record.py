@@ -67,3 +67,24 @@ def test_memory_text_hash_differs_on_text_or_scope_change() -> None:
     h3 = memory_text_hash("hi", s)
     assert h1 != h2
     assert h1 != h3
+
+
+def test_scored_memory_hit_field_validation() -> None:
+    from datetime import UTC, datetime
+
+    from stele.core.memory_record import MemoryRecord, MemoryScope, ScoredMemoryHit
+
+    now = datetime.now(UTC)
+    rec = MemoryRecord(
+        id="mem1",
+        text="x",
+        kind="fact",
+        scope=MemoryScope(user_id="alice"),
+        source_refs=["stele://default/abc"],
+        created_at=now,
+        updated_at=now,
+        effective_from=now,
+    )
+    hit = ScoredMemoryHit(record=rec, score=0.7)
+    assert hit.record.id == "mem1"
+    assert hit.score == 0.7

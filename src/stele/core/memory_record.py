@@ -87,6 +87,15 @@ class MemoryAddResult(BaseModel):
     superseded_ids: list[str] = Field(default_factory=list)
 
 
+class ScoredMemoryHit(BaseModel):
+    """A memory record + a normalized retrieval score."""
+
+    model_config = ConfigDict(frozen=True)
+
+    record: MemoryRecord
+    score: float
+
+
 def canonical_scope_key(scope: MemoryScope) -> str:
     """Stable string for scope used in hashing."""
     return json.dumps(scope.model_dump(), sort_keys=True, separators=(",", ":"))
