@@ -76,3 +76,17 @@ def test_in_process_status_pending_before_run() -> None:
         assert immediate.state in {"pending", "running"}
     finally:
         backend.close()
+
+
+def test_redis_task_backend_raises_capability_error() -> None:
+    from stele.indexing.task_backend.redis import RedisTaskBackend
+
+    with pytest.raises(CapabilityError, match="redis"):
+        RedisTaskBackend(dsn="redis://localhost:6379/0")
+
+
+def test_celery_task_backend_raises_capability_error() -> None:
+    from stele.indexing.task_backend.celery import CeleryTaskBackend
+
+    with pytest.raises(CapabilityError, match="celery"):
+        CeleryTaskBackend(dsn="redis://localhost:6379/0")
