@@ -9,7 +9,16 @@ The product answers two questions without conflating them:
 
 When `pg-raggraph` is enabled, Stele's `Revisor` adapter adds the third move: **living knowledge** — newer facts supersede older ones, retracted knowledge can be hidden or flagged, and `as_of` / `version_filter` queries become first-class. Artifacts stay immutable; memories evolve.
 
-The repo is mid-rebuild from a clean-room blueprint. Today's runnable slice is the artifact-storage foundation; sovereign memory extraction, `Revisor`, source connectors, and universal search are the next phases — see the [sovereign memory system plan](docs/sovereign-memory-system-plan.md) for the full path.
+The repo is being rebuilt from a clean-room blueprint, phase by phase. The
+artifact-storage foundation plus the first three sovereign-memory phases are
+shipped: **memory supersession + `as_of`** (Phase 1), **deterministic
+extraction** (Phase 2), and **policy-driven recall** (Phase 3). The `Revisor`
+adapter, vector indexing, source connectors, and universal search are the next
+phases — see the [sovereign memory system plan](docs/sovereign-memory-system-plan.md)
+for the full path and [current status](docs/current-status.md) for what's done.
+
+New here? Start with the [Memory tutorial](docs/tutorial-memory.md) — a
+hands-on walkthrough of store → extract → supersede → recall.
 
 Key planning docs:
 
@@ -23,6 +32,8 @@ Key planning docs:
 
 The current runnable slice includes:
 
+**Artifact storage foundation**
+
 - memory backend exact store/fetch/delete/list
 - SQLite exact storage and FTS retrieval
 - Postgres exact storage and full-text retrieval
@@ -35,6 +46,62 @@ The current runnable slice includes:
 - JSONL export/import for replay, migration, and cross-backend benchmark setup
 - showcase benchmark for prompt-payload reduction, PII leakage, and latency
 - recall benchmark for answer-bearing span retrieval against a direct-context oracle
+
+**Sovereign memory (Phases 1–3)**
+
+- `stele.memory` — scoped memory with supersession (`add(supersedes=[...])`),
+  soft delete, content-hash dedup, and `as_of=<datetime>` time-travel queries
+  on SQLite + Postgres
+- `stele.extract` — deterministic extraction of memories from artifacts,
+  message threads, or raw text (`from_artifact` / `from_messages` /
+  `from_text`); no LLM, no embeddings
+- `stele.recall` — policy-driven context selection with six strategies
+  (`summary_only`, `memory_search`, `artifact_search`, `adaptive`,
+  `raw_fetch`, `abstain`) behind one callable facade
+- every memory cites the `stele://` evidence that produced it; PII scrubbing
+  is inherited end to end and never duplicated
+
+See the [Memory tutorial](docs/tutorial-memory.md) for a runnable walkthrough.
+
+## Sovereign Memory in 30 Seconds
+
+```python
+from stele import Stele
+from stele.core.memory_record import MemoryQuery, MemoryScope
+
+stele = Stele.from_config({"backend": {"type": "sqlite", "path": "stele.db"}})
+scope = MemoryScope(user_id="alice")
+
+# 1. Store an artifact (the evidence)
+stored = stele.store(content="Alice said: I prefer Helix over Vim.")
+
+# 2. Extract durable memories from it — every memory cites the stele:// source
+report = stele.extract.from_artifact(artifact_id=stored.artifact_id, scope=scope)
+print(report.stats)  # ExtractionStats(candidate_count=..., accepted_count=...)
+
+# 3. Later, the world changes — supersede the old preference atomically
+old = stele.memory.search(
+    MemoryQuery(query="editor preference", scope=scope)
+)[0]
+stele.memory.add(
+    text="Alice now prefers Zed.",
+    kind="preference",
+    source_refs=[stored.reference],
+    scope=scope,
+    supersedes=[old.id],
+)
+
+# 4. Recall the right context for an LLM — adaptive escalation, no oracle
+result = stele.recall(query="what editor does Alice prefer?", scope=scope)
+print(result.strategy_used, result.context)
+
+# Time-travel: what did we believe before the change?
+past = stele.memory.search(
+    MemoryQuery(query="editor preference", scope=scope, as_of=old.created_at)
+)
+```
+
+See [docs/tutorial-memory.md](docs/tutorial-memory.md) for the full walkthrough.
 
 ## Showcase Benchmark
 

@@ -50,17 +50,34 @@ Optional driver extras: `pip install 'stele-core[postgres|mariadb|clickhouse|chu
 
 ## Architecture
 
-The public surface is one class: `Stele` in `src/stele/core/stash.py`. It wires together six replaceable subsystems behind a stable contract (`store`, `fetch`, `search`, `query`, `list`, `delete`, `cleanup_expired`, `export_jsonl`, `import_jsonl`, `capabilities`).
+The public surface is one class: `Stele` in `src/stele/core/stash.py`. It wires together replaceable subsystems behind a stable contract (`store`, `fetch`, `search`, `query`, `list`, `delete`, `cleanup_expired`, `export_jsonl`, `import_jsonl`, `capabilities`) plus three lazy facade properties — `Stele.memory`, `Stele.extract`, `Stele.recall` — added by the sovereign-memory phases.
 
 ```
-core/      facade (stash.py), config (Pydantic), artifact + reference models, JSONL, exceptions
+core/      facade (stash.py), config (Pydantic), artifact + reference + memory models, JSONL, exceptions
 storage/   exact byte store per backend: memory, sqlite, postgres, mariadb, clickhouse
+           storage/memory_store/  per-backend MemoryStore (Phase 1): memory, sqlite, postgres + mariadb/clickhouse stubs
 retrieval/ search per backend: memory, sqlite (FTS5), postgres (tsvector), mariadb (FULLTEXT+LIKE), clickhouse
 summary/   deterministic summaries via `lede` adapter
-pii/       regex-based scrubber applied to summaries, fetch output, and search hits
+pii/       regex-based scrubber applied to summaries, fetch output, search hits, and memory text
 indexing/  optional Chunkshop chunk index for targeted span retrieval (sync/async/skip)
 interception/  `stash_tool_result(...)` wrapper that detects oversized tool output and swaps in a reference + summary
+extraction/    Phase 2 — pure `extract_candidates` core + `MemoryExtractor` orchestrator; `Stele.extract`
+recall/        Phase 3 — `Strategy` Protocol + 6 real strategies + adaptive + `Recall` callable facade; `Stele.recall`
 ```
+
+The sovereign-memory subsystems (Phases 1–3) sit on top of the artifact
+foundation and only consume the public facades, never storage internals:
+
+- **`Stele.memory`** (Phase 1) — `add`/`get`/`search`/`list`/`update`/`delete`
+  with supersession (`add(supersedes=[...])`) and `as_of` time-travel on
+  SQLite + Postgres. Backed by `storage/memory_store/`.
+- **`Stele.extract`** (Phase 2) — `from_artifact`/`from_messages`/`from_text`.
+  Pure deterministic core (`extraction/candidates.py`) wrapping `lede`; thin
+  I/O orchestrator commits via `Memory.add`. Never bypasses the memory facade.
+- **`Stele.recall`** (Phase 3) — callable facade routing by `strategy`, plus
+  seven convenience shims. Adaptive escalation is oracle-free (hit-count +
+  confidence floor). `recall/` imports no LLM clients, no `pg_raggraph`, no
+  `chunkshop`, no `lede` — enforced by `tests/unit/recall/test_architecture.py`.
 
 Key invariants to preserve when changing things:
 
@@ -70,11 +87,14 @@ Key invariants to preserve when changing things:
 - **References are opaque, optionally signed.** `core/reference.py` builds `stele://<namespace>/<artifact_id>`; `core/reference_auth.py` validates signatures when `signing.mode` is `optional` or `required`. Never construct references by string concatenation outside these modules.
 - **Chunk index is an optional fast path**, not a replacement for retrieval. `search`/`query` consult the chunk index first when `indexing.provider=chunkshop` and fall back to the backend's native retrieval. Both paths must return package-owned `SearchHit` objects.
 - **Interception is structural, not a hook.** Callers explicitly route tool output through `interception/wrapper.py::stash_tool_result`; thresholds in `interception/thresholds.py` decide whether to swap. If the threshold isn't crossed, the original result is returned unchanged.
+- **Memory evolves, artifacts are immutable.** Memory text is never edited in place — `memory.update()` rejects text changes and redirects to `add(supersedes=[id])`. Artifacts have no evolution columns (Evolution Boundary, guarded by `tests/unit/test_architecture.py`).
+- **Extraction and recall consume facades only.** Phase 2/3 code never reaches into `_store.` or `storage/memory_store/` internals — it goes through `Stele.memory` / `Stele.search` / `Stele.fetch`. PII scrubbing is inherited from those surfaces and never re-applied. Recall is oracle-free and LLM-free; the only place a caller can involve an LLM is the optional `sufficient` callback on adaptive recall.
+- **Every memory cites its evidence.** `memory.add(source_refs=[])` raises `ValidationError`; refs must be `stele://` URIs. Extraction always supplies them (derived for `from_artifact`/`from_messages`, caller-supplied for `from_text`).
 
 ## Testing layout
 
-- `tests/unit/` — pure-Python unit tests for `core`, `pii`, `summary`, `indexing`, `interception`
-- `tests/contract/` — parametrized across `BACKENDS` (memory + sqlite by default; postgres/mariadb/clickhouse added when the matching `*_DSN` env var is set). New backend behavior goes here.
+- `tests/unit/` — pure-Python unit tests for `core`, `pii`, `summary`, `indexing`, `interception`, `extraction`, `recall`
+- `tests/contract/` — parametrized across `BACKENDS` (memory + sqlite by default; postgres/mariadb/clickhouse added when the matching `*_DSN` env var is set). New backend behavior goes here. Memory, extraction, and recall each have their own contract file (`test_memory_contract.py`, `test_extraction_contract.py`, `test_recall_contract.py`).
 - `tests/integration/test_showcase_e2e.py` — drives the showcase benchmark end-to-end against whichever backends are configured.
 - `tests/benchmarks_smoke/` — quick correctness checks for the benchmark scripts themselves, not full runs.
 
