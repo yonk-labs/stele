@@ -70,11 +70,11 @@ def test_in_process_search_with_score_limit_respected() -> None:
     assert len(hits) <= 3
 
 
-def _make_sqlite_store(tmp_path: object) -> SQLiteMemoryStore:  # type: ignore[no-untyped-def]
-    return SQLiteMemoryStore(str(pathlib.Path(str(tmp_path)) / "memory.db"))
+def _make_sqlite_store(tmp_path: pathlib.Path) -> SQLiteMemoryStore:
+    return SQLiteMemoryStore(str(tmp_path / "memory.db"))
 
 
-def test_sqlite_search_with_score_keyword_match(tmp_path: object) -> None:  # type: ignore[no-untyped-def]
+def test_sqlite_search_with_score_keyword_match(tmp_path: pathlib.Path) -> None:
     store = _make_sqlite_store(tmp_path)
     store.initialize()
     store.add(_record("m1", "user prefers dark mode for the dashboard", ["stele://default/a"]), [])
@@ -89,7 +89,7 @@ def test_sqlite_search_with_score_keyword_match(tmp_path: object) -> None:  # ty
     assert hits[0].record.id == "m1"
 
 
-def test_sqlite_search_with_score_filters_by_source_ref(tmp_path: object) -> None:  # type: ignore[no-untyped-def]
+def test_sqlite_search_with_score_filters_by_source_ref(tmp_path: pathlib.Path) -> None:
     store = _make_sqlite_store(tmp_path)
     store.initialize()
     store.add(_record("m1", "dark mode preferred", ["stele://default/a"]), [])

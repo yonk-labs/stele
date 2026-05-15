@@ -1,0 +1,20 @@
+SC-001 → tests/unit/recall/test_models.py
+SC-002 → tests/unit/recall/test_ranking.py
+SC-003 → tests/unit/recall/test_summary_only.py
+SC-004 → tests/unit/recall/test_memory_search.py
+SC-005 → tests/unit/recall/test_artifact_search.py
+SC-006 → tests/unit/recall/test_graph_search.py
+SC-007 → tests/unit/recall/test_raw_fetch.py
+SC-008 → tests/unit/recall/test_abstain.py
+SC-009 → tests/unit/recall/test_adaptive.py
+SC-010 → tests/unit/recall/test_adaptive.py::test_adaptive_stops_at_first_tier_when_above_floor
+SC-011 → tests/unit/recall/test_adaptive.py::test_adaptive_calls_sufficient_callback_when_provided + test_adaptive_stops_when_sufficient_returns_true
+SC-012 → tests/unit/recall/test_adaptive.py::test_adaptive_skips_raw_fetch_without_artifact_id
+SC-013 → tests/unit/recall/test_facade.py::test_canonical_call_equals_adaptive_shim
+SC-014 → tests/unit/recall/test_memory_search.py + test_artifact_search.py + tests/contract/test_recall_contract.py::test_recall_contract_forced_scope
+SC-015 → tests/unit/core/test_memory_search_with_score.py (in-process + sqlite + postgres via contract)
+SC-016 → tests/unit/extraction/test_extractor.py::test_preview_returns_candidates_without_storing
+SC-017 → tests/contract/test_recall_contract.py
+SC-018 → tests/unit/recall/test_facade.py::test_recall_disabled_raises_capability_error
+SC-019 → tests/unit/recall/test_pii_inheritance.py
+SC-020 → tests/benchmarks_smoke/test_answer_workflow_via_recall.py + manual DC-003 comparison
