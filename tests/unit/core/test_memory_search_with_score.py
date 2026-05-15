@@ -103,3 +103,45 @@ def test_sqlite_search_with_score_filters_by_source_ref(tmp_path: pathlib.Path) 
     )
     assert len(hits) == 1
     assert hits[0].record.id == "m1"
+
+
+def test_sqlite_search_with_score_handles_fts5_special_chars(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Natural-language queries (ending in '?', containing quotes, etc.) must
+    not raise ``fts5: syntax error``. Regression for the recall path crashing
+    on SQLite with a question-style query.
+    """
+    store = _make_sqlite_store(tmp_path)
+    store.initialize()
+    store.add(_record("m1", "Alice prefers the Helix editor", ["stele://default/a"]), [])
+
+    for query in (
+        "what editor does Alice prefer?",
+        'who said "Helix"?',
+        "editor: prefer*",
+        "(Alice) -Vim",
+        "???",
+    ):
+        hits = store.search_with_score(query, scope=MemoryScope(user_id="alice"))
+        assert isinstance(hits, list)  # no exception, well-formed result
+
+    assert store.search_with_score(
+        "editor preference?", scope=MemoryScope(user_id="alice")
+    )[0].record.id == "m1"
+
+
+def test_sqlite_memory_search_handles_fts5_special_chars(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Phase 1 Memory.search has the same FTS5 surface — same guarantee."""
+    from stele.core.memory_record import MemoryQuery
+
+    store = _make_sqlite_store(tmp_path)
+    store.initialize()
+    store.add(_record("m1", "Alice prefers the Helix editor", ["stele://default/a"]), [])
+
+    hits = store.search(
+        MemoryQuery(query="what editor does Alice prefer?", scope=MemoryScope(user_id="alice"))
+    )
+    assert [h.id for h in hits] == ["m1"]

@@ -19,6 +19,22 @@ from stele.core.memory_record import (
     memory_text_hash,
 )
 
+
+def _fts_query(query: str) -> str:
+    """Make a user query safe for FTS5 MATCH.
+
+    Raw user text can contain FTS5 operators (``?``, ``"``, ``*``, ``:``,
+    ``(``, ``-`` …) that raise ``fts5: syntax error``. Quoting each
+    whitespace-separated term turns it into a literal phrase token; joining
+    with ``OR`` gives ranked recall over any term. Mirrors the artifact
+    retrieval layer's sanitizer (``stele.retrieval.sqlite._fts_query``).
+    """
+    terms = [term.replace('"', '""') for term in query.split() if term.strip()]
+    if not terms:
+        return '""'
+    return " OR ".join(f'"{term}"' for term in terms)
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS memories (
   id TEXT PRIMARY KEY,
@@ -215,7 +231,7 @@ class SQLiteMemoryStore:
 
     def search(self, query: MemoryQuery) -> list[MemoryRecord]:
         as_of = (query.as_of or datetime.now(UTC)).isoformat()
-        params: list[object] = [query.query, as_of]
+        params: list[object] = [_fts_query(query.query), as_of]
         sql = [
             "SELECT memories.* FROM memories",
             "JOIN memories_fts ON memories.rowid = memories_fts.rowid",
@@ -259,7 +275,7 @@ class SQLiteMemoryStore:
         if not query.strip():
             return []
         params: list[object] = [
-            query,
+            _fts_query(query),
             scope.user_id, scope.agent_id, scope.app_id, scope.session_id, scope.namespace,
         ]
         source_ref_sql = ""
