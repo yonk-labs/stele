@@ -8,7 +8,7 @@
 
 **Architecture:** Thin Approach A — Stele owns the boundary (chunk_id format, PII invariant, `SearchHit` translation), Chunkshop is the engine. Per-backend wrapper files in `src/stele/storage/chunk_store/` lazy-import the matching Chunkshop adapter. `InProcessChunkStore` (memory backend) works without chunkshop. `AsyncChunkIndexer` submits to a `TaskBackend` Protocol; `InProcessTaskBackend` ships real, `RedisTaskBackend`/`CeleryTaskBackend` ship as `CapabilityError` stubs. Vector + hybrid retrieval get their own modules under `src/stele/retrieval/`. `RetrievalMode` expands to `Literal["keyword", "vector", "hybrid"]` and Phase 3 picks up the new modes through `RetrievalConfig.default_mode` without code changes.
 
-**Tech Stack:** Python 3.12+, Pydantic v2, `chunkshop>=X.Y` with extras `[sqlite,postgres,mariadb,clickhouse]`, `numpy` for in-process vector math, `threading` for `InProcessTaskBackend`, pytest, ruff, mypy strict.
+**Tech Stack:** Python 3.12+, Pydantic v2, `chunkshop[all-backends] @ git+https://github.com/yonk-labs/chunkshop.git@v0.4.1#subdirectory=python` (immutable tag; Postgres is core via psycopg, no `[postgres]` extra), `numpy` for in-process vector math, `threading` for `InProcessTaskBackend`, pytest, ruff, mypy strict.
 
 **Spec (load-bearing):** `/tmp/stele-phase4-planning/2026-05-14-phase4-chunkshop-indexing-design.md`
 
@@ -16,7 +16,7 @@ Re-read the spec at every DC-XXX checkpoint below. All 26 success criteria (SC-0
 
 **Phase 1+2+3 dependency:** Plan assumes Phase 1 Tasks 0–21, Phase 2 Tasks 0–23, and Phase 3 Tasks 0–27 are complete. Task 0 verifies.
 
-**Chunkshop release dependency:** MariaDB and ClickHouse chunk stores require the user's unreleased Chunkshop branch. Plan Task 0 checks the installed Chunkshop's exported backend list and marks MariaDB/ClickHouse tasks as deferred (with a clear message) if those adapters aren't present.
+**Chunkshop dependency:** Pinned to the immutable git tag **v0.4.1** (`git+https://github.com/yonk-labs/chunkshop.git@v0.4.1#subdirectory=python`). 0.4.1 is GitHub-tag/release-only — NOT on PyPI (PyPI still serves 0.3.2, which has no modular backends). The MariaDB + ClickHouse adapters (`sinks/{sqlite,pg,mariadb,clickhouse}.py` + matching `sources/`) are present at v0.4.1, so they are NOT gated. The in-flight chunkshop `merge/v4-into-main` → eventual v0.4.2 is **Rust-only** and does not change the Python package — stele stays on v0.4.1 Python and does not wait for v0.4.2. Plan Task 0 still verifies the installed Chunkshop's exported backend list and fails loudly if v0.4.1's adapters aren't importable. Migrate the pin to `chunkshop[all-backends]>=0.4.1,<0.5` once 0.4.x is published to PyPI.
 
 ---
 
@@ -38,7 +38,7 @@ Re-read the spec at every DC-XXX checkpoint below. All 26 success criteria (SC-0
 | `src/stele/storage/chunk_store/base.py` | `ChunkStore` Protocol |
 | `src/stele/storage/chunk_store/memory.py` | In-process (numpy + dict), no chunkshop required |
 | `src/stele/storage/chunk_store/sqlite.py` | `chunkshop[sqlite]` wrapper |
-| `src/stele/storage/chunk_store/postgres.py` | `chunkshop[postgres]` (pgvector) wrapper |
+| `src/stele/storage/chunk_store/postgres.py` | chunkshop core pg sink (pgvector) wrapper — psycopg is a core chunkshop dep, no `[postgres]` extra |
 | `src/stele/storage/chunk_store/mariadb.py` | `chunkshop[mariadb]` wrapper (gated) |
 | `src/stele/storage/chunk_store/clickhouse.py` | `chunkshop[clickhouse]` wrapper (gated) |
 | `src/stele/retrieval/vector.py` | `vector_search(...)` backend-agnostic facade |
@@ -66,7 +66,7 @@ Re-read the spec at every DC-XXX checkpoint below. All 26 success criteria (SC-0
 
 | Path | Change |
 |---|---|
-| `pyproject.toml` | Pin `chunkshop>=X.Y` minimum; add backend extras `[sqlite,postgres,mariadb,clickhouse]` |
+| `pyproject.toml` | Pin `chunkshop[all-backends] @ git+https://github.com/yonk-labs/chunkshop.git@v0.4.1#subdirectory=python` (immutable tag; not on PyPI; Postgres is core, no `[postgres]` extra) |
 | `src/stele/core/config.py` | Extend `IndexingConfig` + `RetrievalConfig.default_mode` |
 | `src/stele/core/types.py` | `RetrievalMode = Literal["keyword", "vector", "hybrid"]` |
 | `src/stele/core/stash.py` | `Stele.search(mode=...)`, `Stele.indexing_status`, capabilities expansion, wire `_chunk_store` + `_async_indexer` + bakeoff overlay |
@@ -149,7 +149,12 @@ missing_optional = optional_now - {b for b, ok in available.items() if ok}
 
 if missing_required:
     print(f"FAIL: missing required Chunkshop extras: {missing_required}")
-    print("Install: pip install 'chunkshop[sqlite,postgres]>=X.Y'")
+    print(
+        "Install: pip install "
+        "'chunkshop[all-backends] @ "
+        "git+https://github.com/yonk-labs/chunkshop.git"
+        "@v0.4.1#subdirectory=python'"
+    )
     sys.exit(1)
 
 if missing_optional:
@@ -1970,8 +1975,9 @@ class SQLiteChunkStore:
         spec = importlib.util.find_spec("chunkshop.sqlite")
         if spec is None:
             raise OptionalDependencyError(
-                "chunkshop[sqlite] required for SQLite chunk store; "
-                "install: pip install 'stele-core[chunkshop]' and 'chunkshop[sqlite]>=X.Y'"
+                "chunkshop[all-backends] required for SQLite chunk store; "
+                "install: pip install 'stele-core[chunkshop]' "
+                "(pins chunkshop v0.4.1 via git tag)"
             )
         from chunkshop.sqlite import SQLiteRetrievalIndex  # type: ignore[import-not-found]
 
@@ -2104,13 +2110,15 @@ Identical structure to Task 14, swapping `chunkshop.sqlite` for `chunkshop.postg
 
 ---
 
-### Task 16: `MariaDBChunkStore` (gated on user's Chunkshop release)
+### Task 16: `MariaDBChunkStore` (chunkshop[all-backends] mariadb sink, v0.4.1)
 
 **Files:**
 - Create: `src/stele/storage/chunk_store/mariadb.py`
 - Test: `tests/unit/storage/test_chunk_store_mariadb.py`
 
-Same pattern as Tasks 14/15 but **gated** on the user's unreleased Chunkshop branch.
+Same pattern as Tasks 14/15. The MariaDB sink ships in chunkshop v0.4.1
+(`chunkshop[all-backends]`, `sinks/mariadb.py`) — no longer gated. Task 0
+still verifies the adapter is importable from the pinned v0.4.1 install.
 
 - [ ] **Step 1: Write test** — skipif when `chunkshop.mariadb` isn't importable. OptionalDependencyError test runs unconditionally.
 - [ ] **Step 2: Implement** — copy `postgres.py`; replace `chunkshop.postgres` with `chunkshop.mariadb`; constructor takes `dsn: str`.
@@ -3290,11 +3298,20 @@ In `pyproject.toml`, find the `chunkshop` extra and replace:
 ```toml
 [project.optional-dependencies]
 chunkshop = [
-    "chunkshop[sqlite,postgres,mariadb,clickhouse]>=X.Y",  # X.Y = user's release with all 5 backends
+    "chunkshop[all-backends] @ git+https://github.com/yonk-labs/chunkshop.git@v0.4.1#subdirectory=python",
 ]
 ```
 
-Replace `X.Y` with the actual minimum version when the user publishes the Chunkshop branch. Until then, leave as `>=0.1` and document the gating in `tests/unit/indexing/test_task_backend.py` README.
+**Already applied** during the Phase 4 doc reconciliation — verify the
+`chunkshop` extra in `pyproject.toml` matches the line above before
+proceeding. `[all-backends]` == `sqlite,mariadb,clickhouse`; Postgres is a
+core chunkshop dependency (`psycopg[binary]`), so there is no `[postgres]`
+extra. The pin uses the **immutable git tag v0.4.1** because chunkshop 0.4.x
+is GitHub-tag/release-only and NOT on PyPI (PyPI still serves 0.3.2, which
+lacks modular backends). The in-flight chunkshop v0.4.2 is Rust-only and does
+not change the Python package — do not bump the Python pin to v0.4.2. When
+0.4.x lands on PyPI, migrate the pin to
+`chunkshop[all-backends]>=0.4.1,<0.5`.
 
 - [ ] **Step 2: Validate pyproject parses**
 

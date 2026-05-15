@@ -3,14 +3,23 @@ phase: 4
 title: Chunkshop Indexing
 created: 2026-05-14
 status: design-approved
-location: out-of-tree (/tmp/stele-phase4-planning/) per user instruction; not committed to git
+location: docs/superpowers/ (committed to git on main)
 depends-on: |
   Phase 1 complete (memory + memory_store + as_of + supersession on memory/sqlite/postgres).
   Phase 2 complete (deterministic extraction layer with MemoryExtractor.preview).
-  Phase 3 complete (recall facade with adaptive + 6 real strategies + RetrievalConfig.default_mode).
+  Phase 3 complete (recall facade with adaptive + 6 real strategies). NOTE: Phase 3
+  shipped RecallConfig, not RetrievalConfig.default_mode — Phase 4 Task 1 introduces
+  the RetrievalMode surface itself.
 external-deps: |
-  Chunkshop >= X.Y (minimum version that includes MariaDB and ClickHouse adapters from the
-  user's unreleased branch). Per-backend extras: chunkshop[sqlite,postgres,mariadb,clickhouse].
+  Chunkshop 0.4.1, repo github.com/yonk-labs/chunkshop, python package in the
+  python/ subdir. GitHub-tagged/released only — NOT on PyPI (PyPI still serves
+  0.3.2, which has no modular backends). Pinned to the immutable git tag v0.4.1:
+    chunkshop[all-backends] @ git+https://github.com/yonk-labs/chunkshop.git@v0.4.1#subdirectory=python
+  [all-backends] == sqlite,mariadb,clickhouse. Postgres is core (psycopg[binary]
+  is a core chunkshop dependency) — there is NO [postgres] extra. MariaDB +
+  ClickHouse adapters (sinks/{sqlite,pg,mariadb,clickhouse}.py + matching
+  sources/) are present at v0.4.1. Migrate to chunkshop[all-backends]>=0.4.1,<0.5
+  once published to PyPI.
 ---
 
 # Phase 4: Chunkshop Indexing — Design
@@ -61,8 +70,8 @@ design.
    wrappers.
 2. **Real vector retrieval on all 5 backends via Chunkshop.** Postgres
    (pgvector), memory (in-process numpy), SQLite (sqlite-vec), MariaDB
-   (11.7+ VECTOR), ClickHouse (vector indexes). MariaDB + ClickHouse are
-   gated on the user releasing the Chunkshop branch that includes them.
+   (11.7+ VECTOR), ClickHouse (vector indexes). MariaDB + ClickHouse
+   adapters ship in Chunkshop 0.4.1 (pinned to git tag v0.4.1).
 3. **Hybrid retrieval included in Phase 4.** RRF default, weighted-sum
    optional. Hybrid uses score normalization + merging in
    `src/stele/retrieval/hybrid.py`. Phase 3's `ArtifactSearchStrategy`
@@ -80,9 +89,12 @@ design.
    Per-backend wrapper files (~80 lines each), lazy-importing the matching
    Chunkshop adapter. Stele owns chunk_id format, PII invariant, SearchHit
    translation.
-7. **Pin minimum Chunkshop version + per-backend extras.**
-   `chunkshop = ["chunkshop[sqlite,postgres,mariadb,clickhouse]>=X.Y"]` in
-   `pyproject.toml`. Each Stele backend's `chunk_store` lazy-imports its
+7. **Pin Chunkshop via git ref + per-backend extras.**
+   `chunkshop = ["chunkshop[all-backends] @ git+https://github.com/yonk-labs/chunkshop.git@v0.4.1#subdirectory=python"]`
+   in `pyproject.toml` (0.4.1 is GitHub-tag-only, not on PyPI; Postgres is
+   core, no [postgres] extra; the in-flight v0.4.2 is Rust-only and does not
+   change the Python package, so stele stays on v0.4.1 Python).
+   Each Stele backend's `chunk_store` lazy-imports its
    matching Chunkshop sub-package and raises `OptionalDependencyError`
    with the exact `pip install` line if missing.
 
@@ -247,9 +259,9 @@ see which path won.
 | `src/stele/storage/chunk_store/base.py` | `ChunkStore` Protocol (`write`, `delete`, `vector_search`, `keyword_search`, `embed`, `dim`, `similarity`) |
 | `src/stele/storage/chunk_store/memory.py` | In-process chunks + numpy embeddings + cosine; no chunkshop required |
 | `src/stele/storage/chunk_store/sqlite.py` | SQLite via `chunkshop[sqlite]`; deterministic keyword fallback when chunkshop missing |
-| `src/stele/storage/chunk_store/postgres.py` | Postgres via `chunkshop[postgres]` (pgvector) |
-| `src/stele/storage/chunk_store/mariadb.py` | MariaDB via `chunkshop[mariadb]` (gated on user's release) |
-| `src/stele/storage/chunk_store/clickhouse.py` | ClickHouse via `chunkshop[clickhouse]` (gated on user's release) |
+| `src/stele/storage/chunk_store/postgres.py` | Postgres via chunkshop core pg sink (pgvector); no extra — psycopg is a core chunkshop dep |
+| `src/stele/storage/chunk_store/mariadb.py` | MariaDB via `chunkshop[mariadb]` (ships in 0.4.1) |
+| `src/stele/storage/chunk_store/clickhouse.py` | ClickHouse via `chunkshop[clickhouse]` (ships in 0.4.1) |
 | `src/stele/retrieval/vector.py` | `vector_search(chunk_store, query, *, limit)` — backend-agnostic facade |
 | `src/stele/retrieval/hybrid.py` | `hybrid_search(...)` with RRF (default) + WeightedSum |
 | `tests/unit/indexing/test_chunkshop_adapter.py` | chunk_id round-trip; no Chunkshop objects escape |
@@ -271,7 +283,7 @@ see which path won.
 
 | Path | Change |
 |---|---|
-| `pyproject.toml` | Pin `chunkshop>=X.Y` minimum; add per-backend extras `chunkshop[sqlite,postgres,mariadb,clickhouse]` |
+| `pyproject.toml` | Pin `chunkshop[all-backends] @ git+https://github.com/yonk-labs/chunkshop.git@v0.4.1#subdirectory=python` (immutable tag; not on PyPI; Postgres is core, no [postgres] extra) |
 | `src/stele/core/config.py` | Extend `IndexingConfig` (`bakeoff_path`, `similarity`, `vector_dim`, `hybrid_method`, `hybrid_weights`, `hybrid_rrf_k`, `task_backend`, `task_backend_dsn`); extend `RetrievalConfig.default_mode` |
 | `src/stele/core/types.py` | `RetrievalMode = Literal["keyword", "vector", "hybrid"]` |
 | `src/stele/core/stash.py` | `Stele.search(mode=...)`; `Stele.indexing_status(artifact_id)`; `Stele.capabilities()` expanded; wire `_chunk_store` + `_async_indexer` + bakeoff overlay at construction |
@@ -315,10 +327,10 @@ indexing dispatch (config.indexing.mode):
    │              ▼
    │              ChunkStore.write(artifact)
    │              │   ┌── memory:     in-process numpy + chunks dict
-   │              │   ├── sqlite:     chunkshop[sqlite] adapter
-   │              │   ├── postgres:   chunkshop[postgres] adapter (pgvector)
-   │              │   ├── mariadb:    chunkshop[mariadb] adapter
-   │              │   └── clickhouse: chunkshop[clickhouse] adapter
+   │              │   ├── sqlite:     chunkshop[all-backends] sqlite sink
+   │              │   ├── postgres:   chunkshop core pg sink (pgvector; psycopg is core)
+   │              │   ├── mariadb:    chunkshop[all-backends] mariadb sink
+   │              │   └── clickhouse: chunkshop[all-backends] clickhouse sink
    │              ▼
    │              IndexResult(status="indexed", chunk_count=N)
    │
