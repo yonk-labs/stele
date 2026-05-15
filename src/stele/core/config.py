@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from stele.core.exceptions import ConfigError
 from stele.core.types import FailureMode, RetrievalMode
@@ -51,6 +51,42 @@ class IndexingConfig(BaseModel):
     chunker: Literal["fixed_overlap"] = "fixed_overlap"
     chunk_words: int = 220
     chunk_overlap_words: int = 60
+    # Phase 4 fields
+    bakeoff_path: str | None = None
+    similarity: Literal["cosine", "ip", "l2"] = "cosine"
+    vector_dim: int | None = None
+    hybrid_method: Literal["rrf", "weighted_sum"] = "rrf"
+    hybrid_weights: dict[str, float] = Field(
+        default_factory=lambda: {"keyword": 0.5, "vector": 0.5}
+    )
+    hybrid_rrf_k: int = Field(default=60, ge=1)
+    task_backend: Literal["in_process", "redis", "celery"] = "in_process"
+    task_backend_dsn: str | None = None
+
+    @field_validator("hybrid_weights")
+    @classmethod
+    def _check_weights(cls, v: dict[str, float]) -> dict[str, float]:
+        if set(v.keys()) != {"keyword", "vector"}:
+            raise ValueError("hybrid_weights keys must be exactly {'keyword', 'vector'}")
+        return v
+
+    @field_validator("vector_dim")
+    @classmethod
+    def _check_dim(cls, v: int | None) -> int | None:
+        if v is not None and v <= 0:
+            raise ValueError("vector_dim must be > 0 when set")
+        return v
+
+    @model_validator(mode="after")
+    def _check_task_backend_dsn(self) -> IndexingConfig:
+        if self.task_backend in {"redis", "celery"} and not self.task_backend_dsn:
+            raise ValueError(f"{self.task_backend} task_backend requires task_backend_dsn")
+        if (
+            self.hybrid_method == "weighted_sum"
+            and sum(self.hybrid_weights.values()) == 0
+        ):
+            raise ValueError("hybrid_method='weighted_sum' requires non-zero weights")
+        return self
 
 
 class SigningConfig(BaseModel):
