@@ -7,3 +7,20 @@ __pycache__/
 benchmark-output/
 benchmarks/runs/
 skill-output/
+.autonomy/
+
+# Secrets / credentials — never commit real ones
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+credentials.json
+credentials*.json
+*.tfstate
+*.tfstate.*
+*.tfvars
