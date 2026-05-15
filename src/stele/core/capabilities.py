@@ -1,6 +1,10 @@
 """Runtime capability models."""
 
+from typing import Literal
+
 from pydantic import BaseModel
+
+from stele.indexing.bakeoff import BakeoffSummary
 
 
 class StorageCapabilities(BaseModel):
@@ -23,4 +27,13 @@ class RetrievalCapabilities(BaseModel):
 class StashCapabilities(BaseModel):
     storage: StorageCapabilities
     retrieval: RetrievalCapabilities
+    chunk_store_backend: (
+        Literal["memory", "sqlite", "postgres", "mariadb", "clickhouse"] | None
+    ) = None
+    vector_enabled: bool = False
+    hybrid_enabled: bool = False
+    chunkshop_installed: bool = False
+    chunkshop_version: str | None = None
+    bakeoff_summary: BakeoffSummary | None = None
+    task_backend: str | None = None
 

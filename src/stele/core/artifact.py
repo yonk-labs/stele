@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,7 +16,6 @@ from stele.core.types import (
     Lifecycle,
     RetrievalMode,
 )
-from stele.indexing.bakeoff import BakeoffSummary
 
 
 def utc_now() -> datetime:
@@ -164,19 +163,3 @@ class ExportResult(BaseModel):
     path: str
 
 
-class Capabilities(BaseModel):
-    # Core backend capabilities
-    storage_backend: str | None = None
-    retrieval_backend: str | None = None
-    supports_fts: bool = False
-    supports_graph: bool = False
-    # Phase 4: Chunkshop / vector / hybrid fields
-    chunk_store_backend: (
-        Literal["memory", "sqlite", "postgres", "mariadb", "clickhouse"] | None
-    ) = None
-    vector_enabled: bool = False
-    hybrid_enabled: bool = False
-    chunkshop_installed: bool = False
-    chunkshop_version: str | None = None
-    bakeoff_summary: BakeoffSummary | None = None
-    task_backend: str | None = None
