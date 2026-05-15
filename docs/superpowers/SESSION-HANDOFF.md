@@ -57,9 +57,17 @@ chunkshop[all-backends] @ git+https://github.com/yonk-labs/chunkshop.git@v0.4.1#
 - Before-commit trio: `.venv/bin/ruff check .` / `.venv/bin/mypy src tests benchmarks` / `.venv/bin/pytest`.
 - Plans live at `docs/superpowers/plans/`, specs at `docs/superpowers/specs/`,
   SC→test maps at `docs/superpowers/specs/*-sc-coverage.txt`.
-- Execution method: `superpowers:subagent-driven-development` — fresh subagent
-  per task batch, spec + code-quality review, one commit per task, drift
-  checkpoints (DC-XXX) are hard gates.
+- Execution method: `superpowers:subagent-driven-development`, **batched for
+  speed**. One implementer subagent per **batch of 5 plan tasks** (Tasks 1–5,
+  6–10, …); one commit per task with the plan's exact messages; the
+  ruff/mypy/pytest trio runs inside each task. After each 5-task batch, ONE
+  consolidated review (spec compliance + code quality together) — not
+  per-task. After all tasks, ONE final comprehensive review of the whole
+  `main..HEAD` diff (SC coverage, DC-FINAL, architecture, full trio). Task 0
+  is a solo prereq gate run alone first. Drift checkpoints (DC-XXX) are hard
+  gates run at their specified point inside the batch — never deferred to the
+  batch review; a failed DC stops the batch. Continuous execution: no
+  check-ins between tasks or batches.
 
 ## TODO (in order)
 
