@@ -8,7 +8,12 @@ from stele.core.artifact import ArtifactRecord, SearchHit
 
 
 class ChunkStore(Protocol):
-    name: Literal["memory", "sqlite", "postgres", "mariadb", "clickhouse"]
+    # Read-only property (like ``dim``/``similarity`` below) so it is
+    # covariant under Protocol matching: concrete stores narrow it to a
+    # backend Literal class attr. A mutable data attribute here would be
+    # invariant and reject the narrowed impls.
+    @property
+    def name(self) -> str: ...
 
     @property
     def dim(self) -> int: ...
