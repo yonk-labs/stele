@@ -25,12 +25,17 @@ Bump pin → `chunkshop[all-backends]>=0.4.3,<0.5`; `uv sync --extra all-backend
 (`chunkshop prefetch` / fastembed); baseline trio green (297/2). Commit:
 `feat(deps): bump chunkshop pin to >=0.4.3,<0.5 (Task 28)`.
 
-## Task 11 — `InProcessChunkStore` (memory; no chunkshop)
-Files: `src/stele/storage/chunk_store/memory.py`,
-`tests/unit/storage/test_chunk_store_memory.py`. Numpy hash-embed (dim 384,
-L2-normed), reuse `ChunkIndex` chunker; verify real `_chunks_by_ref` attr.
-Implements full `ChunkStore` Protocol; offline-deterministic. SC-009.
-Commit: `feat(storage): InProcessChunkStore numpy hash-embed memory backend (SC-009)`.
+## Task 11 — `InProcessChunkStore` — committed `2bc3640`, verified-complete (FLAGGED)
+**The batch that produced this died mid-run** (it committed Task 11 clean, then
+died during Tasks 12/13 — those were left as broken uncommitted strays, since
+removed). **Task 11's commit itself crossed the finish line:** all 8
+`ChunkStore` Protocol members implemented, full write→vector→keyword→delete→close
+round-trip verified working, file not truncated, mypy-clean, 6 tests pass,
+chunk_id format `aid:0` correct, numpy hash-embed dim 384, no chunkshop. SC-009
+satisfied by evidence. New session: **re-run the round-trip check + 
+`pytest tests/unit/storage/test_chunk_store_memory.py` to re-confirm.** Redo
+from scratch ONLY if you distrust the provenance — the code is sound on the
+evidence. Then proceed to Task 12. (Task 27 later appends a PII-skip test here.)
 
 ## Task 12 — dim resolution cascade
 Files: `src/stele/indexing/dim_resolution.py`, `tests/unit/indexing/test_dim_resolution.py`.

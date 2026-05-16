@@ -12,8 +12,9 @@
 
 ## 1. THIS IS WHERE WE ARE
 
-12 of 34 plan tasks complete + Capabilities fix. All committed on
-`phase4-chunkshop-indexing`. Linear history off `main`.
+**Tasks 1–11 + Capabilities-fix + T28(0.4.2 pin) complete and verified.** All
+committed on `phase4-chunkshop-indexing`. Linear history off `main` (16 commits).
+**Execution resumes at Task 12.**
 
 | Commit | What |
 |---|---|
@@ -30,6 +31,9 @@
 | `9617330` | T10: `ChunkStore` Protocol |
 | `3706aa6` | test-hygiene fixup (in-scope) |
 | `b7d9110` | T28: chunkshop pin → PyPI `>=0.4.2,<0.5`; dropped hatchling `allow-direct-references` |
+| `2bc3640` | **T11: `InProcessChunkStore`** — the batch that wrote it **died mid-run AFTER this clean commit** (orphaning Tasks 12/13 as broken strays, since removed). T11's commit itself is **verified-complete by evidence**: all 8 `ChunkStore` Protocol members, full write→vector→keyword→delete→close round-trip OK, not truncated, mypy-clean, 6 tests pass, `aid:0` chunk_id, dim 384, no chunkshop. SC-009. New session must re-confirm; redo only if provenance distrusted. |
+| `c556205` | checkpoint docs (recon sheet, status/handoff, corrected plan) |
+| `f56e50a` | baseline correction (297/2) + orphan-cleanup note |
 
 **Drift checkpoints:** DC-002 ✅ passed (Task 9). DC-001, DC-003, DC-004,
 DC-FINAL still pending (Tasks 18, 19, 22, 33).
@@ -95,11 +99,11 @@ sheet already account for all of them; listing so nothing is forgotten:
 ## 3. THIS IS WHAT IS LEFT TO FINISH
 
 Execute the **corrected plan**
-(`plans/2026-05-16-phase4-chunkshop-indexing-CORRECTED.md`), Tasks 11→33 + the
-two added scope items. Summary:
+(`plans/2026-05-16-phase4-chunkshop-indexing-CORRECTED.md`), **Tasks 12→33** +
+the two added scope items (Task 11 is done — `2bc3640`, verified). Summary:
 
-- **T11–13:** `InProcessChunkStore`, dim-resolution cascade, `chunkshop_adapter`
-  (mostly plan-as-written; no chunkshop import in 11/13).
+- **T12–13:** dim-resolution cascade, `chunkshop_adapter` (plan-as-written;
+  no chunkshop import in either). (Task 11 `InProcessChunkStore` DONE.)
 - **T14–17:** SQLite/Postgres/MariaDB/ClickHouse `ChunkStore` — **rewrite per
   recon §1 + 0.4.3 `dsn`**. The hard part.
 - **T18:** `vector.py` + `hybrid.py` facades → **⛔ DC-001**.
@@ -134,6 +138,8 @@ two added scope items. Summary:
 ```
 Continue and finish Stele Phase 4 (Chunkshop indexing) in the existing worktree
 /home/yonk/yonk-tools/stele-phase4 on branch phase4-chunkshop-indexing.
+Tasks 1-11 + Capabilities-fix + T28(0.4.2) are DONE & verified (16 commits,
+297 passed / 2 skipped). RESUME AT TASK 12.
 
 READ FIRST, in order:
 1. docs/superpowers/phase4-STATUS-HANDOFF.md  (where we are / left / broken)
