@@ -138,8 +138,9 @@ the two added scope items (Task 11 is done — `2bc3640`, verified). Summary:
 ```
 Continue and finish Stele Phase 4 (Chunkshop indexing) in the existing worktree
 /home/yonk/yonk-tools/stele-phase4 on branch phase4-chunkshop-indexing.
-Tasks 1-11 + Capabilities-fix + T28(0.4.2) are DONE & verified (17 commits,
-297 passed / 2 skipped). RESUME AT TASK 12.
+Tasks 1-11 + Capabilities-fix + T28(0.4.2-pin) are DONE & verified
+(baseline: 297 passed / 2 skipped, ruff+mypy clean; see `git log main..HEAD`).
+RESUME AT TASK 12.
 
 READ FIRST, in order:
 1. docs/superpowers/phase4-STATUS-HANDOFF.md  (where we are / left / broken)
