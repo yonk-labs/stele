@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 import pytest
 
 from stele.core.exceptions import CapabilityError
-from stele.indexing.task_backend import IndexTask, TaskStatus
+from stele.indexing.task_backend import IndexTask
 from stele.indexing.task_backend.in_process import InProcessTaskBackend
 
 

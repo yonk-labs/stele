@@ -9,6 +9,7 @@ from stele.core.artifact import ArtifactRecord
 from stele.indexing.async_queue import AsyncChunkIndexer
 from stele.indexing.chunk_index import ChunkIndex
 from stele.indexing.queue import SyncChunkIndexer
+from stele.indexing.task_backend.base import IndexTask
 from stele.indexing.task_backend.in_process import InProcessTaskBackend
 
 
@@ -35,7 +36,10 @@ def test_async_indexer_queued_then_indexed() -> None:
     from stele.core.config import IndexingConfig
 
     sync = SyncChunkIndexer(ChunkIndex(IndexingConfig()))
-    backend = InProcessTaskBackend(worker=lambda t: sync.index_now(_artifact()))
+    def _worker(t: IndexTask) -> None:
+        sync.index_now(_artifact())
+
+    backend = InProcessTaskBackend(worker=_worker)
     indexer = AsyncChunkIndexer(task_backend=backend, sync=sync)
     try:
         result = indexer.submit(_artifact())
