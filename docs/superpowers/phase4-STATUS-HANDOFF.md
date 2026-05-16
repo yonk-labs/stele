@@ -3,7 +3,7 @@
 **Date:** 2026-05-16
 **Worktree:** `/home/yonk/yonk-tools/stele-phase4`
 **Branch:** `phase4-chunkshop-indexing` (off `main`)
-**Test state:** **291 passed / 2 skipped**, `ruff` clean, `mypy` clean
+**Test state:** **297 passed / 2 skipped**, `ruff` clean, `mypy` clean (140 src files)
 **Ground truth:** `docs/superpowers/phase4-recon-correction-sheet.md` (READ FIRST)
 **Corrected plan:** `docs/superpowers/plans/2026-05-16-phase4-chunkshop-indexing-CORRECTED.md`
 **Original plan:** `docs/superpowers/plans/2026-05-14-phase4-chunkshop-indexing.md` — **FICTION; do not follow its code blocks.**
@@ -44,6 +44,13 @@ DC-FINAL still pending (Tasks 18, 19, 22, 33).
 - `uv.lock` is now tracked on this branch (came in with `b7d9110`). **Open
   question for the human:** keep it tracked or `git rm --cached` it (it was
   untracked on `main`). Flagged, not decided.
+- **Orphan cleanup:** 3 untracked stray files of unknown provenance
+  (`src/stele/indexing/dim_resolution.py`,
+  `tests/unit/indexing/test_{chunkshop_adapter,dim_resolution}.py` — Task
+  12/13 scaffolding that imported not-yet-existing modules) were removed
+  during checkpoint. They were never committed. Tree is now fully clean;
+  Tasks 11–13 start fresh per the corrected plan. (This is also why the
+  earlier intermediate "291" count was wrong — true clean baseline is 297/2.)
 
 ---
 
@@ -152,7 +159,7 @@ Task 0 (prereq gate, do alone first; STOP+report if it fails):
   - export STELE_PG_DSN=postgresql://yonk:yonk@localhost:55432/stele
   - Baseline trio MUST be green: .venv/bin/ruff check . ;
     .venv/bin/mypy src tests benchmarks ; .venv/bin/pytest
-    (expect 291 passed / 2 skipped). Commit the pin bump (Task 28):
+    (expect 297 passed / 2 skipped). Commit the pin bump (Task 28):
     `feat(deps): bump chunkshop pin to >=0.4.3,<0.5 (Task 28)`.
 
 Execution model (chosen for speed-with-correctness, the plan being fiction):

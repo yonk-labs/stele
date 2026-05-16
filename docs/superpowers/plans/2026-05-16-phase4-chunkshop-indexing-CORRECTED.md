@@ -22,7 +22,7 @@ branch `phase4-chunkshop-indexing`.
 Bump pin → `chunkshop[all-backends]>=0.4.3,<0.5`; `uv sync --extra all-backends
 --extra dev --extra chunkshop`; verify recon §1 API holds on 0.4.3 + the new
 `TargetConfig.dsn` field exists (recon §0); cache the embedder
-(`chunkshop prefetch` / fastembed); baseline trio green (291/2). Commit:
+(`chunkshop prefetch` / fastembed); baseline trio green (297/2). Commit:
 `feat(deps): bump chunkshop pin to >=0.4.3,<0.5 (Task 28)`.
 
 ## Task 11 — `InProcessChunkStore` (memory; no chunkshop)
