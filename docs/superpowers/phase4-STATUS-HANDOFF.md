@@ -138,7 +138,7 @@ the two added scope items (Task 11 is done — `2bc3640`, verified). Summary:
 ```
 Continue and finish Stele Phase 4 (Chunkshop indexing) in the existing worktree
 /home/yonk/yonk-tools/stele-phase4 on branch phase4-chunkshop-indexing.
-Tasks 1-11 + Capabilities-fix + T28(0.4.2) are DONE & verified (16 commits,
+Tasks 1-11 + Capabilities-fix + T28(0.4.2) are DONE & verified (17 commits,
 297 passed / 2 skipped). RESUME AT TASK 12.
 
 READ FIRST, in order:
@@ -146,7 +146,7 @@ READ FIRST, in order:
 2. docs/superpowers/phase4-recon-correction-sheet.md  (GROUND TRUTH — the
    original plan is fiction; this sheet overrides it)
 3. docs/superpowers/plans/2026-05-16-phase4-chunkshop-indexing-CORRECTED.md
-   (the plan to execute, Tasks 11→33 + added scope)
+   (the plan to execute, Tasks 12→33 + added scope; Task 11 done — verify only)
 
 Do NOT follow docs/superpowers/plans/2026-05-14-phase4-chunkshop-indexing.md
 code blocks — they reference APIs that do not exist.
