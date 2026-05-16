@@ -33,7 +33,7 @@ clickhouse = [
 # sqlite,mariadb,clickhouse; Postgres is core (psycopg[binary] is a core
 # chunkshop dep), so there is NO [postgres] extra.
 chunkshop = [
-  "chunkshop[all-backends]>=0.4.2,<0.5",
+  "chunkshop[all-backends]>=0.4.3,<0.5",
 ]
 judge = [
   "openai>=1.0,<2",

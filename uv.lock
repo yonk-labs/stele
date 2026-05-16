@@ -161,7 +161,7 @@ wheels = [
 
 [[package]]
 name = "chunkshop"
-version = "0.4.2"
+version = "0.4.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -171,9 +171,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/92/8b/d8dfc223ebaf47923683e8e3b4112093a71a8110d66dd775fa6eb4e770c1/chunkshop-0.4.2.tar.gz", hash = "sha256:cb514a2dbae6563bc873ae11a897fe0510909c1112fec30c682a57538ca1575a", size = 85807, upload-time = "2026-05-16T00:06:02.989Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/78/dae2c41913bbd0aeac65e1b7979e9c0d0f94ff58d4047987379eaa218a6f/chunkshop-0.4.3.tar.gz", hash = "sha256:a394b8e5693ae5c0216172a4adf58de1cf20f1c30a84680e8968fa8ae9dad675", size = 87193, upload-time = "2026-05-16T18:03:39.013Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/d1/2df88fedf14f30959f27923ee232d1b9011df7861fe89d3c39b11dec70e7/chunkshop-0.4.2-py3-none-any.whl", hash = "sha256:a81b5123e266f67315fce3bae59dcebf185ec0a67b42f307aa7fa005317ca449", size = 113928, upload-time = "2026-05-16T00:06:01.612Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/b0/ffd1761ffc4ea435ca094a7319c9513052cdfcac2419b9850cdaa2b540d1/chunkshop-0.4.3-py3-none-any.whl", hash = "sha256:71ad6c03002fb607eee3623ea07526d095db2d42bb4fdf8823e5a9704b936d38", size = 115743, upload-time = "2026-05-16T18:03:36.929Z" },
 ]
 
 [package.optional-dependencies]
@@ -1377,7 +1377,7 @@ postgres = [
 
 [package.metadata]
 requires-dist = [
-    { name = "chunkshop", extras = ["all-backends"], marker = "extra == 'chunkshop'", specifier = ">=0.4.2,<0.5" },
+    { name = "chunkshop", extras = ["all-backends"], marker = "extra == 'chunkshop'", specifier = ">=0.4.3,<0.5" },
     { name = "clickhouse-connect", marker = "extra == 'all-backends'", specifier = ">=0.8,<1" },
     { name = "clickhouse-connect", marker = "extra == 'clickhouse'", specifier = ">=0.8,<1" },
     { name = "clickhouse-connect", marker = "extra == 'dev'", specifier = ">=0.8,<1" },
