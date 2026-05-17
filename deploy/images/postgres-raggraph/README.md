@@ -1,13 +1,16 @@
-# postgres-raggraph image (Phase 5 — reserved slot, NOT yet built)
+# postgres-raggraph image (Phase 5 — built)
 
-The `graph` / `all` compose profiles reference a `build: .` here. It is a
-**documented no-op until Phase 5**. Building it is gated by the Phase 5
-Task-0 in `docs/superpowers/specs/2026-05-17-phase5-recon-correction-sheet.md`
-and the pg-raggraph changes in `2026-05-17-pg-raggraph-requirements.md`
-(PRG-1..PRG-4).
+`pgvector/pgvector:pg16` + an initdb script that creates the `vector`
+extension. pg-raggraph (the Python library) runs in the Stele test/host
+process, connects here over `STELE_PG_RAGGRAPH_DSN`
+(`postgresql://yonk:yonk@localhost:55453/stele`), and **auto-migrates its own
+schema** on first connect (`pg_raggraph.db._ensure_schema`). The image only
+provides the one prerequisite pg-raggraph does not self-create: the `vector`
+extension (`schema.sql:2` — "Extensions must be created before this runs").
 
-When Phase 5 is scheduled, this directory gets a real `Dockerfile`:
-`pgvector/pgvector:pg16` base + the pinned `pg-raggraph` Python package +
-its schema bootstrap. Until then, do not run `--profile graph` expecting a
-working server; `tests/e2e/test_living_knowledge.py` stays skip-gated on
-`STELE_PG_RAGGRAPH_DSN`.
+Pinned dependency: `pg-raggraph==0.3.0a3` via the Stele `[postgres-graph]`
+extra (PRG-1..PRG-4 verified in source — see
+`docs/superpowers/specs/2026-05-17-phase5-task0-pg-raggraph-api-recon.md`).
+
+Brought up by `make -C deploy e2e-graph` (compose profile `all`/`graph`,
+port 55453).

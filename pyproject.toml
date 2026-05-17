@@ -35,6 +35,16 @@ clickhouse = [
 chunkshop = [
   "chunkshop[all-backends]>=0.4.3,<0.5",
 ]
+# pg-raggraph 0.3.0a3 — the Phase 5 living-knowledge consumer surface
+# (PRG-1..PRG-4: opaque caller metadata + evolution status on results,
+# post-hoc retract()/supersede(), stable chunk_id). Owner-controlled, so the
+# exact alpha is pinned; PRG-1..4 verified in the 0.3.0a3 source, not prose.
+# Independent of [postgres]: the graph projection reuses the Postgres
+# artifact-backend DSN (no os.environ), but the dependency set is separate.
+# pg-raggraph brings its own psycopg[binary]/psycopg-pool/pgvector.
+postgres-graph = [
+  "pg-raggraph==0.3.0a3",
+]
 judge = [
   "openai>=1.0,<2",
 ]
@@ -91,6 +101,7 @@ module = [
   "pymysql.cursors",
   "clickhouse_connect",
   "chunkshop.*",
+  "pg_raggraph.*",
   "openai",
 ]
 ignore_missing_imports = true
