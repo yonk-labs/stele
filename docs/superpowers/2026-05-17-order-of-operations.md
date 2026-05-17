@@ -101,11 +101,18 @@ leverage, de-risks everything after it.
 `docs/superpowers/specs/2026-05-17-phase5-recon-correction-sheet.md`. The
 2026-05-14 Phase 5 design doc is fiction-vintage — **do not execute it**.
 
-- **Task-0 gate first** (recon §0): pin/verify pg-raggraph (PyPI is alpha
-  `0.3.0a2`; async, `PGRGConfig`-driven; decide adapter-vs-Rust-extension),
-  stand it up on the harness `graph` profile, prove a real
-  ingest→as_of→retract round-trip **before** writing any Stele wrapper.
-  STOP+report if it doesn't hold (exactly like Phase 4 Task-0/chunkshop).
+- **Resolved (owner, 2026-05-17):** integration target is the Python
+  `pg-raggraph` (Rust extension OUT). Capability review done — the hard engine
+  (`as_of`, version_filter, retracted_behavior, evolution columns, async+dsn)
+  is already built; only a **small additive consumer surface** is missing
+  (recon §0 gaps **PRG-1..PRG-4**: return `external_ref`+evolution status on
+  hits; post-hoc `retract()`/`supersede()`; stable `chunk_id`). Since
+  pg-raggraph is owner-controlled these are scheduled additions, not a blocker.
+- **Task-0 gate** is now a **coordination gate**, not a go/no-go on an
+  uncontrolled dep: confirm PRG-1..PRG-4 are landed+pinned in pg-raggraph,
+  verify the real async API, prove ingest→`as_of`→post-hoc-`retract`→re-query
+  on the harness `graph` profile with the `stele://` ref recovered on every
+  hit, before writing the Stele wrapper.
 - Scope (recon §3): internal `Revisor` (lazy, opt-in `[postgres-graph]` extra,
   no native objects escape — reuse Phase 4 adapter templates); projection
   hooks on `store()`/`memory.add(supersedes=)`/new `memory.retract()`; fill
@@ -174,9 +181,12 @@ adapter SDK work."
    P6–P8 list is wrong). Action item: rewrite it to match §2 after Phase 4
    merges. Not done here (out of this pass's scope; flagged).
 3. **uv.lock** — already untracked + gitignored on this branch (prior step).
-4. **Phase 5 Task-0 owner**: confirm whether pg-raggraph ships from PyPI
-   (alpha risk) or a pinned commit / the Rust extension path — this is the
-   single biggest external risk and should be answered before P5 is scheduled.
+4. **Phase 5 dependency: RESOLVED + characterized.** Owner decision: Python
+   `pg-raggraph` (Rust OUT). Capability-reviewed — needs additive changes
+   PRG-1..PRG-4 *in pg-raggraph* (return external_ref+evolution status on
+   hits; post-hoc retract/supersede; stable chunk_id). New sub-track: schedule
+   the pg-raggraph PRG-1..PRG-4 work so it lands before/with P5 Task-0. Risk
+   downgraded from "biggest external risk" to "owner-scheduled coordination."
 5. The runtime-agent-memory spec's own Open Questions (WorkGraph record type;
    `as_of` from day one?; graph search = pg-raggraph vs relational vs both;
    first adapter; profile views as recall inputs by default) — resolved per

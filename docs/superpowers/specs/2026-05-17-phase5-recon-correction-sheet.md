@@ -21,33 +21,61 @@ exactly how Phase 4 went wrong).
 
 ---
 
-## §0 — pg-raggraph reality (the chunkshop lesson, repeated)
+## §0 — pg-raggraph reality (RESOLVED — owner-controlled, reviewed 2026-05-17)
 
-| Claim in design doc | Reality (verified 2026-05-17) |
+**Decision (owner):** integration target is the **Python `pg-raggraph`**
+package (`/home/yonk/yonk-tools/pg-raggraph`). The Rust `pg-raggraph-extension`
+/ `pg-raggraph-rs` are **OUT** — the design doc's adapter-vs-extension
+conflation is closed. pg-raggraph is the user's own project, so missing pieces
+are **added to pg-raggraph** (the Phase-4 chunkshop-`dsn` pattern), not worked
+around.
+
+**Capability review done (cited gap report, 2026-05-17).** The hard engine is
+already built; only a small additive consumer-facing surface is missing:
+
+| Need (Stele Revisor / Verification Bar) | pg-raggraph 0.3.0a2 reality |
 |---|---|
-| `pg_raggraph >= X.Y`, extra `[postgres-graph]` | **Not pinned anywhere.** No `pg_raggraph` / `postgres-graph` extra in `pyproject.toml`. |
-| (implied: a stable published dep) | On PyPI as **`pg-raggraph==0.3.0a2`** — an **alpha**. Sibling `/home/yonk/yonk-tools/pg-raggraph` at `0.3.0a2`; Rust extension in `/home/yonk/yonk-tools/pg-raggraph-extension`; `pg-raggraph-rs` also present. |
-| (implied: synchronous adapter) | Real API is **async** and **`PGRGConfig`-driven**. Evolution is real: `evolution_where_clauses(cfg, as_of=...)`, `retracted_behavior` default `"flag"` (modes `hide`/`flag`/`surface_both`), **`as_of` requires a tz-aware datetime** (naive rejected), supersession via `effective_from`/`effective_to`. |
+| Time-travel `as_of` | ✅ Real — `query(..., as_of=)` → `evolution.evolution_where_clauses` rewrites the SQL WHERE on `effective_from/to`. tz-aware datetime required (naive → ValueError). |
+| `version_filter` | ✅ Real — `query(..., version_filter=)`, doc-level `version_label`. |
+| `retracted_behavior` hide/flag/surface_both | ✅ Real — `PGRGConfig.retracted_behavior` (default `flag`); hide filters+zeros score, flag score-penalizes, surface_both passes through. |
+| Evolution data model | ✅ First-class columns (`effective_from/to`, `retracted`, `retracted_at`, `retraction_reason`, `version_label`, `supersedes_document_id`, `document_versions` table). |
+| DSN-direct + async lifecycle | ✅ `GraphRAG(dsn)` async ctx-mgr, internal async pool, auto-migrate. Same shape as chunkshop `dsn`. |
+| Ingest with caller metadata | ✅ stored (`documents.metadata` JSONB) — but see gap PRG-1. |
+| chunkshop interop | ✅ accepts pre-chunked input + has a chunkshop cookbook pattern (Phase-4 ⇄ Phase-5 fit by design). |
+| **Hit cites external `stele://` ref** | ❌ **GAP PRG-1** — metadata is stored but NOT returned in query results; `ChunkResult` has no metadata/external-ref/evolution-status fields. Breaks Stele's #1 invariant. |
+| **Post-hoc `retract(ref, reason, when)`** | ❌ **GAP PRG-2** — retraction is ingest-time-only; no method to retract already-stored knowledge. |
+| **Post-hoc `supersede(old, new)`** | ❌ **GAP PRG-3** — supersession is ingest-time-only; no post-hoc method. |
+| Stable returned `chunk_id` | ⚠️ **GAP PRG-4** — exists but optional; make required+stable. |
+| Follow-supersession-chain "latest only" query | ⚠️ **PRG-5 (stretch, defer)** — not required for the bar. |
 
-**Consequence:** Phase 5 needs a **Task-0 prereq gate identical in spirit to
-Phase 4's**, run *at execution time*, not assumed now:
+**pg-raggraph changes required before/with Phase 5 (additive, no redesign):**
+
+- **PRG-1** Return `metadata` + first-class `external_ref` + evolution status
+  (`retracted`, `version_label`, `effective_from/to`, `superseded_by`) on
+  `ChunkResult`; SELECT them in the naive/local/global retrieval queries.
+- **PRG-2** `async def retract(ref|doc_id, reason, retracted_at=None,
+  namespace=None)` — atomic UPDATE across `documents` + `document_versions`.
+- **PRG-3** `async def supersede(old_ref|id, new_ref|id, reason=None,
+  namespace=None)` — post-hoc upsert into `document_versions`.
+- **PRG-4** Make returned `chunk_id` stable + always present.
+- **PRG-5** (defer) supersession-chain "current view" query mode.
+
+**Revised consequence (risk downgraded from "external blocker" to
+"owner-scheduled additive work"):** Phase 5 Task-0 is no longer a *go/no-go on
+an uncontrolled external dep* — it is a **coordination gate** between the
+pg-raggraph PRG-1..PRG-4 changes and the Stele Revisor work.
 
 > **Phase 5 Task-0 (do alone first; STOP+report on failure):**
-> - Decide the pg-raggraph artifact: PyPI `pg-raggraph` (alpha `0.3.0a2` — is
->   that acceptable for a shipped feature, or pin a tested commit / wait for a
->   stable release?) **vs** the Rust `pg-raggraph-extension` (DB-side) — they
->   are different things; the design doc conflates "the adapter" with "the
->   extension".
-> - `uv sync` it under a new `[postgres-graph]` extra; verify the **real async
->   API** surface (config object, query entry point, the evolution kwargs
->   `as_of` / `version_filter` / `retracted_behavior`) by reading installed
->   source — produce the §1 equivalent of Phase 4's API table.
-> - Stand up the pg-raggraph-enabled Postgres image (the e2e harness `graph`
->   profile) and confirm a trivial ingest→as_of→retract round-trip works
->   **for real** before writing any Stele wrapper.
-> - If the API is alpha-unstable or the extension/DB story doesn't hold:
->   **STOP — external blocker**, exactly as Phase 4 Task-0 did for chunkshop
->   0.4.3.
+> - Confirm PRG-1..PRG-4 are landed in pg-raggraph (a tagged/pinned version —
+>   even an alpha is fine since it's owner-controlled; pin the exact version
+>   in a new Stele `[postgres-graph]` extra, no `os.environ`).
+> - Verify the real async API + the now-returned evolution/`external_ref`
+>   fields by reading installed source — produce the §1-equivalent API table.
+> - Stand up the pg-raggraph Postgres image (e2e harness `graph` profile);
+>   prove ingest→`as_of`→post-hoc `retract`→re-query round-trip **for real**,
+>   with the `stele://` ref recovered on every hit.
+> - STOP+report only if PRG-1..PRG-4 are NOT yet in the pinned pg-raggraph
+>   (then it's a *sequencing* fix — land them first — not a dead end).
 
 ---
 
