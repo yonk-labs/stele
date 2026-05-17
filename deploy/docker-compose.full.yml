@@ -1,0 +1,65 @@
+# Stele full-stack harness + sample deployment.
+# Profiles: core (pg+mariadb+clickhouse) | graph (Phase 5 pg-raggraph) | all
+services:
+  postgres:
+    profiles: ["core", "all"]
+    image: pgvector/pgvector:pg16
+    container_name: stele-e2e-postgres
+    environment:
+      POSTGRES_USER: yonk
+      POSTGRES_PASSWORD: yonk
+      POSTGRES_DB: stele
+    ports: ["55432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yonk -d stele"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  mariadb:
+    profiles: ["core", "all"]
+    image: mariadb:11.7
+    container_name: stele-e2e-mariadb
+    environment:
+      MARIADB_USER: yonk
+      MARIADB_PASSWORD: yonk
+      MARIADB_DATABASE: stele
+      MARIADB_ROOT_PASSWORD: yonkroot
+    ports: ["53306:3306"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 5s
+      retries: 40
+
+  clickhouse:
+    profiles: ["core", "all"]
+    image: clickhouse/clickhouse-server:24.10
+    container_name: stele-e2e-clickhouse
+    environment:
+      CLICKHOUSE_DB: stele
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    ports: ["58123:8123", "59000:9000"]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 40
+
+  # Phase 5 reserved slot — built when pg-raggraph PRG-1..PRG-4 land.
+  # Distinct port so it runs alongside the plain pgvector service.
+  postgres-raggraph:
+    profiles: ["graph", "all"]
+    build: ./images/postgres-raggraph
+    container_name: stele-e2e-postgres-raggraph
+    environment:
+      POSTGRES_USER: yonk
+      POSTGRES_PASSWORD: yonk
+      POSTGRES_DB: stele
+    ports: ["55433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yonk -d stele"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
