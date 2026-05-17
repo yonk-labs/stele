@@ -142,9 +142,14 @@ _DSN = {
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Auto-apply the `e2e` marker to everything under tests/e2e/."""
+    """Auto-apply the `e2e` marker ONLY to items under tests/e2e/.
+
+    A conftest hook receives the WHOLE session's items, not just this
+    directory's — filter by nodeid or the global suite gets marked e2e.
+    """
     for item in items:
-        item.add_marker(pytest.mark.e2e)
+        if item.nodeid.startswith("tests/e2e/"):
+            item.add_marker(pytest.mark.e2e)
 
 
 def _backends() -> list[str]:
@@ -207,15 +212,19 @@ Create `tests/e2e/test_full_journey.py`:
 ```python
 """Public-API end-to-end journey, per backend. No internals touched.
 
-store -> indexing_status -> vector search -> hybrid search -> fetch (scrubbed)
+store -> indexing_status -> vector search -> hybrid search -> fetch
 -> recall(artifact_search). Asserts the Phase 4 invariants on every backend —
 this is what finally proves mariadb + clickhouse e2e for real.
+
+Content is intentionally PII-free: chunkshop-backed stores correctly reject
+unscrubbed PII at the write boundary (Phase 4 design). Scrub-on-fetch is a
+Phase-1 guarantee with its own extensive coverage; the harness's unique value
+is the cross-backend index/search/recall path.
 """
 
 from __future__ import annotations
 
 import re
-import uuid
 
 from stele import Stele
 from stele.core.memory_record import MemoryScope
@@ -224,11 +233,13 @@ _CHUNK_ID = re.compile(r"^[0-9a-f]+:\d+$")
 
 
 def test_full_journey(stash: Stele) -> None:
-    ns = f"e2e_{uuid.uuid4().hex[:8]}"
+    # namespace "default": recall.artifact_search resolves artifact_id against
+    # the default namespace; artifact_id (uuid) provides uniqueness and each
+    # backend param gets an isolated Stele instance.
     stored = stash.store(
-        "Contact alice@example.com — the incident root cause was a "
-        "missing database index on the orders table.",
-        namespace=ns,
+        "The incident root cause was a missing database index on the "
+        "orders table; the fix was to rebuild the index overnight.",
+        namespace="default",
     )
     assert stored.index_status in {"indexed", "queued"}
     assert stash.indexing_status(stored.artifact_id).status == "indexed"
@@ -245,7 +256,7 @@ def test_full_journey(stash: Stele) -> None:
     assert hyb and hyb[0].retrieval_mode == "hybrid"
 
     fetched = stash.fetch(stored.reference)
-    assert "alice@example.com" not in str(fetched.content)  # PII scrubbed
+    assert "database index" in str(fetched.content)  # exact-evidence round-trip
 
     result = stash.recall.artifact_search(
         query="root cause",
@@ -469,10 +480,13 @@ Create `deploy/Makefile` (note: recipe lines are TAB-indented):
 
 ```make
 COMPOSE = docker compose -f docker-compose.full.yml
-EVID = ../tests/e2e/evidence/$(shell date +%Y-%m-%d)
+ROOT := $(abspath $(CURDIR)/..)
+DATE := $(shell date +%Y-%m-%d)
+EVID := $(ROOT)/tests/e2e/evidence/$(DATE)
 PG ?= postgresql://yonk:yonk@localhost:55432/stele
 MARIA ?= mariadb://yonk:yonk@localhost:53306/stele
 CH ?= http://default:@localhost:58123/stele
+DSNENV = STELE_PG_DSN="$(PG)" STELE_MARIADB_DSN="$(MARIA)" STELE_CLICKHOUSE_DSN="$(CH)"
 
 .PHONY: up up-all down nuke logs dry-run e2e e2e-graph
 
@@ -495,27 +509,30 @@ logs:
 	$(COMPOSE) --profile all logs --tail=100
 
 e2e: up
-	mkdir -p $(EVID)
-	cd .. && ./.venv/bin/python -m scripts_chunkshop_setup 2>/dev/null || \
-	  cd .. && bash scripts/chunkshop-setup.sh >/dev/null 2>&1 || true
-	cd .. && STELE_PG_DSN="$(PG)" STELE_MARIADB_DSN="$(MARIA)" \
-	  STELE_CLICKHOUSE_DSN="$(CH)" .venv/bin/pytest -q -m e2e tests/e2e \
+	mkdir -p "$(EVID)"
+	cd "$(ROOT)" && bash scripts/chunkshop-setup.sh >/dev/null 2>&1 || true
+	cd "$(ROOT)" && $(DSNENV) .venv/bin/pytest -q -m e2e tests/e2e \
+	  | tee "$(EVID)/E2E-Report.txt"
+	cd "$(ROOT)" && $(DSNENV) .venv/bin/pytest -q \
 	  tests/contract/test_vector_contract.py \
 	  tests/contract/test_indexing_modes_contract.py \
 	  tests/integration/test_showcase_e2e.py \
-	  | tee deploy/$(EVID)/E2E-Report.txt
+	  | tee -a "$(EVID)/E2E-Report.txt"
 	$(MAKE) down
 
 e2e-graph: up-all
-	cd .. && STELE_PG_RAGGRAPH_DSN=postgresql://yonk:yonk@localhost:55433/stele \
+	cd "$(ROOT)" && STELE_PG_RAGGRAPH_DSN=postgresql://yonk:yonk@localhost:55433/stele \
 	  .venv/bin/pytest -q -m e2e tests/e2e/test_living_knowledge.py
 	$(MAKE) down
 ```
 
-> Note: `test_vector_contract.py` / `test_indexing_modes_contract.py` /
-> `test_showcase_e2e.py` are NOT `e2e`-marked, so `-m e2e` does not exclude
-> them when named explicitly on the command line (pytest runs explicitly
-> selected files regardless of `-m`). They run for real with all DSNs set.
+> Why two pytest invocations: the global `addopts = "-m 'not e2e'"` plus a
+> CLI `-m` means a single run can't both *include* `tests/e2e` (needs
+> `-m e2e`) and *include* the unmarked contract/integration files (a
+> command-line `-m` filters ALL collected items, even explicitly-named
+> files). So: run 1 = `-m e2e tests/e2e`; run 2 = the named contract/
+> integration files under the default `-m 'not e2e'` (they are unmarked, so
+> not excluded). Both with all DSNs set → mariadb+clickhouse run for real.
 
 - [ ] **Step 2: Validate the Makefile parses**
 

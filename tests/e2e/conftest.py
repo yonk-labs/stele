@@ -24,9 +24,14 @@ _DSN = {
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Auto-apply the `e2e` marker to everything under tests/e2e/."""
+    """Auto-apply the `e2e` marker ONLY to items under tests/e2e/.
+
+    A conftest hook receives the WHOLE session's items, not just this
+    directory's — filter by nodeid or the global suite gets marked e2e.
+    """
     for item in items:
-        item.add_marker(pytest.mark.e2e)
+        if item.nodeid.startswith("tests/e2e/"):
+            item.add_marker(pytest.mark.e2e)
 
 
 def _backends() -> list[str]:
