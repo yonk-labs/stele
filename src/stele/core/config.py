@@ -147,6 +147,19 @@ class ExtractionConfig(BaseModel):
     auto_stash_messages: bool = True
 
 
+class GraphConfig(BaseModel):
+    """Living-knowledge projection (Phase 5). Batteries-included: the DSN is
+    reused from the Postgres artifact backend; users never set pg-raggraph
+    config. Default leans ``surface_both`` so a retracted source can still be
+    cited (Task-0 proven: ``hide`` erases the citation in all views)."""
+
+    enabled: bool = False
+    namespace: str = "stele"
+    evolution_tier: Literal["structural", "fact_aware", "full"] = "structural"
+    retracted_behavior: Literal["hide", "flag", "surface_both"] = "surface_both"
+    supersession_behavior: Literal["hide", "prefer_new", "surface_both"] = "prefer_new"
+
+
 class StashConfig(BaseModel):
     backend: BackendConfig = Field(default_factory=BackendConfig)
     summary: SummaryConfig = Field(default_factory=SummaryConfig)
@@ -157,6 +170,7 @@ class StashConfig(BaseModel):
     signing: SigningConfig = Field(default_factory=SigningConfig)
     extraction: ExtractionConfig = Field(default_factory=ExtractionConfig)
     recall: RecallConfig = Field(default_factory=RecallConfig)
+    graph: GraphConfig = Field(default_factory=GraphConfig)
 
     @classmethod
     def load(cls, value: StashConfig | dict[str, Any] | str | Path | None) -> StashConfig:
