@@ -11,6 +11,7 @@ from stele.core.artifact import (
     SearchHit,
     StoredResult,
 )
+from stele.core.capabilities import StashCapabilities
 from stele.core.config import StashConfig
 from stele.core.exceptions import (
     ArtifactNotFound,
@@ -39,6 +40,13 @@ from stele.extraction.models import (
     MemoryCandidate,
     RejectedCandidate,
 )
+from stele.indexing.bakeoff import (
+    BakeoffChunker,
+    BakeoffConfig,
+    BakeoffEmbedder,
+    BakeoffSummary,
+)
+from stele.indexing.task_backend.base import IndexTask, TaskStatus
 from stele.recall.models import (
     Citation,
     Escalation,
@@ -86,4 +94,12 @@ __all__ = [
     "StashConfig",
     "StoredResult",
     "ValidationError",
+    # Phase 4 public types
+    "StashCapabilities",
+    "BakeoffConfig",
+    "BakeoffEmbedder",
+    "BakeoffChunker",
+    "BakeoffSummary",
+    "IndexTask",
+    "TaskStatus",
 ]
