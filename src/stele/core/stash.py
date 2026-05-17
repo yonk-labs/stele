@@ -6,6 +6,9 @@ import builtins
 import uuid
 from collections.abc import Sequence
 from datetime import timedelta
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
+from importlib.util import find_spec
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -463,10 +466,27 @@ class Stele:
         return ImportResult(imported_count=len(artifacts))
 
     def capabilities(self) -> StashCapabilities:
+        try:
+            cs_version: str | None = pkg_version("chunkshop")
+        except PackageNotFoundError:
+            cs_version = None
+        store = self._chunk_store
+        has_store = store is not None
         return StashCapabilities(
             storage=self.storage.capabilities(),
             retrieval=self.retrieval.capabilities().model_copy(
                 update={"hybrid": self.chunk_index is not None}
+            ),
+            chunk_store_backend=store.name if store is not None else None,  # type: ignore[arg-type]
+            vector_enabled=has_store,
+            hybrid_enabled=has_store,
+            chunkshop_installed=find_spec("chunkshop") is not None,
+            chunkshop_version=cs_version,
+            bakeoff_summary=self._bakeoff_summary,
+            task_backend=(
+                self.config.indexing.task_backend
+                if self.config.indexing.mode == "async"
+                else None
             ),
         )
 

@@ -41,3 +41,42 @@ def test_stash_capabilities_bakeoff_summary_typed() -> None:
     )
     assert caps.bakeoff_summary is not None
     assert caps.bakeoff_summary.source == "auto_detected"
+
+
+# --- Stele.capabilities() integration (SC-023, T23) ---
+
+from stele import Stele  # noqa: E402
+
+
+def test_capabilities_reports_phase4_runtime_state() -> None:
+    stash = Stele.from_config(
+        {"backend": {"type": "memory"}, "indexing": {"mode": "sync"}}
+    )
+    caps = stash.capabilities()
+    assert caps.chunk_store_backend == "memory"
+    assert caps.vector_enabled is True
+    assert caps.hybrid_enabled is True
+    assert caps.chunkshop_installed is True
+    assert caps.chunkshop_version is not None
+    assert caps.bakeoff_summary is not None
+    assert caps.bakeoff_summary.source in {"auto_detected", "default", "bakeoff_file"}
+    assert caps.task_backend is None  # sync mode
+    stash.close()
+
+
+def test_capabilities_skip_mode_has_no_chunk_store() -> None:
+    stash = Stele.from_config()  # default: skip
+    caps = stash.capabilities()
+    assert caps.chunk_store_backend is None
+    assert caps.vector_enabled is False
+    assert caps.hybrid_enabled is False
+    stash.close()
+
+
+def test_capabilities_async_reports_task_backend() -> None:
+    stash = Stele.from_config(
+        {"backend": {"type": "memory"}, "indexing": {"mode": "async"}}
+    )
+    caps = stash.capabilities()
+    assert caps.task_backend == "in_process"
+    stash.close()
