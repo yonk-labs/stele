@@ -9,6 +9,7 @@ These documents are the implementation handoff for the rebuild. The mission brie
 - [Testing and Benchmark Specification](./testing-benchmark-spec.md): unit, contract, integration, benchmark, recall, PII, and performance verification gates.
 - [Implementation Execution Plan](./implementation-execution-plan.md): milestone order, file ownership, dependencies, and exit criteria.
 - [Build Backlog](./build-backlog.md): ticket-sized implementation tasks for the first build wave.
+- [Runtime Agent Memory Architecture Spec](./runtime-agent-memory-architecture-spec.md): prior-art lessons, architecture treatment matrix, WorkGraph specs, adapter health, scheduling, and benchmark tasks.
 
 ## Build Rule
 
