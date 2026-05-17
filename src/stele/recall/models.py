@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -82,6 +83,10 @@ class RecallRequest(BaseModel):
     max_memory_hits: int = 5
     max_artifact_hits: int = 5
     confidence_floor: float | None = None
+    # Phase 5 — optional, defaults preserve every existing caller's behavior.
+    as_of: datetime | None = None
+    version_filter: str | None = None
+    retracted_behavior: Literal["hide", "flag", "surface_both"] | None = None
 
 
 class RecallResult(BaseModel):

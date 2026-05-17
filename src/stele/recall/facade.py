@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from stele.core.exceptions import CapabilityError
@@ -61,6 +62,9 @@ class Recall:
         max_memory_hits: int | None = None,
         max_artifact_hits: int | None = None,
         confidence_floor: float | None = None,
+        as_of: datetime | None = None,
+        version_filter: str | None = None,
+        retracted_behavior: str | None = None,
     ) -> RecallResult:
         if not self._deps.config.enabled:
             raise CapabilityError("recall is disabled in config")
@@ -81,6 +85,9 @@ class Recall:
                 else self._deps.config.max_artifact_hits
             ),
             confidence_floor=confidence_floor,
+            as_of=as_of,
+            version_filter=version_filter,
+            retracted_behavior=retracted_behavior,  # type: ignore[arg-type]
         )
         return self._registry[req.strategy].execute(req, self._deps)
 
@@ -102,9 +109,24 @@ class Recall:
         )
 
     def graph_search(
-        self, *, query: str, scope: MemoryScope, artifact_id: str | None = None
+        self,
+        *,
+        query: str,
+        scope: MemoryScope,
+        artifact_id: str | None = None,
+        as_of: datetime | None = None,
+        version_filter: str | None = None,
+        retracted_behavior: str | None = None,
     ) -> RecallResult:
-        return self(query=query, scope=scope, strategy="graph_search", artifact_id=artifact_id)
+        return self(
+            query=query,
+            scope=scope,
+            strategy="graph_search",
+            artifact_id=artifact_id,
+            as_of=as_of,
+            version_filter=version_filter,
+            retracted_behavior=retracted_behavior,
+        )
 
     def adaptive(
         self,
