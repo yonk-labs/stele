@@ -19,6 +19,7 @@ from stele.core.memory_record import (
 )
 from stele.pii.regex import RegexPIIScrubber
 from stele.pii.scrubber import DisabledPIIScrubber
+from stele.revisor.base import NoOpRevisor, Revisor
 from stele.storage.memory_store.base import MemoryStore
 
 
@@ -27,9 +28,16 @@ class Memory:
         self,
         store: MemoryStore,
         scrubber: RegexPIIScrubber | DisabledPIIScrubber,
+        *,
+        revisor: Revisor | None = None,
     ) -> None:
         self._store = store
         self._scrubber = scrubber
+        self._revisor: Revisor = revisor if revisor is not None else NoOpRevisor()
+
+    @staticmethod
+    def _mem_ref(record: MemoryRecord) -> str:
+        return f"stele://{record.scope.namespace}/mem-{record.id}"
 
     def add(
         self,
@@ -63,6 +71,23 @@ class Memory:
             scope, memory_text_hash(record.text, scope)
         )
         stored, superseded_ids = self._store.add(record, supersedes_ids)
+        if self._revisor.active:
+            self._revisor.ingest_evidence(
+                stele_ref=self._mem_ref(stored),
+                text=stored.text,
+                namespace=stored.scope.namespace,
+                effective_from=stored.effective_from,
+                session_id=stored.scope.session_id,
+                extra={"source_refs": list(stored.source_refs)},
+            )
+            for old_id in superseded_ids:
+                old = self._store.get(old_id)
+                if old is not None:
+                    self._revisor.supersede(
+                        old_ref=self._mem_ref(old),
+                        new_ref=self._mem_ref(stored),
+                        reason="superseded",
+                    )
         return MemoryAddResult(
             record=stored,
             duplicate_of=dup_id,
@@ -105,6 +130,33 @@ class Memory:
 
     def delete(self, memory_id: str) -> None:
         self._store.soft_delete(memory_id)
+
+    def retract(
+        self,
+        memory_id: str,
+        *,
+        reason: str = "",
+        retracted_at: datetime | None = None,
+    ) -> MemoryRecord:
+        """Mark a memory retracted (additive Phase-5 surface). Sets
+        status='retracted' + effective_until, and projects to the Revisor
+        when one is configured. Memory is truth; the graph mirrors it."""
+        existing = self._store.get(memory_id)
+        if existing is None:
+            from stele.core.exceptions import ArtifactNotFound
+
+            raise ArtifactNotFound(f"memory not found: {memory_id}")
+        when = retracted_at or datetime.now(UTC)
+        self._store.set_retracted(memory_id, when)
+        if self._revisor.active:
+            self._revisor.retract(
+                stele_ref=self._mem_ref(existing),
+                reason=reason,
+                retracted_at=when,
+            )
+        updated = self._store.get(memory_id)
+        assert updated is not None
+        return updated
 
     def search_with_score(
         self,
