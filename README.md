@@ -27,6 +27,7 @@ Key planning docs:
 - [PRD: Sovereign Stele](docs/prd-sovereign-stele.md)
 - [Architecture: Sovereign Stele](docs/architecture-sovereign-stele.md)
 - [Build specs](docs/specs/README.md)
+- [Vector & hybrid indexing setup (Phase 4)](docs/vector-indexing-setup.md)
 
 ## Current Functional Surface
 
