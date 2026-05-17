@@ -120,3 +120,16 @@ def test_missing_chunkshop_raises(tmp_path: Path) -> None:
 
     with pytest.raises(OptionalDependencyError, match="chunkshop"):
         SQLiteChunkStore(IndexingConfig(), db_path=str(tmp_path / "x.db"))
+
+
+def test_optionaldep_when_chunkshop_absent_simulated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SC-010 (passing, not skipped): simulate chunkshop missing via
+    find_spec -> OptionalDependencyError with the pip hint."""
+    from stele.core.exceptions import OptionalDependencyError
+    from stele.storage.chunk_store import _chunkshop_base
+
+    monkeypatch.setattr(_chunkshop_base, "find_spec", lambda name: None)
+    with pytest.raises(OptionalDependencyError, match=r"chunkshop.*stele-core\[chunkshop\]"):
+        SQLiteChunkStore(IndexingConfig(), db_path=str(tmp_path / "x.db"))

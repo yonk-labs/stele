@@ -1,0 +1,83 @@
+Phase 4 — Chunkshop Indexing — SC → passing-test coverage map
+Generated 2026-05-17 | branch phase4-chunkshop-indexing | chunkshop 0.4.3 (PyPI)
+Every SC-001..SC-026 maps to a REAL PASSING test (not skipped). chunkshop-backed
+tests run for real (fastembed model cached; STELE_PG_DSN set). The only skip is
+the chunkshop-ABSENT OptionalDependencyError path (kept for chunkshop-less CI);
+SC-010 is independently covered by a PASSING simulated-absence test.
+
+SC-001  RetrievalMode keyword|vector|hybrid; keyword callers unaffected
+        tests/unit/core/test_types.py::test_retrieval_mode_includes_vector_and_hybrid
+        tests/unit/core/test_stash_facade.py::test_vector_mode_dispatch (end-to-end)
+        tests/contract/test_retrieval_contract.py (keyword unaffected)
+SC-002  IndexingConfig extended + validators
+        tests/unit/core/test_config.py
+SC-003  Bakeoff{Config,Embedder,Chunker,Summary} models
+        tests/unit/indexing/test_bakeoff.py::test_bakeoff_config_full
+        tests/unit/core/test_public_exports.py::test_phase4_types_exported
+SC-004  bakeoff load JSON/YAML; missing/parse -> ConfigError at __init__
+        tests/unit/indexing/test_bakeoff.py::test_load_bakeoff_json
+        tests/unit/indexing/test_bakeoff.py::test_load_bakeoff_missing_file_raises_configerror
+        tests/unit/indexing/test_bakeoff.py::test_bakeoff_missing_file_raises_at_init
+SC-005  overlay applies at Stele.__init__; source == bakeoff_file
+        tests/unit/indexing/test_bakeoff.py::test_stele_applies_bakeoff_overlay_at_init
+SC-006  no bakeoff -> embedder probe -> auto_detected
+        tests/unit/indexing/test_dim_resolution.py::test_auto_detected_from_store_probe
+SC-007  no bakeoff + no embedder -> 384/cosine/default
+        tests/unit/indexing/test_dim_resolution.py::test_default_when_no_store_no_bakeoff
+SC-008  ChunkStore Protocol surface
+        tests/unit/storage/test_chunk_store_memory.py::test_in_process_surface
+        tests/unit/storage/test_chunk_store_sqlite.py::test_protocol_surface
+SC-009  InProcessChunkStore implements Protocol w/o chunkshop
+        tests/unit/storage/test_chunk_store_memory.py (6 tests)
+SC-010  chunkshop stores lazy-import; OptionalDependencyError + pip hint when absent
+        tests/unit/storage/test_chunk_store_sqlite.py::test_optionaldep_when_chunkshop_absent_simulated
+SC-011  chunkshop_adapter chunk_id <-> row translation; no native objects
+        tests/unit/indexing/test_chunkshop_adapter.py (12 tests)
+SC-012  vector_search top-K, retrieval_mode=vector
+        tests/unit/retrieval/test_vector.py
+        tests/unit/storage/test_chunk_store_sqlite.py::test_write_and_vector_search
+SC-013  hybrid_search RRF/weighted, sources=[keyword,vector]
+        tests/unit/retrieval/test_hybrid.py::test_hybrid_rrf_default_merges_both_sources
+SC-014  LOAD-BEARING hybrid recall@5 >= max(component) - floor
+        tests/unit/retrieval/test_hybrid_quality.py::test_hybrid_recall_within_floor_of_best_component
+SC-015  Stele.search vector/hybrid end-to-end across 5 backends
+        tests/contract/test_vector_contract.py (memory,sqlite,postgres real)
+SC-016  TaskBackend Protocol submit/status/close
+        tests/unit/indexing/test_task_backend.py
+        tests/unit/core/test_public_exports.py::test_phase4_types_exported
+SC-017  InProcessTaskBackend threading+queue transitions
+        tests/unit/indexing/test_task_backend.py::test_in_process_submit_runs_and_succeeds
+SC-018  Redis/Celery CapabilityError stubs
+        tests/unit/indexing/test_task_backend.py::test_redis_task_backend_raises_capability_error
+        tests/unit/indexing/test_task_backend.py::test_celery_task_backend_raises_capability_error
+SC-019  async store returns immediately; -> indexed via worker
+        tests/unit/indexing/test_async_queue.py::test_async_indexer_queued_then_indexed
+        tests/unit/core/test_stash_facade.py::test_async_store_returns_immediately_and_transitions
+        tests/contract/test_indexing_modes_contract.py::test_async_mode
+SC-020  Stele.indexing_status(artifact_id) -> IndexResult
+        tests/unit/core/test_stash_facade.py::test_indexing_status_sync
+        tests/contract/test_indexing_modes_contract.py::test_sync_mode
+SC-021  search while pending succeeds, no exception
+        tests/unit/core/test_stash_facade.py::test_async_store_returns_immediately_and_transitions
+        tests/contract/test_indexing_modes_contract.py::test_async_mode
+SC-022  hybrid degrade-with-flag (vector raises / keyword raises)
+        tests/unit/retrieval/test_hybrid.py::test_hybrid_degrades_when_vector_raises
+        tests/unit/retrieval/test_hybrid.py::test_hybrid_degrades_when_keyword_raises
+SC-023  capabilities() reports the 7 Phase 4 fields
+        tests/unit/retrieval/test_capabilities.py::test_capabilities_reports_phase4_runtime_state
+SC-024  Phase 3 ArtifactSearchStrategy picks up vector/hybrid via default_mode (0 recall changes)
+        tests/unit/recall/test_artifact_search_vector.py
+SC-025  existing keyword retrieval — no regression
+        tests/contract/test_retrieval_contract.py
+SC-026  PII assertion at chunk write fails-loud (chunkshop-backed)
+        tests/unit/storage/test_chunk_store_sqlite.py::test_pii_assertion_on_write
+        tests/unit/storage/test_chunk_store_memory.py::test_chunkshop_backed_store_asserts_pii_at_write_boundary
+
+Drift checkpoints:
+  DC-001 PASS  grep chunkshop in retrieval/+recall/ empty; tests/unit/indexing/test_architecture.py
+  DC-002 PASS  grep threading|queue.Queue|asyncio in retrieval/+recall/ empty; test_architecture.py
+  DC-003 PASS  test_hybrid_quality.py @ floor 0.05 (keyword .958 / vector 1.0 / hybrid 1.0)
+  DC-004 PASS  no-bakeoff->default, with-bakeoff->bakeoff_file
+  DC-FINAL     full trio green + Out-of-Scope grep empty + locked-files untouched
+
+Real-evidence: docs/superpowers/specs/2026-05-16-phase4-make-it-real-evidence.md
