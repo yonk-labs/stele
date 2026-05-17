@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import builtins
+from datetime import datetime
 from typing import Protocol
 
 from stele.core.memory_record import (
@@ -45,6 +46,11 @@ class MemoryStore(Protocol):
     ) -> MemoryRecord: ...
 
     def soft_delete(self, memory_id: str) -> None: ...
+
+    def set_retracted(self, memory_id: str, retracted_at: datetime) -> None:
+        """Set status='retracted' and effective_until=retracted_at. Raises
+        ArtifactNotFound if absent. Additive Phase-5 surface."""
+        ...
 
     def find_duplicate(
         self,

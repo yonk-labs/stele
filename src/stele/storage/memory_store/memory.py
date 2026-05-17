@@ -128,6 +128,18 @@ class InProcessMemoryStore:
             update={"status": "deleted", "updated_at": datetime.now(UTC)}
         )
 
+    def set_retracted(self, memory_id: str, retracted_at: datetime) -> None:
+        existing = self._records.get(memory_id)
+        if existing is None:
+            raise ArtifactNotFound(f"memory not found: {memory_id}")
+        self._records[memory_id] = existing.model_copy(
+            update={
+                "status": "retracted",
+                "effective_until": retracted_at,
+                "updated_at": datetime.now(UTC),
+            }
+        )
+
     def find_duplicate(
         self,
         scope: MemoryScope,

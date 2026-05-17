@@ -291,6 +291,18 @@ class PostgresMemoryStore:
             raise ArtifactNotFound(f"memory not found: {memory_id}")
         self.conn.commit()
 
+    def set_retracted(self, memory_id: str, retracted_at: datetime) -> None:
+        now = datetime.now(UTC)
+        with self.conn.cursor() as cur:
+            affected = cur.execute(
+                "UPDATE memories SET status='retracted', effective_until=%s, "
+                "updated_at=%s WHERE id=%s",
+                (retracted_at, now, memory_id),
+            ).rowcount
+        if affected == 0:
+            raise ArtifactNotFound(f"memory not found: {memory_id}")
+        self.conn.commit()
+
     def find_duplicate(
         self,
         scope: MemoryScope,

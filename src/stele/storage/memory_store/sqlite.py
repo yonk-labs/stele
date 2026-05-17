@@ -370,3 +370,14 @@ class SQLiteMemoryStore:
         if affected == 0:
             raise ArtifactNotFound(f"memory not found: {memory_id}")
         self.conn.commit()
+
+    def set_retracted(self, memory_id: str, retracted_at: datetime) -> None:
+        now = datetime.now(UTC).isoformat()
+        affected = self.conn.execute(
+            "UPDATE memories SET status='retracted', effective_until=?, "
+            "updated_at=? WHERE id=?",
+            (retracted_at.isoformat(), now, memory_id),
+        ).rowcount
+        if affected == 0:
+            raise ArtifactNotFound(f"memory not found: {memory_id}")
+        self.conn.commit()
