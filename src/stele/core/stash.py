@@ -498,6 +498,12 @@ class Stele:
             cs_version = None
         store = self._chunk_store
         has_store = store is not None
+        try:
+            pgrg_version: str | None = pkg_version("pg-raggraph")
+        except PackageNotFoundError:
+            pgrg_version = None
+        pgrg_installed = find_spec("pg_raggraph") is not None
+        graph_active = self.revisor.active
         return StashCapabilities(
             storage=self.storage.capabilities(),
             retrieval=self.retrieval.capabilities().model_copy(
@@ -514,6 +520,10 @@ class Stele:
                 if self.config.indexing.mode == "async"
                 else None
             ),
+            graph_enabled=self.config.graph.enabled,
+            living_knowledge=graph_active,
+            pg_raggraph_installed=pgrg_installed,
+            pg_raggraph_version=pgrg_version,
         )
 
     def close(self) -> None:

@@ -36,4 +36,8 @@ class StashCapabilities(BaseModel):
     chunkshop_version: str | None = None
     bakeoff_summary: BakeoffSummary | None = None
     task_backend: str | None = None
+    graph_enabled: bool = False
+    living_knowledge: bool = False
+    pg_raggraph_installed: bool = False
+    pg_raggraph_version: str | None = None
 
