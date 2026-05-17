@@ -27,3 +27,6 @@ credentials*.json
 
 # uv lockfile — untracked to match main (per Phase 4 close-out decision)
 uv.lock
+
+# e2e harness captured run reports
+tests/e2e/evidence/
