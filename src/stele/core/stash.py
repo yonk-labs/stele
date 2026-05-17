@@ -33,7 +33,13 @@ from stele.core.reference import make_reference
 from stele.core.reference_auth import validate_reference_signature
 from stele.core.types import ContentEncoding, ContentType, Lifecycle, RetrievalMode
 from stele.indexing.async_queue import AsyncChunkIndexer
+from stele.indexing.bakeoff import (
+    BakeoffSummary,
+    load_bakeoff_file,
+    overlay_onto_indexing_config,
+)
 from stele.indexing.chunk_index import ChunkIndex
+from stele.indexing.dim_resolution import resolve_dim_and_similarity
 from stele.indexing.job import IndexResult
 from stele.indexing.queue import NoOpIndexer, SyncChunkIndexer
 from stele.indexing.task_backend.base import IndexTask
@@ -107,7 +113,11 @@ class Stele:
         self._chunk_store: ChunkStore | None = None
         self._async_sync: SyncChunkIndexer | None = None
         self.indexer: NoOpIndexer | SyncChunkIndexer | AsyncChunkIndexer
+        self._apply_bakeoff_overlay()  # before _build_indexer: store uses overlaid dim
         self._build_indexer()
+        self._bakeoff_summary: BakeoffSummary = resolve_dim_and_similarity(
+            self.config.indexing, store=self._chunk_store
+        )
 
     @classmethod
     def from_config(
@@ -117,6 +127,23 @@ class Stele:
         return cls(StashConfig.load(config))
 
     # ----- Phase 4 indexing / chunk-store wiring -------------------------
+
+    def _apply_bakeoff_overlay(self) -> None:
+        """Load + overlay a bakeoff file at construction (SC-005).
+
+        Missing/invalid file raises ConfigError (fail fast, SC-004).
+        """
+        path = self.config.indexing.bakeoff_path
+        if not path:
+            return
+        bakeoff = load_bakeoff_file(path)
+        self.config = self.config.model_copy(
+            update={
+                "indexing": overlay_onto_indexing_config(
+                    self.config.indexing, bakeoff
+                )
+            }
+        )
 
     def _build_chunk_store(self) -> ChunkStore:
         """Synthesize the backend chunk store from IndexingConfig only.
