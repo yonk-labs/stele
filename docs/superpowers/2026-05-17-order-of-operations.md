@@ -97,9 +97,11 @@ leverage, de-risks everything after it.
 
 ### P5 — pg-raggraph + Living Knowledge Verification
 
-**Recon (ground truth):**
+**Design (corrected):**
+`docs/superpowers/specs/2026-05-17-phase5-pg-raggraph-living-knowledge-CORRECTED-design.md`
+(supersedes the 2026-05-14 fiction, now banner-marked). **Ground truth:**
 `docs/superpowers/specs/2026-05-17-phase5-recon-correction-sheet.md`. The
-2026-05-14 Phase 5 design doc is fiction-vintage — **do not execute it**.
+2026-05-14 doc is fiction-vintage — **do not execute it**.
 
 - **Resolved (owner, 2026-05-17):** integration target is the Python
   `pg-raggraph` (Rust extension OUT). Capability review done — the hard engine

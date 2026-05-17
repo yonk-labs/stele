@@ -1,3 +1,12 @@
+<!-- ============================================================== -->
+<!-- ⛔ SUPERSEDED — FICTION-VINTAGE. DO NOT FOLLOW THIS DOCUMENT.   -->
+<!-- Written against assumed APIs, never validated (same vintage as -->
+<!-- the original Phase 4 plan that proved fictional).              -->
+<!-- Authoritative replacements:                                    -->
+<!--  - docs/superpowers/specs/2026-05-17-phase5-recon-correction-sheet.md (GROUND TRUTH) -->
+<!--  - docs/superpowers/specs/2026-05-17-phase5-pg-raggraph-living-knowledge-CORRECTED-design.md -->
+<!-- Kept only for historical diff against the corrected design.    -->
+<!-- ============================================================== -->
 ---
 phase: 5
 title: pg-raggraph Postgres Excellence + Living Knowledge Verification
