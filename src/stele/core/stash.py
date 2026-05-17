@@ -115,6 +115,9 @@ class Stele:
         self.chunk_index: ChunkIndex | None = None
         self._chunk_store: ChunkStore | None = None
         self._async_sync: SyncChunkIndexer | None = None
+        # Submit-time capture for async indexing (avoids a worker-thread
+        # re-fetch through the thread-affine SQLite artifact store).
+        self._pending_records: dict[str, ArtifactRecord] = {}
         self.indexer: NoOpIndexer | SyncChunkIndexer | AsyncChunkIndexer
         self._apply_bakeoff_overlay()  # before _build_indexer: store uses overlaid dim
         self._build_indexer()
@@ -205,9 +208,19 @@ class Stele:
             self.indexer = sync
 
     def _index_task(self, task: IndexTask) -> None:
-        """Async worker: re-fetch by reference, then index synchronously."""
-        ref = validate_reference_signature(task.reference, self.config.signing)
-        record = self.storage.fetch(ref)
+        """Async worker: index the submitted artifact synchronously.
+
+        The reference signature is still validated (recon's security
+        intent). The record is taken from the submit-time capture rather
+        than re-fetched: the Phase-1 SQLite artifact store caches a
+        thread-affine connection (locked, must not modify), so a
+        worker-thread ``storage.fetch`` raises a cross-thread error. The
+        record is already in hand at submit, so no re-fetch is needed.
+        """
+        validate_reference_signature(task.reference, self.config.signing)
+        record = self._pending_records.pop(task.artifact_id, None)
+        if record is None:  # defensive: nothing to index
+            return
         assert self._async_sync is not None
         self._async_sync.index_now(record)
 
@@ -298,6 +311,8 @@ class Stele:
             updated_at=now,
         )
         record = self.storage.store(artifact)
+        if isinstance(self.indexer, AsyncChunkIndexer):
+            self._pending_records[record.artifact_id] = record
         index_result = self.indexer.submit(record)
         replacement_char_count = len(record.summary) + len(record.reference)
         original_tokens = record.token_estimate
