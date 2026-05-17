@@ -79,3 +79,28 @@ def test_in_process_surface() -> None:
     # Structural ChunkStore surface: required callables present.
     for attr in ("write", "delete", "keyword_search", "vector_search", "embed", "close"):
         assert callable(getattr(store, attr))
+
+
+# --- SC-026: PII boundary assertion semantics (T27) ---
+
+import pytest  # noqa: E402
+
+
+def test_memory_store_trusts_upstream_pii_scrubbing() -> None:
+    """The in-process memory store is the deterministic offline fallback;
+    it does NOT re-assert PII — it trusts the upstream Stele PII layer.
+    Only chunkshop-backed wrappers do the defensive write-boundary check.
+    """
+    pytest.skip("memory ChunkStore trusts upstream PII scrubbing by design")
+
+
+def test_chunkshop_backed_store_asserts_pii_at_write_boundary(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """SC-026: a chunkshop-backed store fails loud on unscrubbed PII."""
+    from stele.core.exceptions import BackendError
+    from stele.storage.chunk_store.sqlite import SQLiteChunkStore
+
+    store = SQLiteChunkStore(IndexingConfig(), db_path=str(tmp_path / "pii.db"))
+    art = _artifact("email the user at jane.doe@example.com about the SSN 123-45-6789")
+    with pytest.raises(BackendError, match="PII"):
+        store.write(art)
+    store.close()
