@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from stele.core.memory import Memory
     from stele.extraction.extractor import MemoryExtractor
     from stele.recall.facade import Recall
+    from stele.revisor.base import Revisor
 
 
 class Stele:
@@ -314,6 +315,16 @@ class Stele:
         if isinstance(self.indexer, AsyncChunkIndexer):
             self._pending_records[record.artifact_id] = record
         index_result = self.indexer.submit(record)
+        if self.revisor.active:
+            # Project the already-PII-scrubbed summary — source-backed and
+            # PII-safe; the artifact's stele:// ref round-trips on every hit.
+            self.revisor.ingest_evidence(
+                stele_ref=record.reference,
+                text=record.summary,
+                namespace=record.namespace,
+                effective_from=record.created_at,
+                session_id=record.session_id,
+            )
         replacement_char_count = len(record.summary) + len(record.reference)
         original_tokens = record.token_estimate
         replacement_tokens = estimate_tokens(record.summary) + estimate_tokens(record.reference)
@@ -515,6 +526,9 @@ class Stele:
         recall = getattr(self, "_recall", None)
         if recall is not None:
             recall.close()
+        revisor = getattr(self, "_revisor", None)
+        if revisor is not None:
+            revisor.close()
         indexer = getattr(self, "indexer", None)
         if isinstance(indexer, AsyncChunkIndexer):
             indexer.close()
@@ -564,7 +578,11 @@ class Stele:
                     f"Memory store not implemented for backend: {self.config.backend.type}"
                 )
             store.initialize()
-            self._memory = Memory(store, self.pii_scrubber)  # type: ignore[arg-type]
+            self._memory = Memory(
+                store,  # type: ignore[arg-type]
+                self.pii_scrubber,
+                revisor=self.revisor,
+            )
         return self._memory
 
     @property
@@ -592,6 +610,27 @@ class Stele:
                 config=self.config.recall,
             )
         return self._recall
+
+    @property
+    def revisor(self) -> Revisor:
+        if not hasattr(self, "_revisor"):
+            from stele.revisor.base import NoOpRevisor
+
+            if (
+                not self.config.graph.enabled
+                or self.config.backend.type != "postgres"
+                or not self.config.backend.dsn
+            ):
+                self._revisor: Revisor = NoOpRevisor()
+            else:
+                from stele.revisor.pg_raggraph_revisor import PgRaggraphRevisor
+
+                self._revisor = PgRaggraphRevisor(
+                    dsn=self.config.backend.dsn,
+                    namespace=self.config.graph.namespace,
+                    evolution_tier=self.config.graph.evolution_tier,
+                )
+        return self._revisor
 
     def _scrub_text(self, text: str) -> ScrubResult:
         if not self.config.pii.enabled:
