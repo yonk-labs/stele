@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: yonk
       POSTGRES_PASSWORD: yonk
       POSTGRES_DB: stele
-    ports: ["55432:5432"]
+    ports: ["55452:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U yonk -d stele"]
       interval: 2s
@@ -25,7 +25,7 @@ services:
       MARIADB_PASSWORD: yonk
       MARIADB_DATABASE: stele
       MARIADB_ROOT_PASSWORD: yonkroot
-    ports: ["53306:3306"]
+    ports: ["53316:3306"]
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 2s
@@ -40,7 +40,11 @@ services:
       CLICKHOUSE_DB: stele
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: ""
-    ports: ["58123:8123", "59000:9000"]
+    volumes:
+      # Enables the upstream-experimental vector_similarity index that
+      # chunkshop's CH sink requires (see the XML for rationale).
+      - ./clickhouse/users.d:/etc/clickhouse-server/users.d:ro
+    ports: ["58133:8123", "59010:9000"]
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
       interval: 2s
@@ -57,7 +61,7 @@ services:
       POSTGRES_USER: yonk
       POSTGRES_PASSWORD: yonk
       POSTGRES_DB: stele
-    ports: ["55433:5432"]
+    ports: ["55453:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U yonk -d stele"]
       interval: 2s

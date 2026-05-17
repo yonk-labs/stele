@@ -770,3 +770,43 @@ git commit --allow-empty -m "chore(e2e): harness verified — HC-1..HC-6 green, 
 **Type/name consistency:** `stash` fixture (Task 2) used by Task 3; `backend` param consistent; DSN env names (`STELE_PG_DSN`/`STELE_MARIADB_DSN`/`STELE_CLICKHOUSE_DSN`/`STELE_PG_RAGGRAPH_DSN`) consistent across conftest, compose, .env, Makefile, CI; `e2e` marker name consistent; compose service/port names consistent across compose, Makefile, README. `_CHUNK_ID` regex + Stele API names match the verified Phase 4 surface.
 
 One known follow-up (noted, not a gap): migrating `scripts/*.sh` + old compose files onto `deploy/` is deliberately out of scope (kept working); flagged in the spec's Open Decisions.
+
+---
+
+## Execution Corrections (applied 2026-05-17 during inline execution)
+
+Real defects/findings surfaced while executing; live files are authoritative,
+this records the deltas (the recon discipline — keep the plan honest):
+
+1. **Dedicated ports** (Task 5/6). The plan copied `docker-compose.backends.yml`
+   ports (55432/53306/58123/59000); the environment has a long-lived legacy
+   stack (project's pre-rename `yonk-memory-stash-*` containers) squatting
+   them. Harness now uses **55452 / 53316 / 58133 / 59010 / 55453** so it is
+   self-contained and never collides with or disturbs anything else. Makefile
+   defaults + `.env.example` updated accordingly.
+2. **conftest marker scope** (Task 2). `pytest_collection_modifyitems` must
+   filter `item.nodeid.startswith("tests/e2e/")` — a conftest hook receives
+   the whole session's items; without the filter all 419 tests got `e2e`-
+   marked and the default suite collapsed to "433 deselected".
+3. **Journey content + scope** (Task 3). Content must be PII-free
+   (chunkshop-backed stores correctly reject unscrubbed PII at the write
+   boundary — Phase 4 design) and `namespace="default"` (recall resolves
+   artifact_id there). The recall step runs **only on memory/sqlite/postgres**
+   — MariaDB/ClickHouse memory stores are Phase-1 `CapabilityError` stubs by
+   design (they support artifact + vector/hybrid only). Test each backend's
+   real capability surface; no false green.
+4. **ClickHouse experimental vector index** (Task 5/6). chunkshop's CH sink
+   emits `vector_similarity('hnsw','cosineDistance')`, which is
+   upstream-experimental in ALL ClickHouse versions and chunkshop expects it
+   enabled at the server profile level (it does not set it per-query, and is
+   pinned to CH 24.10.4 workarounds — a newer image does NOT help). Harness
+   mounts `deploy/clickhouse/users.d/allow-vector-index.xml`
+   (`allow_experimental_vector_similarity_index=1`) — the actual supported
+   mechanism (ClickHouse Cloud enables it by default). Follow-up track: a
+   chunkshop change so its CH sink sets this itself (no server config needed
+   anywhere) — owner-controlled, same pattern as the pg-raggraph PRG asks.
+
+**HC-1 verified GREEN (2026-05-17):** `make -C deploy e2e` →
+`tests/e2e` 5 passed / 5 skipped (Phase 5 placeholder) + contract/integration
+21 passed. mariadb + clickhouse exercised end-to-end **for real** — the
+original mission gap is closed.

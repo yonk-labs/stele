@@ -19,8 +19,13 @@ from stele.core.memory_record import MemoryScope
 
 _CHUNK_ID = re.compile(r"^[0-9a-f]+:\d+$")
 
+# Backends with an implemented memory store. MariaDB/ClickHouse memory
+# stores are Phase-1 CapabilityError stubs by design — they support
+# artifact storage + vector/hybrid retrieval, NOT the memory layer.
+_MEMORY_BACKENDS = {"memory", "sqlite", "postgres"}
 
-def test_full_journey(stash: Stele) -> None:
+
+def test_full_journey(stash: Stele, backend: str) -> None:
     # namespace "default": recall.artifact_search resolves artifact_id against
     # the default namespace; artifact_id (uuid) provides uniqueness and each
     # backend param gets an isolated Stele instance.
@@ -46,9 +51,11 @@ def test_full_journey(stash: Stele) -> None:
     fetched = stash.fetch(stored.reference)
     assert "database index" in str(fetched.content)  # exact-evidence round-trip
 
-    result = stash.recall.artifact_search(
-        query="root cause",
-        scope=MemoryScope(user_id="e2e"),
-        artifact_id=stored.artifact_id,
-    )
-    assert result.strategy_used == "artifact_search"
+    # recall needs the memory layer; only assert it where it's implemented.
+    if backend in _MEMORY_BACKENDS:
+        result = stash.recall.artifact_search(
+            query="root cause",
+            scope=MemoryScope(user_id="e2e"),
+            artifact_id=stored.artifact_id,
+        )
+        assert result.strategy_used == "artifact_search"

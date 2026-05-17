@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+  ClickHouse's vector_similarity (HNSW) index is upstream-experimental in
+  ALL released ClickHouse versions; the setting still defaults OFF. chunkshop's
+  ClickHouse vector sink expects this enabled at the server profile level
+  (it does not set it per-query by design). This is the actual supported
+  mechanism — ClickHouse Cloud enables it by default. Harness-only config.
+-->
+<clickhouse>
+  <profiles>
+    <default>
+      <allow_experimental_vector_similarity_index>1</allow_experimental_vector_similarity_index>
+    </default>
+  </profiles>
+</clickhouse>
