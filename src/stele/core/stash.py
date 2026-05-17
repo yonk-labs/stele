@@ -32,16 +32,23 @@ from stele.core.jsonl import read_jsonl, write_jsonl
 from stele.core.reference import make_reference
 from stele.core.reference_auth import validate_reference_signature
 from stele.core.types import ContentEncoding, ContentType, Lifecycle, RetrievalMode
+from stele.indexing.async_queue import AsyncChunkIndexer
 from stele.indexing.chunk_index import ChunkIndex
+from stele.indexing.job import IndexResult
 from stele.indexing.queue import NoOpIndexer, SyncChunkIndexer
+from stele.indexing.task_backend.base import IndexTask
+from stele.indexing.task_backend.in_process import InProcessTaskBackend
 from stele.pii.scrubber import build_pii_scrubber
 from stele.retrieval.base import RetrievalBackend
 from stele.retrieval.clickhouse import ClickHouseRetrievalBackend
+from stele.retrieval.hybrid import hybrid_search
 from stele.retrieval.mariadb import MariaDBRetrievalBackend
 from stele.retrieval.memory import MemoryRetrievalBackend
 from stele.retrieval.postgres import PostgresRetrievalBackend
 from stele.retrieval.sqlite import SQLiteRetrievalBackend
+from stele.retrieval.vector import vector_search
 from stele.storage.base import StorageBackend
+from stele.storage.chunk_store.base import ChunkStore
 from stele.storage.clickhouse import ClickHouseStorageBackend
 from stele.storage.mariadb import MariaDBStorageBackend
 from stele.storage.memory import MemoryStorageBackend
@@ -97,12 +104,10 @@ class Stele:
             raise ConfigError(f"Backend is not implemented yet: {config.backend.type}")
         self.storage.initialize()
         self.chunk_index: ChunkIndex | None = None
-        self.indexer: NoOpIndexer | SyncChunkIndexer
-        if config.indexing.provider == "chunkshop" and config.indexing.mode in {"sync", "async"}:
-            self.chunk_index = ChunkIndex(config.indexing)
-            self.indexer = SyncChunkIndexer(self.chunk_index)
-        else:
-            self.indexer = NoOpIndexer()
+        self._chunk_store: ChunkStore | None = None
+        self._async_sync: SyncChunkIndexer | None = None
+        self.indexer: NoOpIndexer | SyncChunkIndexer | AsyncChunkIndexer
+        self._build_indexer()
 
     @classmethod
     def from_config(
@@ -110,6 +115,114 @@ class Stele:
         config: StashConfig | dict[str, Any] | str | Path | None = None,
     ) -> Stele:
         return cls(StashConfig.load(config))
+
+    # ----- Phase 4 indexing / chunk-store wiring -------------------------
+
+    def _build_chunk_store(self) -> ChunkStore:
+        """Synthesize the backend chunk store from IndexingConfig only.
+
+        Users never see chunkshop config; the DSN/path is reused from the
+        artifact backend (chunkshop 0.4.3 ``TargetConfig(dsn=...)`` — no
+        os.environ). sqlite uses a sibling file so the artifact DB is
+        untouched.
+        """
+        bt = self.config.backend.type
+        idx = self.config.indexing
+        if bt == "memory":
+            from stele.storage.chunk_store.memory import InProcessChunkStore
+
+            return InProcessChunkStore(idx)
+        if bt == "sqlite":
+            from stele.storage.chunk_store.sqlite import SQLiteChunkStore
+
+            path = self.config.backend.path or ".stele/stele.db"
+            return SQLiteChunkStore(idx, db_path=f"{path}.chunks")
+        if bt == "postgres":
+            from stele.storage.chunk_store.postgres import PostgresChunkStore
+
+            return PostgresChunkStore(idx, dsn=self.config.backend.dsn or "")
+        if bt == "mariadb":
+            from stele.storage.chunk_store.mariadb import MariaDBChunkStore
+
+            return MariaDBChunkStore(idx, dsn=self.config.backend.dsn or "")
+        if bt == "clickhouse":
+            from stele.storage.chunk_store.clickhouse import ClickHouseChunkStore
+
+            return ClickHouseChunkStore(idx, dsn=self.config.backend.dsn or "")
+        raise ConfigError(f"no chunk store for backend {bt!r}")
+
+    def _build_indexer(self) -> None:
+        """Gate on ``indexing.mode != 'skip'`` (NOT on provider)."""
+        if self.config.indexing.mode == "skip":
+            self.indexer = NoOpIndexer()
+            return
+        self._chunk_store = self._build_chunk_store()
+        # Keep the existing in-proc keyword path coherent for the memory
+        # backend: expose the store's own ChunkIndex so search_reference /
+        # delete stay consistent with what the indexer actually wrote.
+        from stele.storage.chunk_store.memory import InProcessChunkStore
+
+        if isinstance(self._chunk_store, InProcessChunkStore):
+            self.chunk_index = self._chunk_store._index
+        sync = SyncChunkIndexer(self._chunk_store)
+        if self.config.indexing.mode == "async":
+            self._async_sync = sync
+            self.indexer = AsyncChunkIndexer(
+                task_backend=InProcessTaskBackend(worker=self._index_task),
+                sync=sync,
+            )
+        else:
+            self.indexer = sync
+
+    def _index_task(self, task: IndexTask) -> None:
+        """Async worker: re-fetch by reference, then index synchronously."""
+        ref = validate_reference_signature(task.reference, self.config.signing)
+        record = self.storage.fetch(ref)
+        assert self._async_sync is not None
+        self._async_sync.index_now(record)
+
+    def indexing_status(self, artifact_id: str) -> IndexResult:
+        return self.indexer.status(artifact_id)
+
+    def _vector_hits(
+        self, query: str, *, limit: int, reference: str | None
+    ) -> list[SearchHit]:
+        if self._chunk_store is None:
+            raise CapabilityError(
+                "vector retrieval requires indexing.mode != 'skip'"
+            )
+        # Over-fetch for namespace-scoped query() (post-filtered below).
+        k = limit if reference is not None else max(limit, 50)
+        return vector_search(self._chunk_store, query, limit=k, reference=reference)
+
+    def _hybrid_hits(
+        self, query: str, *, limit: int, reference: str | None
+    ) -> list[SearchHit]:
+        assert self._chunk_store is not None  # callers guard this
+        idx = self.config.indexing
+        k = limit if reference is not None else max(limit, 50)
+        return hybrid_search(
+            self._chunk_store,
+            query,
+            limit=k,
+            reference=reference,
+            method=idx.hybrid_method,
+            weights=idx.hybrid_weights,
+            rrf_k=idx.hybrid_rrf_k,
+        )
+
+    @staticmethod
+    def _scope_namespace(
+        hits: list[SearchHit], namespace: str, session_id: str | None
+    ) -> list[SearchHit]:
+        out: list[SearchHit] = []
+        for h in hits:
+            if h.metadata.get("namespace") != namespace:
+                continue
+            if session_id is not None and h.metadata.get("session_id") != session_id:
+                continue
+            out.append(h)
+        return out
 
     def store(
         self,
@@ -216,6 +329,13 @@ class Stele:
     ) -> list[SearchHit]:
         raw_allowed = self._validate_raw_output(raw)
         ref = validate_reference_signature(reference, self.config.signing)
+        effective_mode = mode or self.config.retrieval.default_mode
+        if effective_mode == "vector":
+            hits = self._vector_hits(query, limit=limit, reference=ref.canonical_without_params)
+            return self._prepare_hits(hits, raw=raw_allowed)
+        if effective_mode == "hybrid" and self._chunk_store is not None:
+            hits = self._hybrid_hits(query, limit=limit, reference=ref.canonical_without_params)
+            return self._prepare_hits(hits, raw=raw_allowed)
         if self.chunk_index is not None and mode in {None, "keyword", "hybrid"}:
             chunk_hits = self.chunk_index.search_reference(
                 ref.canonical_without_params,
@@ -242,6 +362,15 @@ class Stele:
         merged_filters = dict(filters or {})
         if session_id is not None:
             merged_filters["session_id"] = session_id
+        effective_mode = mode or self.config.retrieval.default_mode
+        if effective_mode == "vector":
+            hits = self._vector_hits(query, limit=limit, reference=None)
+            hits = self._scope_namespace(hits, namespace, session_id)[:limit]
+            return self._prepare_hits(hits, raw=raw_allowed)
+        if effective_mode == "hybrid" and self._chunk_store is not None:
+            hits = self._hybrid_hits(query, limit=limit, reference=None)
+            hits = self._scope_namespace(hits, namespace, session_id)[:limit]
+            return self._prepare_hits(hits, raw=raw_allowed)
         if self.chunk_index is not None and mode in {None, "keyword", "hybrid"}:
             chunk_hits = self.chunk_index.query_namespace(
                 namespace,
@@ -278,8 +407,10 @@ class Stele:
     def delete(self, reference: str) -> bool:
         ref = validate_reference_signature(reference, self.config.signing)
         deleted = self.storage.delete(ref)
-        if deleted and self.chunk_index is not None:
-            self.chunk_index.delete(ref.canonical_without_params)
+        if deleted and self._chunk_store is not None:
+            # For the memory backend chunk_index IS the store's own index,
+            # so this keeps the existing keyword path consistent too.
+            self._chunk_store.delete(ref.canonical_without_params)
         return deleted
 
     def cleanup_expired(self, *, limit: int = 1000) -> CleanupResult:
@@ -322,6 +453,12 @@ class Stele:
         recall = getattr(self, "_recall", None)
         if recall is not None:
             recall.close()
+        indexer = getattr(self, "indexer", None)
+        if isinstance(indexer, AsyncChunkIndexer):
+            indexer.close()
+        chunk_store = getattr(self, "_chunk_store", None)
+        if chunk_store is not None:
+            chunk_store.close()
         self.storage.close()
 
     @property
