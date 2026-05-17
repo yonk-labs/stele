@@ -64,8 +64,10 @@ packages = ["src/stele", "benchmarks"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
+addopts = "-m 'not e2e'"
 markers = [
   "memory: memory backend contract tests",
+  "e2e: full-stack end-to-end tests (deselected by default; CI opts in with -m e2e)",
 ]
 
 [tool.ruff]
