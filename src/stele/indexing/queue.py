@@ -3,6 +3,7 @@
 from stele.core.artifact import Artifact, ArtifactRecord
 from stele.indexing.chunk_index import ChunkIndex
 from stele.indexing.job import IndexJob, IndexResult
+from stele.storage.chunk_store.base import ChunkStore
 
 
 class NoOpIndexer:
@@ -17,7 +18,8 @@ class NoOpIndexer:
 
 
 class SyncChunkIndexer:
-    def __init__(self, index: ChunkIndex) -> None:
+    def __init__(self, index: ChunkIndex | ChunkStore) -> None:
+        # Attr name kept as ``index`` — stash.py + tests reference it.
         self.index = index
         self._status: dict[str, IndexResult] = {}
 
@@ -27,7 +29,11 @@ class SyncChunkIndexer:
 
     def index_now(self, artifact: ArtifactRecord) -> IndexResult:
         try:
-            chunk_count = self.index.index(artifact)
+            # Only the write call differs: ChunkIndex.index vs ChunkStore.write.
+            if isinstance(self.index, ChunkIndex):
+                chunk_count = self.index.index(artifact)
+            else:
+                chunk_count = self.index.write(artifact)
         except Exception as exc:  # pragma: no cover - defensive status path
             result = IndexResult(
                 artifact_id=artifact.artifact_id,
