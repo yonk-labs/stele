@@ -24,3 +24,6 @@ credentials*.json
 *.tfstate
 *.tfstate.*
 *.tfvars
+
+# uv lockfile — untracked to match main (per Phase 4 close-out decision)
+uv.lock
