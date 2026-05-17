@@ -42,7 +42,7 @@ already built; only a small additive consumer-facing surface is missing:
 | DSN-direct + async lifecycle | ✅ `GraphRAG(dsn)` async ctx-mgr, internal async pool, auto-migrate. Same shape as chunkshop `dsn`. |
 | Ingest with caller metadata | ✅ stored (`documents.metadata` JSONB) — but see gap PRG-1. |
 | chunkshop interop | ✅ accepts pre-chunked input + has a chunkshop cookbook pattern (Phase-4 ⇄ Phase-5 fit by design). |
-| **Hit cites external `stele://` ref** | ❌ **GAP PRG-1** — metadata is stored but NOT returned in query results; `ChunkResult` has no metadata/external-ref/evolution-status fields. Breaks Stele's #1 invariant. |
+| **Hit can recover its source ref** | ❌ **GAP PRG-1** — caller metadata is stored but NOT returned in query results; `ChunkResult` has no metadata/evolution-status fields. Fix is a **generic opaque metadata round-trip** (NOT a Stele-specific field — pg-raggraph stays neutral; Stele rides `stele://` inside the opaque dict, 100% optional). |
 | **Post-hoc `retract(ref, reason, when)`** | ❌ **GAP PRG-2** — retraction is ingest-time-only; no method to retract already-stored knowledge. |
 | **Post-hoc `supersede(old, new)`** | ❌ **GAP PRG-3** — supersession is ingest-time-only; no post-hoc method. |
 | Stable returned `chunk_id` | ⚠️ **GAP PRG-4** — exists but optional; make required+stable. |
@@ -50,9 +50,12 @@ already built; only a small additive consumer-facing surface is missing:
 
 **pg-raggraph changes required before/with Phase 5 (additive, no redesign):**
 
-- **PRG-1** Return `metadata` + first-class `external_ref` + evolution status
-  (`retracted`, `version_label`, `effective_from/to`, `superseded_by`) on
-  `ChunkResult`; SELECT them in the naive/local/global retrieval queries.
+- **PRG-1** Return the **generic opaque caller `metadata` dict** + evolution
+  status (`retracted`, `version_label`, `effective_from/to`, `superseded_by`)
+  on `ChunkResult`; SELECT them in the naive/local/global retrieval queries.
+  **No Stele/`stele://` concept in pg-raggraph** — consumer owns the key
+  convention; fully optional + back-compatible. (Full spec:
+  `2026-05-17-pg-raggraph-requirements.md`.)
 - **PRG-2** `async def retract(ref|doc_id, reason, retracted_at=None,
   namespace=None)` — atomic UPDATE across `documents` + `document_versions`.
 - **PRG-3** `async def supersede(old_ref|id, new_ref|id, reason=None,
