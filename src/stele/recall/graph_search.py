@@ -1,7 +1,8 @@
-"""GraphSearchStrategy — pg-raggraph living-knowledge retrieval (Phase 5).
+"""GraphSearchStrategy — living-knowledge retrieval (Phase 5).
 
-Reads ONLY through deps.stele.revisor (the sync Revisor Protocol). No
-pg_raggraph import, no asyncio/threading here (DC-P5-1/DC-P5-2). When no
+Reads ONLY through deps.stele.revisor (the sync Revisor Protocol). The graph
+library and any async/threading bridge stay in src/stele/revisor/ — never
+imported here (DC-P5-1/DC-P5-2; the architecture test enforces this). When no
 Revisor is configured (NoOp) it remains a CapabilityError, exactly as the
 pre-Phase-5 stub (SC-P5-07: capability honesty).
 """
