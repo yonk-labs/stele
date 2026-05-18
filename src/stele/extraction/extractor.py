@@ -14,6 +14,7 @@ from stele.core.exceptions import (
 )
 from stele.core.memory_record import MemoryScope
 from stele.extraction.candidates import extract_candidates
+from stele.extraction.classifier import classify_kind
 from stele.extraction.models import (
     AcceptedCandidate,
     ExtractionReport,
@@ -79,6 +80,38 @@ class MemoryExtractor:
             )
         except Exception as exc:
             raise SteleError("Extraction failed during lede pass") from exc
+
+    def _verbatim_message_candidates(
+        self, messages: list[dict[str, str]]
+    ) -> list[MemoryCandidate]:
+        """One candidate per substantive message, content kept VERBATIM
+        (post-PII-scrub). Lede distillation paraphrases away exact literals
+        (dates/names/ids); retaining the raw turn preserves them — Stele's
+        exact-evidence thesis and the conversational-recall lever. Not
+        capped by max_candidates_per_doc (turns are the evidence). Dedup is
+        handled downstream by the memory content-hash."""
+        out: list[MemoryCandidate] = []
+        for m in messages:
+            content = (m.get("content") or "").strip()
+            if len(content) < 8:  # skip greetings / acks / empty
+                continue
+            scrubbed = self._scrubber.scrub(content)
+            cls = classify_kind(
+                text=scrubbed.text,
+                lede_source="key_fact",
+                overlay_enabled=self._config.overlay_patterns_enabled,
+            )
+            out.append(
+                MemoryCandidate(
+                    text=scrubbed.text,
+                    kind=cls.kind,
+                    confidence=1.0,  # verbatim source = highest fidelity
+                    lede_source="key_fact",
+                    classifier_path=cls.classifier_path,
+                    pattern_match=cls.pattern_match,
+                )
+            )
+        return out
 
     def from_text(
         self,
@@ -178,6 +211,8 @@ class MemoryExtractor:
             )
 
         candidates = self._run_pure_core(text=thread_text, source_refs=source_refs)
+        if self._config.retain_message_text:
+            candidates = self._verbatim_message_candidates(messages) + candidates
         accepted, rejected = self._commit_candidates(
             candidates=candidates,
             source_refs=source_refs,

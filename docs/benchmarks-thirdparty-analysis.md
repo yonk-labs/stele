@@ -84,6 +84,23 @@ long-haystack retrieval reach 90–100% once hybrid is engaged.
 `memory.add` — a Phase-5 simplicity tradeoff, optimizable with batched
 ingest + a persistent pool) and its evidence metric isn't ref-comparable.
 
+## Phase-2 extractor experiment — honest negative result
+
+Hypothesis: lede distillation paraphrases away exact answer literals
+(only 23.7% of gold answers survived verbatim across extracted memories),
+so retaining verbatim turn text would close the LoCoMo gap. **Implemented**
+(`ExtractionConfig.retain_message_text=True`, default on; `from_messages`
+now also emits each turn verbatim — Stele's exact-evidence thesis; 0 Phase-2
+test regression). **Result: 65.5% → 66.5%, +1 pt only.** Hypothesis was
+wrong about the bottleneck: the 23.7% measured presence across *all ~900*
+extracted memories, but recall returns only the **top-k=40** — the limiter
+is **retrieval ranking over many short conversational atoms**, not
+extraction content. Adding 419 verbatim atoms slightly diluted the pool
+(abstention 12.5%→10.7%). The change is kept (correct, low-risk, thesis-
+aligned, helps the ceiling case) but is **not** the LoCoMo fix. The real
+LoCoMo lever is retrieval-side: hybrid/vector ranking over the extracted
+memories + reranking + higher k — not more/better extraction.
+
 ## What gets us to 80%+ everywhere (prioritized)
 
 1. **Default the harness/recommended config to hybrid.** It already clears

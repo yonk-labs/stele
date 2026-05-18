@@ -145,6 +145,11 @@ class ExtractionConfig(BaseModel):
         "summary",
     ] = "summary"
     auto_stash_messages: bool = True
+    # Retain each message verbatim as a candidate (in addition to the
+    # lede-distilled passes) so exact answer-bearing literals — dates,
+    # names, ids — survive extraction. Stele's "exact evidence" thesis;
+    # materially lifts conversational recall (LoCoMo).
+    retain_message_text: bool = True
 
 
 class GraphConfig(BaseModel):
