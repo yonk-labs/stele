@@ -33,7 +33,19 @@ class PgRaggraphRevisor:
 
     active = True
 
-    def __init__(self, *, dsn: str, namespace: str, evolution_tier: str) -> None:
+    def __init__(
+        self,
+        *,
+        dsn: str,
+        namespace: str,
+        evolution_tier: str,
+        fact_extractor: str = "none",
+        llm_base_url: str | None = None,
+        llm_model: str | None = None,
+        llm_api_key: str = "",
+        query_mode: str = "smart",
+        rerank: bool = False,
+    ) -> None:
         if find_spec("pg_raggraph") is None:  # pragma: no cover - env-dependent
             raise OptionalDependencyError(
                 f"pg-raggraph required for living-knowledge graph search; {_PIP_HINT}"
@@ -43,6 +55,20 @@ class PgRaggraphRevisor:
         self._dsn = dsn
         self._ns = namespace
         self._tier = evolution_tier
+        self._fact_extractor = fact_extractor
+        self._llm_base_url = llm_base_url
+        self._llm_model = llm_model
+        self._llm_api_key = llm_api_key
+        # Opt-in, non-default: LLM graph extraction fires only when
+        # explicitly selected AND an endpoint is supplied. Default ("none")
+        # keeps skip_extraction=True — stele's LLM-free invariant holds for
+        # the default path; the LLM lives only inside this adapter.
+        self._llm_extraction = fact_extractor == "llm" and bool(llm_base_url)
+        # Opt-in graph-query tuning. Default ("smart"/False) is the
+        # untuned path; with a real graph, ("hybrid"/True) is the
+        # documented retrieval lever.
+        self._query_mode = query_mode
+        self._rerank = rerank
 
     # --- async->sync bridge (lives ONLY here; DC-P5-2) ---
     def _run(self, coro: Coroutine[Any, Any, Any]) -> Any:
@@ -51,14 +77,21 @@ class PgRaggraphRevisor:
     def _cfg(
         self, retracted_behavior: RetractedBehavior, supersession_behavior: str
     ) -> dict[str, Any]:
-        return dict(
+        cfg: dict[str, Any] = dict(
             namespace=self._ns,
             embedding_provider="local",
-            skip_extraction=True,
+            skip_extraction=not self._llm_extraction,
             evolution_tier=self._tier,
             retracted_behavior=retracted_behavior,
             supersession_behavior=supersession_behavior,
+            fact_extractor=self._fact_extractor,
         )
+        if self._llm_extraction:
+            cfg["llm_base_url"] = self._llm_base_url
+            if self._llm_model:
+                cfg["llm_model"] = self._llm_model
+            cfg["llm_api_key"] = self._llm_api_key
+        return cfg
 
     def _graphrag(self, **cfg: Any) -> Any:
         from pg_raggraph import GraphRAG
@@ -95,7 +128,7 @@ class PgRaggraphRevisor:
                             "text": text,
                             "source_id": stele_ref,
                             "metadata": meta,
-                            "skip_llm": True,
+                            "skip_llm": not self._llm_extraction,
                         }
                     ],
                     namespace=namespace,
@@ -170,7 +203,11 @@ class PgRaggraphRevisor:
                 **self._cfg(retracted_behavior, "prefer_new")
             ) as rag:
                 res = await rag.query(
-                    query, namespace=namespace, version_filter=version_filter
+                    query,
+                    mode=self._query_mode,
+                    namespace=namespace,
+                    version_filter=version_filter,
+                    rerank=self._rerank,
                 )
             return [self._to_hit(c) for c in res.chunks][:limit]
 
@@ -194,9 +231,11 @@ class PgRaggraphRevisor:
             ) as rag:
                 res = await rag.query(
                     query,
+                    mode=self._query_mode,
                     namespace=namespace,
                     as_of=as_of,
                     version_filter=version_filter,
+                    rerank=self._rerank,
                 )
             return [self._to_hit(c) for c in res.chunks][:limit]
 

@@ -639,6 +639,12 @@ class Stele:
                     dsn=self.config.backend.dsn,
                     namespace=self.config.graph.namespace,
                     evolution_tier=self.config.graph.evolution_tier,
+                    fact_extractor=self.config.graph.fact_extractor,
+                    llm_base_url=self.config.graph.llm_base_url,
+                    llm_model=self.config.graph.llm_model,
+                    llm_api_key=self.config.graph.llm_api_key,
+                    query_mode=self.config.graph.query_mode,
+                    rerank=self.config.graph.rerank,
                 )
         return self._revisor
 
