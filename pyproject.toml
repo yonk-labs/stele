@@ -67,6 +67,7 @@ stele-showcase = "benchmarks.showcase:main"
 stele-recall = "benchmarks.recall:main"
 stele-longrun = "benchmarks.longrun:main"
 stele-answer-workflow = "benchmarks.answer_workflow:main"
+stele-runtime-bench = "benchmarks.runtime:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/stele", "benchmarks"]

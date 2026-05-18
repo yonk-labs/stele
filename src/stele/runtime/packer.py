@@ -38,6 +38,12 @@ class ContextPack(NamedTuple):
     omitted: list[str]
 
 
+def _flat(text: str) -> str:
+    """One claim == one line. Collapse embedded newlines/whitespace so the
+    'every packed line carries a ref' invariant holds physically."""
+    return " ".join(text.split())
+
+
 def _node_ref(node: TaskNode) -> str | None:
     for group in (node.source_refs, node.artifact_refs, node.memory_refs):
         if group:
@@ -71,7 +77,8 @@ def pack_context(
         recall_result.citations, key=lambda c: c.score, reverse=True
     )[: policy.max_citations]:
         candidates.append(
-            (f"- {c.snippet} [{c.reference}]", c.reference, f"citation:{c.id}")
+            (f"- {_flat(c.snippet)} [{c.reference}]", c.reference,
+             f"citation:{c.id}")
         )
 
     nodes = list(workgraph_nodes or [])
@@ -88,7 +95,7 @@ def pack_context(
             continue
         kept_nodes += 1
         candidates.append((
-            f"- [{n.kind}/{n.status}] {n.label}: {n.summary} [{ref}]",
+            f"- [{n.kind}/{n.status}] {_flat(n.label)}: {_flat(n.summary)} [{ref}]",
             ref,
             f"node:{n.id}",
         ))
