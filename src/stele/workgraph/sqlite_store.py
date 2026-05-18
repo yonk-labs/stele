@@ -75,6 +75,18 @@ class SQLiteWorkGraphStore:
             ).fetchone()
         return WorkGraph.model_validate_json(row[0]) if row else None
 
+    def update_graph(self, graph_id: str, patch: Mapping[str, Any]) -> WorkGraph:
+        row = self.conn.execute(
+            "SELECT doc FROM wg_graphs WHERE id=?", (graph_id,)
+        ).fetchone()
+        if row is None:
+            raise ArtifactNotFound(f"WorkGraph not found: {graph_id}")
+        existing = WorkGraph.model_validate_json(row[0])
+        merged = existing.model_dump()
+        merged.update(patch)
+        merged["updated_at"] = datetime.now(UTC)
+        return self.create_graph(WorkGraph(**merged))
+
     def list_graphs(
         self,
         *,

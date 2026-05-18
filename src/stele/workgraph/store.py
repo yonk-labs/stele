@@ -24,6 +24,8 @@ class WorkGraphStore(Protocol):
         self, graph_id: str, *, as_of: datetime | None = None
     ) -> WorkGraph | None: ...
 
+    def update_graph(self, graph_id: str, patch: Mapping[str, Any]) -> WorkGraph: ...
+
     def list_graphs(
         self,
         *,
@@ -78,6 +80,17 @@ class InProcessWorkGraphStore:
                 "use the SQLite WorkGraph store"
             )
         return self._graphs.get(graph_id)
+
+    def update_graph(self, graph_id: str, patch: Mapping[str, Any]) -> WorkGraph:
+        existing = self._graphs.get(graph_id)
+        if existing is None:
+            raise ArtifactNotFound(f"WorkGraph not found: {graph_id}")
+        merged = existing.model_dump()
+        merged.update(patch)
+        merged["updated_at"] = datetime.now(UTC)
+        updated = WorkGraph(**merged)  # re-validates
+        self._graphs[graph_id] = updated
+        return updated
 
     def list_graphs(
         self,
