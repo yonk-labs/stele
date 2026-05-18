@@ -6,8 +6,11 @@ to ``STORES`` so it runs the identical contract.
 
 from __future__ import annotations
 
+import tempfile
+import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -20,12 +23,20 @@ from stele.workgraph.models import (
     WorkGraph,
     WorkGraphStatus,
 )
+from stele.workgraph.sqlite_store import SQLiteWorkGraphStore
 from stele.workgraph.store import InProcessWorkGraphStore, WorkGraphStore
 
 StoreFactory = Callable[[], WorkGraphStore]
 
+
+def _sqlite_store() -> WorkGraphStore:
+    path = Path(tempfile.gettempdir()) / f"wg_{uuid.uuid4().hex}.db"
+    return SQLiteWorkGraphStore(str(path))
+
+
 STORES: list[tuple[str, StoreFactory]] = [
     ("memory", lambda: InProcessWorkGraphStore()),
+    ("sqlite", _sqlite_store),
 ]
 
 
