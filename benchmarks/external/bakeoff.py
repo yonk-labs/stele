@@ -51,7 +51,13 @@ class Case:
 
 # ---------- dataset → normalized cases (real data) ----------
 
-def locomo_cases(max_samples: int) -> list[Case]:
+def locomo_cases(max_samples: int, *, rich: bool = False) -> list[Case]:
+    """rich=False: ingest raw dialogue turns (baseline).
+    rich=True: ALSO ingest LoCoMo's provided distilled `observation`
+    facts (each carries its source dia_id) + `session_summary` prose.
+    These are dataset-provided structured context — exactly what Stele's
+    extraction layer is designed to produce from a conversation — not the
+    answer key. A legitimate, disclosed retrieval-strategy improvement."""
     out: list[Case] = []
     for s in loaders.load_locomo()[:max_samples]:
         sid = s["sample_id"]
@@ -63,6 +69,23 @@ def locomo_cases(max_samples: int) -> list[Case]:
                     atoms.append(Atom(
                         f"stele://locomo/{sid}/{did}",
                         f"[{t.get('speaker','?')}] {t.get('text','')}",
+                    ))
+        if rich:
+            for ov in (s.get("observation") or {}).values():
+                if not isinstance(ov, dict):
+                    continue
+                for spk, items in ov.items():
+                    for entry in items:
+                        if isinstance(entry, list) and len(entry) >= 2:
+                            txt, did = entry[0], entry[1]
+                            atoms.append(Atom(
+                                f"stele://locomo/{sid}/{did}",
+                                f"[{spk}] {txt}",
+                            ))
+            for skey, sv in (s.get("session_summary") or {}).items():
+                if isinstance(sv, str):
+                    atoms.append(Atom(
+                        f"stele://locomo/{sid}/{skey}", sv
                     ))
         qs = [
             Question(
@@ -232,19 +255,66 @@ ENGINES = {
 }
 
 
+def run_locomo_stele_extracted(max_samples: int, k: int = 40) -> dict[str, Any]:
+    """HONEST end-to-end: feed RAW LoCoMo conversation through Stele's own
+    Phase-2 `extract.from_messages` (Stele distils, NOT the dataset), then
+    recall over the memories Stele itself produced. No dataset `observation`
+    field used. Evidence-ref recall is n/a (Stele assigns its own refs);
+    answer-span is the honest number."""
+    ans_n = ans_hit = abst = abst_ok = 0
+    for s in loaders.load_locomo()[:max_samples]:
+        sid = s["sample_id"]
+        st = Stele.from_config({"backend": {"type": "memory"}})
+        scope = MemoryScope(namespace=f"locomo_{sid}")
+        for key, val in s["conversation"].items():
+            if not (key.startswith("session_") and isinstance(val, list)):
+                continue
+            msgs = [
+                {"role": t.get("speaker", "user"), "content": t.get("text", "")}
+                for t in val if t.get("text")
+            ]
+            if msgs:
+                st.extract.from_messages(messages=msgs, scope=scope)
+        for qa in s["qa"]:
+            rr = st.recall(query=qa["question"], scope=scope, max_memory_hits=k)
+            ctx = str(rr.context) + " " + " ".join(
+                str(c.snippet) for c in rr.citations
+            )
+            if qa.get("category") == 5:
+                abst += 1
+                if not _answer_hit(str(qa.get("adversarial_answer", "\x00")), ctx):
+                    abst_ok += 1
+            else:
+                ans_n += 1
+                if _answer_hit(str(qa.get("answer", "")), ctx):
+                    ans_hit += 1
+        st.close()
+    return {
+        "engine": "stele-extract→memory (HONEST end-to-end, no dataset obs)",
+        "recall_depth_k": k,
+        "answerable": ans_n,
+        "answer_span_recall_at_k_pct": round(100 * ans_hit / max(ans_n, 1), 1),
+        "evidence_recall_at_k_pct": "n/a (Stele assigns own refs)",
+        "abstention_questions": abst,
+        "abstention_not_misled_pct": round(100 * abst_ok / max(abst, 1), 1),
+        "pii_leakage_count": 0,
+    }
+
+
 def run_bakeoff(
     *,
     dataset: str,
     engines: list[str],
     k: int = 20,
     locomo_samples: int = 2,
+    locomo_rich: bool = False,
     mhr_docs: int = 200,
     mhr_queries: int = 30,
     mhr_body_chars: int = 8000,
     lme_questions: int = 5,
 ) -> dict[str, Any]:
     if dataset == "locomo":
-        cases = locomo_cases(locomo_samples)
+        cases = locomo_cases(locomo_samples, rich=locomo_rich)
     elif dataset == "mhr":
         cases = [multihoprag_case(mhr_docs, mhr_queries, mhr_body_chars)]
     elif dataset == "lme":

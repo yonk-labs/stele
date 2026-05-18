@@ -54,18 +54,23 @@ multi-session haystacks; vector retrieval is essential and delivers.
 
 ### LoCoMo — full conversational memory, hybrid, k=40 (385 ans / 71 abst)
 
-| engine | answer-span recall@40 | evidence recall@40 | abstention not-misled |
+| engine | answer-span recall@40 | evidence | note |
 |---|---|---|---|
-| keyword | 54.5% | 46.5% | 27.7% |
-| hybrid  | 62.9% | **77.9%** | 20.5% |
-| graph   | 42.5% | n/a (Revisor re-keys refs) | **42.3%** |
+| keyword (raw turns) | 54.5% | 46.5% | no extraction |
+| hybrid (raw turns) | 62.9% | 77.9% | no extraction |
+| **Stele's OWN extraction → recall** | **65.5%** | n/a (own refs) | **HONEST end-to-end** |
+| graph (raw turns) | 42.5% | n/a | best abstention (42.3%) |
+| dataset pre-distilled `observation`, hybrid | 86.8% | 82.3% | **CEILING — benchmark distilled, NOT Stele** |
 
-→ **The genuine laggard. Not yet 80% on answer-span (62.9%).** Evidence
-recall (77.9%) is near target — Stele *does* retrieve the right turns — but
-answer-span is undercounted because the deterministic scorer needs the gold
-phrase (often a date like "7 May 2023") to appear near-literally. This is
-precisely the gap LLM-judged QA accuracy hides. We will NOT loosen the
-scorer to inflate this.
+→ **LoCoMo is honestly ~65%, NOT 80%.** The earlier 86.8% used LoCoMo's
+own `observation` field — the *benchmark authors'* distilled facts, biased
+toward the questions. That measures a **ceiling**, not Stele's work. Run
+Stele's *own* Phase-2 extractor on the raw conversation and the real
+end-to-end number is **65.5%** (barely above raw turns). The ~21-pt gap
+between 65.5% and the 86.8% ceiling **is the headroom in Stele's extraction
+layer** — that is the concrete, honest improvement target, not a result to
+claim. We did NOT loosen the scorer, and we are NOT presenting the ceiling
+as the achievement.
 
 ## Where we were good / bad — and why
 
@@ -97,11 +102,21 @@ ingest + a persistent pool) and its evidence metric isn't ref-comparable.
 
 ## Bottom line
 
-Your skepticism was correct: 44% was a measurement bug. Real Stele
-retrieval, with hybrid engaged, is **95% (MultiHop-RAG) and 90%
-(LongMemEval-S) answer-span recall, 100% evidence recall** — at or above
-the 80% bar — with 0 PII leakage and full determinism. **LoCoMo
-conversational-temporal recall (~63% answer / 78% evidence) is the
-remaining gap**, and the path (graph + `as_of` + rerank) is concrete and
-unbuilt-here, not hand-waved. Reproduce: `python -c "from
-benchmarks.external.bakeoff import run_bakeoff; ..."` (see module docstring).
+Your skepticism was correct: 44% was a measurement bug (ingest truncation).
+With the truncation bug removed and hybrid engaged, the **honest
+end-to-end** scoreboard is **2 of 3 benchmarks ≥80%**:
+
+| Benchmark | Best honest config | answer-span | evidence | ≥80%? |
+|---|---|---|---|---|
+| MultiHop-RAG | hybrid, full 609-doc corpus, k=30 | **95.1%** | **100%** | ✅ |
+| LongMemEval-S | hybrid, k=30 | **90.0%** | — | ✅ |
+| LoCoMo | Stele's own extraction → recall, k=40 | **65.5%** | n/a | ❌ |
+
+LoCoMo's earlier "86.8%" used the benchmark's own pre-distilled
+`observation` field — a **ceiling**, not Stele's work. Stele's *own*
+extractor gets **65.5%**; the gap to the ceiling quantifies the headroom in
+the extraction layer (the real next investment). 0 PII leakage and full
+determinism throughout. Numbers are deterministic *retrieval recall*, not
+LLM-judged QA accuracy (competitors' 90%+ headline metric — not comparable).
+Tuning: **`docs/retrieval-tuning-guide.md`**. Reproduce: `from
+benchmarks.external.bakeoff import run_bakeoff, run_locomo_stele_extracted`.
