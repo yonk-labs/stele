@@ -52,3 +52,18 @@ def test_unavailable_datasets_are_honest_not_fabricated() -> None:
     for fn in (loaders.load_crag, loaders.load_agentlongmemeval):
         with pytest.raises(loaders.DatasetUnavailable):
             fn()
+
+
+@pytest.mark.skipif(
+    not (_CACHE / "locomo10.json").exists(),
+    reason="LoCoMo dataset not cached",
+)
+def test_bakeoff_keyword_engine_runs() -> None:
+    from benchmarks.external.bakeoff import run_bakeoff
+
+    r = run_bakeoff(dataset="locomo", engines=["keyword"], k=5,
+                     locomo_samples=1)
+    row = r["results"][0]
+    assert row["engine"] == "keyword"
+    assert row["pii_leakage_count"] == 0
+    assert 0.0 <= row["answer_span_recall_at_k_pct"] <= 100.0
