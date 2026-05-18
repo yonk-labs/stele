@@ -1,85 +1,100 @@
 # Current Status
 
-Date: 2026-05-15
+Date: 2026-05-17
 
 ## Summary
 
-Phases 1–3 of the sovereign-memory rebuild are complete and on `main` (Phase 1
-and Phase 2) plus the `phase3-policy-driven-recall` branch (Phase 3, tagged
-`phase3-policy-driven-recall`). The artifact-storage foundation now has a real
-memory layer with supersession, deterministic extraction, and policy-driven
-recall on top of it.
+Phases 1–5 of the sovereign-memory rebuild **plus the E2E test harness
+(INFRA-A)** are complete and on `main`. Stele now has: an artifact-storage
+foundation, a real memory layer with supersession and `as_of`, deterministic
+extraction, policy-driven recall, Chunkshop vector/hybrid indexing across five
+backends, and **living knowledge** — a `pg-raggraph`-backed `Revisor`
+projection with post-hoc supersede/retract, time-travel, and
+version-filtered graph search, every hit citing its `stele://` evidence.
+
+Authoritative sequencing lives in
+[`docs/superpowers/2026-05-17-order-of-operations.md`](superpowers/2026-05-17-order-of-operations.md).
+This file is the human-readable snapshot; that doc wins on disputes.
 
 Source of truth for each slice:
 
-| Phase | Spec | Plan | Status |
-| --- | --- | --- | --- |
-| 1 — Memory supersession + `as_of` | `skill-output/mission-brief/Mission-Brief-stele-memory-supersession-slice.md` | `docs/superpowers/plans/2026-05-12-phase1-memory-supersession.md` | ✅ complete, tag `phase1-memory-supersession` |
-| 2 — Deterministic extraction | `docs/superpowers/specs/2026-05-13-phase2-deterministic-extraction-design.md` | `docs/superpowers/plans/2026-05-13-phase2-deterministic-extraction.md` | ✅ complete, tag `phase2-deterministic-extraction` |
-| 3 — Policy-driven recall | `docs/superpowers/specs/2026-05-13-phase3-policy-driven-recall-design.md` | `docs/superpowers/plans/2026-05-13-phase3-policy-driven-recall.md` | ✅ complete, tag `phase3-policy-driven-recall` |
+| Phase | Spec | Status |
+| --- | --- | --- |
+| 1 — Memory supersession + `as_of` | `skill-output/mission-brief/Mission-Brief-stele-memory-supersession-slice.md` | ✅ complete, tag `phase1-memory-supersession` |
+| 2 — Deterministic extraction | `docs/superpowers/specs/2026-05-13-phase2-deterministic-extraction-design.md` | ✅ complete, tag `phase2-deterministic-extraction` |
+| 3 — Policy-driven recall | `docs/superpowers/specs/2026-05-13-phase3-policy-driven-recall-design.md` | ✅ complete, tag `phase3-policy-driven-recall` |
+| 4 — Chunkshop vector/hybrid indexing (5 backends) | `docs/superpowers/specs/2026-05-14-phase4-chunkshop-indexing-design.md` | ✅ complete, tag `phase4-chunkshop-indexing` |
+| INFRA-A — E2E test harness | `docs/superpowers/specs/2026-05-17-e2e-test-harness-design.md` | ✅ complete (`deploy/`, `tests/e2e/`) |
+| 5 — pg-raggraph living knowledge | `docs/superpowers/specs/2026-05-17-phase5-pg-raggraph-living-knowledge-CORRECTED-design.md` (recon: `…-recon-correction-sheet.md`, `…-task0-pg-raggraph-api-recon.md`) | ✅ complete, tag `phase5-pg-raggraph-living-knowledge`, merged to `main` |
 
 ## What's implemented
 
 ### Phase 1 — Memory supersession + `as_of`
 
 - `MemoryRecord` model with full evolution columns on SQLite and Postgres.
-- `Stele.memory` facade: `add`, `get`, `search`, `list`, `update`, `delete`.
+- `Stele.memory` facade: `add`, `get`, `search`, `list`, `update`, `delete`,
+  and (Phase 5) `retract`.
 - Supersession via `add(supersedes=[old_id])` — atomic, audit-preserving.
-- `as_of=<datetime>` time-travel queries on SQLite and Postgres via SQL WHERE
-  filters (no `pg-raggraph` dependency).
-- Soft-delete semantics; content-hash duplicate detection; PII scrubbing on
-  memory text; every memory cites at least one `stele://` source_ref.
-- Cross-backend contract tests parametrized over memory + sqlite + postgres.
-- Demo: `scripts/demo-supersession.sh`.
+- `as_of=<datetime>` time-travel queries on SQLite and Postgres.
+- Soft-delete; content-hash dedup; PII scrubbing; every memory cites a
+  `stele://` source_ref. Demo: `scripts/demo-supersession.sh`.
 
 ### Phase 2 — Deterministic extraction
 
-- `Stele.extract` facade with three entry points: `from_artifact`,
-  `from_messages`, `from_text`.
-- Pure `extract_candidates` core (no I/O, no clock) wrapping `lede.extract.*`
-  + `lede.summarize`.
-- Type-based classifier with regex pattern overlay for agent-loop kinds
-  (preference / decision / instruction / commitment / issue).
-- `ExtractionReport` with accepted/rejected candidates, PII flags, and a
-  config fingerprint stamped on every accepted memory's metadata.
-- Cross-backend contract tests; demo: `scripts/demo-extraction.sh`.
+- `Stele.extract`: `from_artifact` / `from_messages` / `from_text`.
+- Pure `extract_candidates` core over `lede.*`; type+regex classifier;
+  `ExtractionReport` with config fingerprint. Demo: `scripts/demo-extraction.sh`.
 
 ### Phase 3 — Policy-driven recall
 
-- `Stele.recall` callable facade: canonical `recall(query=..., scope=...,
-  strategy=...)` plus seven convenience shims.
-- Six real strategies: `summary_only`, `memory_search`, `artifact_search`,
-  `adaptive`, `raw_fetch`, `abstain`. `graph_search` raises `CapabilityError`
-  until Phase 5.
-- `AdaptiveStrategy` escalates via a deterministic hit-count + confidence-floor
-  heuristic (no oracle), with an optional caller-supplied `sufficient`
-  callback for LLM-in-the-loop judgment.
-- `Memory.search_with_score` helper (backend-pushed source_ref filter) and
-  `MemoryExtractor.preview` added as small additive surfaces.
-- Benchmark migration: `benchmarks/answer_workflow.py::_run_strategy`
-  delegates to `stele.recall(...)` with zero accuracy delta (DC-003).
+- `Stele.recall` callable facade + convenience shims.
+- Seven strategies: `summary_only`, `memory_search`, `artifact_search`,
+  `adaptive`, `raw_fetch`, `abstain`, and (Phase 5) a real `graph_search`.
+- `AdaptiveStrategy` deterministic escalation with optional `sufficient`
+  callback.
 
-## Latest verification
+### Phase 4 — Chunkshop vector/hybrid indexing
 
-Run from the `phase3-policy-driven-recall` worktree with
-`STELE_PG_DSN=postgresql://yonk:yonk@localhost:55432/stele`:
+- Batteries-included Chunkshop adapter across memory/sqlite/postgres/
+  mariadb/clickhouse; `IndexingConfig` only (no chunkshop YAML/env).
+- `vector` / `hybrid` retrieval modes. See
+  [vector-indexing-setup.md](vector-indexing-setup.md).
 
-- `.venv/bin/ruff check .` — clean
-- `.venv/bin/mypy src tests benchmarks` — clean (122 source files)
-- `.venv/bin/pytest` — 265 passed, 2 skipped
+### INFRA-A — E2E test harness
 
-All drift checkpoints across the three phases passed; SC coverage maps are at
-`docs/superpowers/specs/2026-05-13-phase2-sc-coverage.txt` and
-`docs/superpowers/specs/2026-05-13-phase3-sc-coverage.txt`.
+- `deploy/docker-compose.full.yml` (profiles `core` | `graph` | `all`),
+  `deploy/Makefile`, `tests/e2e/`. `make -C deploy e2e` proves all five
+  backends for real; `make -C deploy e2e-graph` proves living knowledge.
 
-## What's next
+### Phase 5 — pg-raggraph living knowledge
+
+- Internal `Revisor` (`src/stele/revisor/`): lazy, opt-in
+  `stele-core[postgres-graph]` extra, `PGRGConfig` synthesized internally,
+  async→sync bridge contained in the adapter, no native objects escape.
+- Projection hooks on `Stele.store()`, `Memory.add(supersedes=)`, and the
+  new `Memory.retract()`.
+- Real `graph_search` strategy + optional `as_of` / `version_filter` /
+  `retracted_behavior` on `RecallRequest` (additive; existing callers
+  unchanged).
+- Capability honesty: non-Postgres / no-extra / `graph.enabled=false` →
+  `graph_search` raises `CapabilityError`; memory evolution still works.
+- Exit gate met: the Living Knowledge Verification Bar
+  (`tests/e2e/test_living_knowledge.py`) proven for real via
+  `make -C deploy e2e-graph` across four fixture lanes. SC→test map:
+  `docs/superpowers/specs/2026-05-17-phase5-SC-to-test-map.md`. See
+  [living-knowledge-setup.md](living-knowledge-setup.md).
+
+## What's next (authoritative — order-of-operations §2)
 
 | Phase | Scope |
 | --- | --- |
-| 4 | Chunkshop vector indexing for memories + recall; embedding-based dedup |
-| 5 | `pg-raggraph` Revisor adapter; real `graph_search`; relational structure |
-| 6 | Recall policy productization, session-aware variants |
-| 7 | Source connectors (files, JSONL, SQL, Jira, Confluence, Slack); universal search |
-| 8 | Plugin SDK; framework adapters (LangChain, MCP, OpenAI Agents SDK) |
+| 6 | Runtime Working Memory — WorkGraph core (T-RAM-001..004): WorkGraph/TaskNode/TaskEdge/TaskTraceEvent models, `WorkGraphStore` (memory + SQLite), Mermaid/Markdown/JSON renderers. Deterministic, source-backed, no pg-raggraph. |
+| 7 | Adapter SDK + Runtime Capture (T-RAM-005..008): artifact→WorkGraph capture, context packer, adapter health contract, scheduling; first framework adapter proves the loop. |
+| 8 | Source Catalog + Universal Search ⊕ T-RAM-009 (evidence-backed Topic/Session/Profile views). |
+| 9 | Plugin SDK productization (extract committed protocols once ≥3 external use cases). |
+| — | Gated cross-cutting: T-RAM-011 (runtime context-compression benchmark — blocks any public compression claim); T-RAM-010 (optional LLM proposal pipeline, post-deterministic, behind validators). |
 
-See `docs/sovereign-memory-system-plan.md` for the full path.
+See [`docs/superpowers/2026-05-17-order-of-operations.md`](superpowers/2026-05-17-order-of-operations.md)
+for the dependency graph and the full path, and
+[`docs/sovereign-memory-system-plan.md`](sovereign-memory-system-plan.md) for
+the canonical prose.

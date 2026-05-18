@@ -232,7 +232,7 @@ print(result.stats)           # searches/fetches/tokens/latency
 | `raw_fetch` | Returns an artifact's raw content. Requires `artifact_id`; honors the `pii.raw_fetch_enabled` gate. |
 | `abstain` | Returns empty context with a structured reason. Never raises. |
 | `adaptive` | Runs tiers (`memory_search → artifact_search → raw_fetch → abstain`) until one clears the confidence floor. |
-| `graph_search` | Raises `CapabilityError` until Phase 5 (pg-raggraph). |
+| `graph_search` | Phase 5 living knowledge: real on a Postgres backend with `stele-core[postgres-graph]` and `graph.enabled: true` (supports `as_of` / `version_filter` / `retracted_behavior`); raises `CapabilityError` otherwise. See [living-knowledge-setup.md](living-knowledge-setup.md). |
 
 Each has a one-line shim:
 

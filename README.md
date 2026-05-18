@@ -9,13 +9,18 @@ The product answers two questions without conflating them:
 
 When `pg-raggraph` is enabled, Stele's `Revisor` adapter adds the third move: **living knowledge** — newer facts supersede older ones, retracted knowledge can be hidden or flagged, and `as_of` / `version_filter` queries become first-class. Artifacts stay immutable; memories evolve.
 
-The repo is being rebuilt from a clean-room blueprint, phase by phase. The
-artifact-storage foundation plus the first three sovereign-memory phases are
-shipped: **memory supersession + `as_of`** (Phase 1), **deterministic
-extraction** (Phase 2), and **policy-driven recall** (Phase 3). The `Revisor`
-adapter, vector indexing, source connectors, and universal search are the next
-phases — see the [sovereign memory system plan](docs/sovereign-memory-system-plan.md)
-for the full path and [current status](docs/current-status.md) for what's done.
+The repo is being rebuilt from a clean-room blueprint, phase by phase.
+Shipped and on `main`: the artifact-storage foundation plus **memory
+supersession + `as_of`** (Phase 1), **deterministic extraction** (Phase 2),
+**policy-driven recall** (Phase 3), **Chunkshop vector/hybrid indexing across
+five backends** (Phase 4), an **end-to-end test harness** (INFRA-A), and
+**living knowledge** — the `pg-raggraph`-backed `Revisor` with post-hoc
+supersede/retract, `as_of`/`version_filter` graph search, every hit citing
+its `stele://` evidence (Phase 5). Runtime working memory (WorkGraph),
+adapter SDK, source connectors, and universal search are the next phases —
+see the [order of operations](docs/superpowers/2026-05-17-order-of-operations.md)
+for the authoritative path and [current status](docs/current-status.md) for
+what's done.
 
 New here? Start with the [Memory tutorial](docs/tutorial-memory.md) — a
 hands-on walkthrough of store → extract → supersede → recall.
@@ -28,6 +33,9 @@ Key planning docs:
 - [Architecture: Sovereign Stele](docs/architecture-sovereign-stele.md)
 - [Build specs](docs/specs/README.md)
 - [Vector & hybrid indexing setup (Phase 4)](docs/vector-indexing-setup.md)
+- [Living knowledge setup (Phase 5)](docs/living-knowledge-setup.md)
+- [Plugging Stele into an agent (Claude / Codex / MCP / others)](docs/agent-integration.md)
+- [E2E self-host harness](deploy/README.md)
 
 ## Current Functional Surface
 
@@ -48,17 +56,25 @@ The current runnable slice includes:
 - showcase benchmark for prompt-payload reduction, PII leakage, and latency
 - recall benchmark for answer-bearing span retrieval against a direct-context oracle
 
-**Sovereign memory (Phases 1–3)**
+**Sovereign memory (Phases 1–5)**
 
 - `stele.memory` — scoped memory with supersession (`add(supersedes=[...])`),
-  soft delete, content-hash dedup, and `as_of=<datetime>` time-travel queries
-  on SQLite + Postgres
+  post-hoc `retract(...)`, soft delete, content-hash dedup, and
+  `as_of=<datetime>` time-travel queries on SQLite + Postgres
 - `stele.extract` — deterministic extraction of memories from artifacts,
   message threads, or raw text (`from_artifact` / `from_messages` /
   `from_text`); no LLM, no embeddings
-- `stele.recall` — policy-driven context selection with six strategies
-  (`summary_only`, `memory_search`, `artifact_search`, `adaptive`,
-  `raw_fetch`, `abstain`) behind one callable facade
+- `stele.recall` — policy-driven context selection with seven strategies
+  (`summary_only`, `memory_search`, `artifact_search`, `graph_search`,
+  `adaptive`, `raw_fetch`, `abstain`) behind one callable facade
+- vector + hybrid retrieval across all five backends via Chunkshop
+  (`indexing.mode` / `retrieval.default_mode`) — Phase 4
+- **living knowledge** (Phase 5, opt-in `stele-core[postgres-graph]` on a
+  Postgres backend): `graph_search` with `as_of` / `version_filter` /
+  `retracted_behavior`; `memory.retract()` and `add(supersedes=)` project
+  into a `pg-raggraph` graph; every graph hit recovers its exact `stele://`
+  source. Off by default; non-Postgres deployments keep memory evolution and
+  `graph_search` reports `CapabilityError` (capability honesty).
 - every memory cites the `stele://` evidence that produced it; PII scrubbing
   is inherited end to end and never duplicated
 
@@ -103,6 +119,46 @@ past = stele.memory.search(
 ```
 
 See [docs/tutorial-memory.md](docs/tutorial-memory.md) for the full walkthrough.
+
+## Living Knowledge (Phase 5)
+
+Opt-in, on a Postgres backend, with `pip install 'stele-core[postgres-graph]'`.
+Stele projects memory evolution into a `pg-raggraph` graph so `graph_search`
+honors supersession, retraction, and time-travel — every hit still cites its
+exact `stele://` source.
+
+```python
+from datetime import UTC, datetime
+from stele import Stele
+from stele.core.memory_record import MemoryScope
+
+stele = Stele.from_config({
+    "backend": {"type": "postgres", "dsn": "postgresql://yonk:yonk@localhost:55453/stele"},
+    "graph": {"enabled": True, "namespace": "kb"},
+})
+scope = MemoryScope(namespace="kb")
+
+m = stele.memory.add(text="Study X says compound Z prevents disease.",
+                     kind="fact", source_refs=["stele://kb/study-x"], scope=scope)
+
+# Retract it post-hoc — policy decides what graph_search does with it
+stele.memory.retract(m.record.id, reason="retracted by journal")
+
+hidden  = stele.recall(query="does Z prevent disease", scope=scope,
+                        strategy="graph_search", retracted_behavior="hide")
+flagged = stele.recall(query="does Z prevent disease", scope=scope,
+                        strategy="graph_search", retracted_behavior="flag")
+# hidden.citations excludes it; flagged.citations still CITES it, marked retracted
+
+# Time-travel: what did the graph believe at a past instant?
+past = stele.recall(query="does Z prevent disease", scope=scope,
+                    strategy="graph_search", as_of=datetime.now(UTC))
+```
+
+`graph.enabled` defaults to `false`. Without the extra / not on Postgres,
+`graph_search` raises `CapabilityError` and the rest of Stele is unaffected.
+Full guide: [docs/living-knowledge-setup.md](docs/living-knowledge-setup.md).
+Runnable: `STELE_PG_RAGGRAPH_DSN=… scripts/demo-living-knowledge.sh`.
 
 ## Showcase Benchmark
 
@@ -167,6 +223,22 @@ pip install 'stele-core[postgres]'
 pip install 'stele-core[mariadb]'
 pip install 'stele-core[clickhouse]'
 pip install 'stele-core[all-backends]'
+pip install 'stele-core[chunkshop]'        # Phase 4 vector/hybrid indexing
+pip install 'stele-core[postgres-graph]'   # Phase 5 living knowledge (Postgres only)
+```
+
+`[postgres-graph]` is independent of `[postgres]`; it pins the
+`pg-raggraph` version carrying the consumer surface Phase 5 needs and is
+only meaningful on a Postgres backend with `graph.enabled: true`:
+
+```yaml
+backend:
+  type: postgres
+  dsn: postgresql://yonk:yonk@localhost:55453/stele
+graph:
+  enabled: true
+  namespace: kb
+  retracted_behavior: surface_both   # hide | flag | surface_both
 ```
 
 Backend config examples:
