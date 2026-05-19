@@ -166,11 +166,21 @@ class InProcessMemoryStore:
         terms = [t for t in query.lower().split() if t]
         if not terms:
             return []
+        # Mirror search()'s scope + temporal semantics (newest valid view:
+        # as_of = now, include_superseded = False) so this never diverges
+        # from Memory.search(). See BUG-1.
+        as_of = datetime.now(UTC)
         candidates: list[tuple[MemoryRecord, int]] = []
         for record in self._records.values():
-            if record.scope != scope:
+            if not _scope_matches(record.scope, scope):
                 continue
-            if record.status != "active":
+            if record.status == "deleted":
+                continue
+            if not _is_valid_at(record, as_of):
+                continue
+            if record.status == "superseded" and (
+                record.effective_until is None or record.effective_until <= as_of
+            ):
                 continue
             if source_ref_filter is not None and source_ref_filter not in record.source_refs:
                 continue

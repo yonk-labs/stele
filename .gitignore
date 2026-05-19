@@ -30,3 +30,4 @@ uv.lock
 
 # e2e harness captured run reports
 tests/e2e/evidence/
+benchmarks/.cache/

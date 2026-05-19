@@ -145,6 +145,11 @@ class ExtractionConfig(BaseModel):
         "summary",
     ] = "summary"
     auto_stash_messages: bool = True
+    # Retain each message verbatim as a candidate (in addition to the
+    # lede-distilled passes) so exact answer-bearing literals — dates,
+    # names, ids — survive extraction. Stele's "exact evidence" thesis;
+    # materially lifts conversational recall (LoCoMo).
+    retain_message_text: bool = True
 
 
 class GraphConfig(BaseModel):
@@ -158,6 +163,20 @@ class GraphConfig(BaseModel):
     evolution_tier: Literal["structural", "fact_aware", "full"] = "structural"
     retracted_behavior: Literal["hide", "flag", "surface_both"] = "surface_both"
     supersession_behavior: Literal["hide", "prefer_new", "surface_both"] = "prefer_new"
+    # Opt-in, non-default graph extraction. "none" keeps the LLM-free
+    # default (no graph built). "llm" projects an entity/relationship graph
+    # via the endpoint below — the LLM stays inside the Revisor adapter, so
+    # recall/ remains LLM-free.
+    fact_extractor: Literal["none", "llm", "lede_spacy"] = "none"
+    llm_base_url: str | None = None
+    llm_model: str | None = None
+    llm_api_key: str = ""
+    # Opt-in graph-query tuning. Default ("smart"/False) is the untuned
+    # path; with a real graph, ("hybrid"/True) is the documented lever.
+    query_mode: Literal[
+        "smart", "naive", "naive_boost", "local", "global", "hybrid"
+    ] = "smart"
+    rerank: bool = False
 
 
 class StashConfig(BaseModel):

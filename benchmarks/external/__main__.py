@@ -1,0 +1,84 @@
+"""Real third-party benchmark runner.
+
+Usage: python -m benchmarks.external [--locomo-samples N] [--mhr-queries N]
+       [--lme-questions N] [--output-root DIR]
+
+Emits benchmarks/runs/<date>/External.{json,md}. Datasets that cannot be
+fetched here (CRAG, AgentLongMemEval) are reported as unavailable WITH the
+reason — never with fabricated numbers.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from benchmarks.external import harness, loaders
+
+
+def _safe(fn: Any, **kw: Any) -> dict[str, Any]:
+    try:
+        result: dict[str, Any] = fn(**kw)
+        return result
+    except loaders.DatasetUnavailable as e:
+        return {"benchmark": fn.__name__, "status": "UNAVAILABLE",
+                "reason": str(e), "numbers": "NOT FABRICATED"}
+
+
+def run_all(locomo_samples: int | None, mhr_queries: int,
+            lme_questions: int) -> dict[str, Any]:
+    results = [
+        _safe(harness.run_locomo, max_samples=locomo_samples),
+        _safe(harness.run_multihoprag, max_queries=mhr_queries),
+        _safe(harness.run_longmemeval_s, max_questions=lme_questions),
+    ]
+    # honest unavailable entries (loaders raise; recorded, not faked)
+    for name, fn in (("CRAG", loaders.load_crag),
+                     ("AgentLongMemEval", loaders.load_agentlongmemeval)):
+        try:
+            fn()
+        except loaders.DatasetUnavailable as e:
+            results.append({"benchmark": name, "status": "UNAVAILABLE",
+                            "reason": str(e), "numbers": "NOT FABRICATED"})
+    return {"timestamp": datetime.now(UTC).isoformat(), "results": results}
+
+
+def _md(report: dict[str, Any]) -> str:
+    out = ["# Real Third-Party Benchmarks (retrieval-grade)", "",
+           f"Generated: {report['timestamp']}", "",
+           "Metric is **evidence/answer-span retrieval recall**, deterministic,"
+           " no LLM. NOT leaderboard QA accuracy (needs an answer model).", ""]
+    for r in report["results"]:
+        out.append(f"## {r.get('benchmark')}")
+        if r.get("status") == "UNAVAILABLE":
+            out += ["**UNAVAILABLE** — numbers NOT fabricated.",
+                    f"> {r['reason']}", ""]
+            continue
+        for k, v in r.items():
+            if k == "benchmark":
+                continue
+            out.append(f"- {k}: {v}")
+        out.append("")
+    return "\n".join(out)
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--locomo-samples", type=int, default=None)
+    ap.add_argument("--mhr-queries", type=int, default=200)
+    ap.add_argument("--lme-questions", type=int, default=30)
+    ap.add_argument("--output-root", type=Path, default=Path("benchmarks/runs"))
+    a = ap.parse_args()
+    report = run_all(a.locomo_samples, a.mhr_queries, a.lme_questions)
+    out_dir = a.output_root / datetime.now(UTC).strftime("%Y-%m-%d")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "External.json").write_text(json.dumps(report, indent=2))
+    (out_dir / "External.md").write_text(_md(report))
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == "__main__":
+    main()
