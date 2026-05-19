@@ -265,12 +265,28 @@ class PostgresMemoryStore:
         scope: MemoryScope,
         status_filter: list[str] | None = None,
         limit: int = 100,
+        *,
+        as_of: datetime | None = None,
     ) -> list[MemoryRecord]:
-        effective: list[str] = (
-            list(status_filter) if status_filter is not None else ["active", "superseded"]
-        )
-        sql = ["SELECT * FROM memories WHERE namespace=%s AND status = ANY(%s)"]
-        params: list[object] = [scope.namespace, effective]
+        sql = ["SELECT * FROM memories WHERE namespace=%s"]
+        params: list[object] = [scope.namespace]
+        if as_of is None:
+            effective: list[str] = (
+                list(status_filter) if status_filter is not None else ["active", "superseded"]
+            )
+            sql.append("AND status = ANY(%s)")
+            params.append(effective)
+        else:
+            # Time-travel view (issue #3): records VALID at as_of regardless
+            # of current status, with the optional status_filter composed.
+            sql.append("AND effective_from <= %s")
+            params.append(as_of)
+            sql.append("AND (effective_until IS NULL OR effective_until > %s)")
+            params.append(as_of)
+            sql.append("AND status != 'deleted'")
+            if status_filter is not None:
+                sql.append("AND status = ANY(%s)")
+                params.append(list(status_filter))
         for field, value in (
             ("user_id", scope.user_id),
             ("agent_id", scope.agent_id),

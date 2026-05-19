@@ -105,18 +105,36 @@ class InProcessMemoryStore:
         scope: MemoryScope,
         status_filter: list[MemoryStatus] | None = None,
         limit: int = 100,
+        *,
+        as_of: datetime | None = None,
     ) -> list[MemoryRecord]:
-        effective_filter: list[MemoryStatus] = (
-            status_filter if status_filter is not None else ["active", "superseded"]
-        )
-        out: list[MemoryRecord] = []
+        if as_of is None:
+            effective_filter: list[MemoryStatus] = (
+                status_filter if status_filter is not None else ["active", "superseded"]
+            )
+            out: list[MemoryRecord] = []
+            for r in self._records.values():
+                if not _scope_matches(r.scope, scope):
+                    continue
+                if r.status not in effective_filter:
+                    continue
+                out.append(r)
+            return out[:limit]
+        # Time-travel view (issue #3 — late-binding filter trap fix):
+        # accept anything valid at `as_of` regardless of current status,
+        # then compose with an explicit status_filter when supplied.
+        # ``include_superseded=True`` selects "scope + not deleted +
+        # is_valid_at(as_of)" — exactly the historical-view predicate.
+        out2: list[MemoryRecord] = []
         for r in self._records.values():
-            if not _scope_matches(r.scope, scope):
+            if not _passes_scope_and_temporal(
+                r, scope, as_of, include_superseded=True
+            ):
                 continue
-            if r.status not in effective_filter:
+            if status_filter is not None and r.status not in status_filter:
                 continue
-            out.append(r)
-        return out[:limit]
+            out2.append(r)
+        return out2[:limit]
 
     def get(self, memory_id: str) -> MemoryRecord | None:
         return self._records.get(memory_id)

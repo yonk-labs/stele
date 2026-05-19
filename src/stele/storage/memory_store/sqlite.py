@@ -348,17 +348,31 @@ class SQLiteMemoryStore:
         scope: MemoryScope,
         status_filter: list[str] | None = None,
         limit: int = 100,
+        *,
+        as_of: datetime | None = None,
     ) -> list[MemoryRecord]:
-        effective: list[str] = (
-            list(status_filter) if status_filter is not None else ["active", "superseded"]
-        )
-        placeholders = ",".join("?" * len(effective))
+        sql = ["SELECT * FROM memories WHERE namespace = ?"]
         params: list[object] = [scope.namespace]
-        sql = [
-            "SELECT * FROM memories WHERE namespace = ?",
-            f"AND status IN ({placeholders})",
-        ]
-        params.extend(effective)
+        if as_of is None:
+            effective: list[str] = (
+                list(status_filter) if status_filter is not None else ["active", "superseded"]
+            )
+            placeholders = ",".join("?" * len(effective))
+            sql.append(f"AND status IN ({placeholders})")
+            params.extend(effective)
+        else:
+            # Time-travel view (issue #3): records VALID at as_of regardless
+            # of current status, with the optional status_filter composed.
+            as_of_s = as_of.isoformat()
+            sql.append("AND effective_from <= ?")
+            params.append(as_of_s)
+            sql.append("AND (effective_until IS NULL OR effective_until > ?)")
+            params.append(as_of_s)
+            sql.append("AND status != 'deleted'")
+            if status_filter is not None:
+                placeholders = ",".join("?" * len(status_filter))
+                sql.append(f"AND status IN ({placeholders})")
+                params.extend(status_filter)
         for field, value in (
             ("user_id", scope.user_id),
             ("agent_id", scope.agent_id),
