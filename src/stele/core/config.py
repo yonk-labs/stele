@@ -177,6 +177,26 @@ class GraphConfig(BaseModel):
         "smart", "naive", "naive_boost", "local", "global", "hybrid"
     ] = "smart"
     rerank: bool = False
+    # Graph-path embedding provider. Default "local" keeps the per-worker
+    # fastembed model (byte-identical to pre-WS1 behavior). Set "openai" or
+    # "ollama" to point the graph at a shared remote embedding deployment.
+    # pg-raggraph 0.3.0a3 has no dedicated embedding endpoint field; its
+    # remote embedder reads ``llm_base_url`` / ``llm_api_key``, so
+    # embedding_base_url/embedding_api_key map onto those in the Revisor.
+    #
+    # pg-raggraph 0.3.0a3 CAVEATS (loud, do not skip):
+    # - provider="openai" ALWAYS targets api.openai.com and IGNORES
+    #   embedding_base_url. For a self-hosted / OpenAI-compatible embedding
+    #   endpoint you MUST use provider="ollama" (it honors llm_base_url).
+    # - pg-raggraph shares ONE llm_base_url/llm_api_key for BOTH the
+    #   entity-extraction LLM and the embedding endpoint, so with
+    #   fact_extractor="llm" the extraction and embedding endpoints CANNOT
+    #   differ (the extraction endpoint wins).
+    embedding_provider: Literal["local", "openai", "ollama"] = "local"
+    embedding_model: str | None = None
+    embedding_dim: int | None = None
+    embedding_base_url: str | None = None
+    embedding_api_key: str = ""
 
 
 class StashConfig(BaseModel):

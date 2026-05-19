@@ -35,6 +35,7 @@ Key planning docs:
 - [Vector & hybrid indexing setup (Phase 4)](docs/vector-indexing-setup.md)
 - [Living knowledge setup (Phase 5)](docs/living-knowledge-setup.md)
 - [Plugging Stele into an agent (Claude / Codex / MCP / others)](docs/agent-integration.md)
+- [Security posture & threat model](docs/SECURITY.md)
 - [E2E self-host harness](deploy/README.md)
 
 ## Current Functional Surface

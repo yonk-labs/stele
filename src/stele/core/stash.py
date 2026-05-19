@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import builtins
 import uuid
+import warnings
 from collections.abc import Sequence
-from datetime import timedelta
+from datetime import datetime, timedelta
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from importlib.util import find_spec
@@ -15,6 +16,7 @@ from typing import TYPE_CHECKING, Any, cast
 from stele.core.artifact import (
     Artifact,
     ArtifactRecord,
+    CleanupReport,
     CleanupResult,
     ExportResult,
     FetchResult,
@@ -30,7 +32,12 @@ from stele.core.artifact import (
 )
 from stele.core.capabilities import StashCapabilities
 from stele.core.config import StashConfig
-from stele.core.exceptions import CapabilityError, ConfigError, PIIBlockedError
+from stele.core.exceptions import (
+    CapabilityError,
+    ConfigError,
+    PIIBlockedError,
+    SteleSecurityWarning,
+)
 from stele.core.jsonl import read_jsonl, write_jsonl
 from stele.core.reference import make_reference
 from stele.core.reference_auth import validate_reference_signature
@@ -75,6 +82,20 @@ if TYPE_CHECKING:
 class Stele:
     def __init__(self, config: StashConfig) -> None:
         self.config = config
+        if config.signing.mode == "disabled":
+            # NOTE: if pytest `filterwarnings = error` is ever enabled in
+            # pyproject, whitelist this category, else every default-config
+            # construction reddens the suite:
+            #   filterwarnings = ["error", "default::stele.core.exceptions.SteleSecurityWarning"]
+            warnings.warn(
+                "stele: reference signing is DISABLED — stele:// references "
+                "are unsigned and forgeable. Safe for single-user/local. For any "
+                "shared, multi-tenant, or networked deployment set "
+                "signing.mode='required' with a strong secret. See "
+                "docs/SECURITY.md.",
+                SteleSecurityWarning,
+                stacklevel=2,
+            )
         self.summary_provider = LedeSummaryProvider()
         self.pii_scrubber = build_pii_scrubber(config.pii)
         self.storage: StorageBackend
@@ -472,6 +493,39 @@ class Stele:
     def cleanup_expired(self, *, limit: int = 1000) -> CleanupResult:
         return self.storage.cleanup_expired(limit=limit)
 
+    def cleanup(
+        self,
+        *,
+        expired_artifact_limit: int = 1000,
+        superseded_memory_before: datetime | None = None,
+    ) -> CleanupReport:
+        """Umbrella retention entrypoint.
+
+        Always runs the existing expired-artifact cleanup. The
+        superseded-memory purge is OPT-IN and horizon-bounded:
+
+        - ``superseded_memory_before is None`` (default) → purges ZERO
+          superseded memories. This is default-safe: ``as_of``
+          time-travel history is never silently destroyed.
+        - a datetime → hard-deletes only memory records whose validity
+          window ended strictly before that cutoff (status='superseded'
+          AND effective_until < cutoff). Records still valid, active, or
+          superseded-but-recent are kept, so time-travel after the
+          horizon is preserved.
+
+        Operators schedule this (cron / systemd timer) with an explicit
+        retention horizon. There is deliberately no automatic default —
+        an aggressive default would silently break ``as_of`` history.
+        """
+        expired = self.cleanup_expired(limit=expired_artifact_limit)
+        purged = 0
+        if superseded_memory_before is not None:
+            purged = self.memory.purge_superseded(superseded_memory_before)
+        return CleanupReport(
+            artifacts_expired=expired.deleted_count,
+            superseded_memories_purged=purged,
+        )
+
     def export_jsonl(
         self,
         path: str | Path,
@@ -645,6 +699,11 @@ class Stele:
                     llm_api_key=self.config.graph.llm_api_key,
                     query_mode=self.config.graph.query_mode,
                     rerank=self.config.graph.rerank,
+                    embedding_provider=self.config.graph.embedding_provider,
+                    embedding_model=self.config.graph.embedding_model,
+                    embedding_dim=self.config.graph.embedding_dim,
+                    embedding_base_url=self.config.graph.embedding_base_url,
+                    embedding_api_key=self.config.graph.embedding_api_key,
                 )
         return self._revisor
 

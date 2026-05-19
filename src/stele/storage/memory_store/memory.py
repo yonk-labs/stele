@@ -140,6 +140,19 @@ class InProcessMemoryStore:
             }
         )
 
+    def purge_superseded(self, before: datetime) -> int:
+        # Predicate: status='superseded' AND effective_until < before.
+        to_remove = [
+            mid
+            for mid, r in self._records.items()
+            if r.status == "superseded"
+            and r.effective_until is not None
+            and r.effective_until < before
+        ]
+        for mid in to_remove:
+            del self._records[mid]
+        return len(to_remove)
+
     def find_duplicate(
         self,
         scope: MemoryScope,

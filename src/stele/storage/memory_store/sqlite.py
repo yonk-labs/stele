@@ -396,3 +396,13 @@ class SQLiteMemoryStore:
         if affected == 0:
             raise ArtifactNotFound(f"memory not found: {memory_id}")
         self.conn.commit()
+
+    def purge_superseded(self, before: datetime) -> int:
+        # Predicate: status='superseded' AND effective_until < before.
+        affected = self.conn.execute(
+            "DELETE FROM memories WHERE status='superseded' "
+            "AND effective_until IS NOT NULL AND effective_until < ?",
+            (before.isoformat(),),
+        ).rowcount
+        self.conn.commit()
+        return int(affected)
