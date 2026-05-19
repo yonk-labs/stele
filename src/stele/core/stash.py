@@ -31,7 +31,7 @@ from stele.core.artifact import (
     utc_now,
 )
 from stele.core.capabilities import StashCapabilities
-from stele.core.config import StashConfig
+from stele.core.config import EmbeddingConfig, GraphConfig, StashConfig
 from stele.core.exceptions import (
     CapabilityError,
     ConfigError,
@@ -77,6 +77,46 @@ if TYPE_CHECKING:
     from stele.extraction.extractor import MemoryExtractor
     from stele.recall.facade import Recall
     from stele.revisor.base import Revisor
+
+
+def _resolve_graph_embedding(
+    graph: GraphConfig, embedding: EmbeddingConfig
+) -> dict[str, Any]:
+    """Effective graph-path embedding kwargs for the Revisor.
+
+    Precedence: an explicitly-set graph-specific override (WS1 —
+    ``graph.embedding_provider != 'local'``) wins; otherwise the core
+    ``EmbeddingConfig`` (WS2) is the global default both paths read.
+
+    ``EmbeddingConfig.provider='openai-compatible'`` maps to pg-raggraph
+    ``'ollama'`` — NOT ``'openai'`` — because pg-raggraph 0.3.0a3's
+    ``openai`` provider hardcodes ``api.openai.com`` and IGNORES
+    ``base_url`` (caveat A), so a self-hosted OpenAI-compatible endpoint
+    must go through the ``ollama`` provider, which honors ``llm_base_url``.
+    """
+    if graph.embedding_provider != "local":
+        return {
+            "embedding_provider": graph.embedding_provider,
+            "embedding_model": graph.embedding_model,
+            "embedding_dim": graph.embedding_dim,
+            "embedding_base_url": graph.embedding_base_url,
+            "embedding_api_key": graph.embedding_api_key,
+        }
+    if embedding.provider == "local":
+        return {
+            "embedding_provider": "local",
+            "embedding_model": None,
+            "embedding_dim": None,
+            "embedding_base_url": None,
+            "embedding_api_key": "",
+        }
+    return {
+        "embedding_provider": "ollama",
+        "embedding_model": embedding.model,
+        "embedding_dim": embedding.dim,
+        "embedding_base_url": embedding.base_url,
+        "embedding_api_key": embedding.api_key,
+    }
 
 
 class Stele:
@@ -689,6 +729,9 @@ class Stele:
             else:
                 from stele.revisor.pg_raggraph_revisor import PgRaggraphRevisor
 
+                emb = _resolve_graph_embedding(
+                    self.config.graph, self.config.embedding
+                )
                 self._revisor = PgRaggraphRevisor(
                     dsn=self.config.backend.dsn,
                     namespace=self.config.graph.namespace,
@@ -699,11 +742,7 @@ class Stele:
                     llm_api_key=self.config.graph.llm_api_key,
                     query_mode=self.config.graph.query_mode,
                     rerank=self.config.graph.rerank,
-                    embedding_provider=self.config.graph.embedding_provider,
-                    embedding_model=self.config.graph.embedding_model,
-                    embedding_dim=self.config.graph.embedding_dim,
-                    embedding_base_url=self.config.graph.embedding_base_url,
-                    embedding_api_key=self.config.graph.embedding_api_key,
+                    **emb,
                 )
         return self._revisor
 

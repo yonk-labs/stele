@@ -55,6 +55,30 @@ CREATE INDEX IF NOT EXISTS idx_memories_search_tsv
 """
 
 
+def _temporal_sql(
+    as_of: datetime, *, include_superseded: bool
+) -> tuple[str, list[object]]:
+    """Scope-independent temporal predicate shared by ``search`` and
+    ``search_with_score`` so the status/effective_until interplay — the
+    exact BUG-1 re-divergence locus — has ONE definition. Reproduces this
+    backend's existing ``search`` semantics (the ``effective_until`` bound
+    always applies here, unlike the SQLite backend)."""
+    parts = [
+        "AND effective_from <= %s",
+        "AND (effective_until IS NULL OR effective_until > %s)",
+    ]
+    params: list[object] = [as_of, as_of]
+    if not include_superseded:
+        parts.append(
+            "AND (status = 'active'"
+            " OR (status = 'superseded' AND effective_until > %s))"
+        )
+        params.append(as_of)
+    else:
+        parts.append("AND status != 'deleted'")
+    return " ".join(parts), params
+
+
 def _to_record(row: dict[str, object]) -> MemoryRecord:
     return MemoryRecord(
         id=str(row["id"]),
@@ -148,24 +172,16 @@ class PostgresMemoryStore:
 
     def search(self, query: MemoryQuery) -> list[MemoryRecord]:
         as_of = query.as_of or datetime.now(UTC)
+        temporal_sql, temporal_params = _temporal_sql(
+            as_of, include_superseded=query.include_superseded
+        )
         sql = [
             "SELECT * FROM memories",
             "WHERE search_tsv @@ plainto_tsquery('english', %s)",
-            "AND effective_from <= %s",
-            "AND (effective_until IS NULL OR effective_until > %s)",
+            temporal_sql,
             "AND namespace = %s",
         ]
-        params: list[object] = [query.query, as_of, as_of, query.scope.namespace]
-        if not query.include_superseded:
-            # Include records active at as_of: status='active', or superseded
-            # after as_of (i.e. was still active at that point in time).
-            sql.append(
-                "AND (status = 'active'"
-                " OR (status = 'superseded' AND effective_until > %s))"
-            )
-            params.append(as_of)
-        else:
-            sql.append("AND status != 'deleted'")
+        params: list[object] = [query.query, *temporal_params, query.scope.namespace]
         for field, value in (
             ("user_id", query.scope.user_id),
             ("agent_id", query.scope.agent_id),
@@ -192,22 +208,21 @@ class PostgresMemoryStore:
     ) -> list[ScoredMemoryHit]:
         if not query.strip():
             return []
-        # Mirror search()'s scope + temporal predicate (newest valid view:
-        # as_of = now, include_superseded = False) so this never diverges
-        # from Memory.search(). See BUG-1.
+        # Newest-valid view (as_of = now, include_superseded = False) via
+        # the shared predicate so this never diverges from search(). BUG-1.
         as_of = datetime.now(UTC)
+        temporal_sql, temporal_params = _temporal_sql(
+            as_of, include_superseded=False
+        )
         sql_parts = [
             "SELECT id, ts_rank_cd(search_tsv, plainto_tsquery('english', %s)) AS raw_score",
             "FROM memories",
             "WHERE search_tsv @@ plainto_tsquery('english', %s)",
-            "  AND effective_from <= %s",
-            "  AND (effective_until IS NULL OR effective_until > %s)",
-            "  AND (status = 'active'"
-            "       OR (status = 'superseded' AND effective_until > %s))",
+            f"  {temporal_sql}",
             "  AND namespace = %s",
         ]
         params: list[object] = [
-            query, query, as_of, as_of, as_of, scope.namespace,
+            query, query, *temporal_params, scope.namespace,
         ]
         for field, value in (
             ("user_id", scope.user_id),
