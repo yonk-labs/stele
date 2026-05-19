@@ -92,6 +92,19 @@ dedicated embedding endpoint distinct from the extraction LLM — would lift
 
 ### WS2 — Stele-core `EmbeddingConfig` surface  *(the real override knob)*
 
+**Status: ✅ LANDED** (`feat/ws2-embedding-config`, whats-next #3).
+`EmbeddingConfig` + `StashConfig.embedding` + `STELE_EMBED_*` env +
+dim-vs-index `ConfigError` guard + `_resolve_graph_embedding` (global
+default; explicit WS1 `graph.embedding_*` wins; `openai-compatible` →
+pg-raggraph `ollama` per caveat A) are implemented and tested.
+**Scope note — chunk-store ctor passthrough deferred to WS3:** the plan's
+"fan out to (b) the chunk-store ctor" was intentionally NOT done in WS2.
+That consumer is WS3, gated on an upstream chunkshop HTTP embedder that
+does not exist yet (whats-next #4, parked). Wiring a dead unused param
+into 5 chunk-store ctors now would be plumbing for an unknown-timeline
+future; WS2 wires the one consumer that exists today (the graph path).
+WS3 adds the chunk-store wiring when chunkshop gains the HTTP embedder.
+
 **Why:** `src/stele/core/config.py` has **zero** embedding config (verified:
 `grep -niE 'embed' src/stele/core/config.py` → none). Operators have no
 single lever. WS1 alone leaves the knob graph-only and pg-raggraph-shaped.
