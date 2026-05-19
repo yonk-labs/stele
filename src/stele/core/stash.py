@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import builtins
 import uuid
+import warnings
 from collections.abc import Sequence
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError
@@ -30,7 +31,12 @@ from stele.core.artifact import (
 )
 from stele.core.capabilities import StashCapabilities
 from stele.core.config import StashConfig
-from stele.core.exceptions import CapabilityError, ConfigError, PIIBlockedError
+from stele.core.exceptions import (
+    CapabilityError,
+    ConfigError,
+    PIIBlockedError,
+    SteleSecurityWarning,
+)
 from stele.core.jsonl import read_jsonl, write_jsonl
 from stele.core.reference import make_reference
 from stele.core.reference_auth import validate_reference_signature
@@ -75,6 +81,16 @@ if TYPE_CHECKING:
 class Stele:
     def __init__(self, config: StashConfig) -> None:
         self.config = config
+        if config.signing.mode == "disabled":
+            warnings.warn(
+                "stele: reference signing is DISABLED — stele:// references "
+                "are unsigned and forgeable. Safe for single-user/local. For any "
+                "shared, multi-tenant, or networked deployment set "
+                "signing.mode='required' with a strong secret. See "
+                "docs/SECURITY.md.",
+                SteleSecurityWarning,
+                stacklevel=2,
+            )
         self.summary_provider = LedeSummaryProvider()
         self.pii_scrubber = build_pii_scrubber(config.pii)
         self.storage: StorageBackend

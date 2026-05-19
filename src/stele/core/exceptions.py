@@ -44,3 +44,12 @@ class IndexingError(SteleError):
 class ValidationError(SteleError):
     """Input failed validation before any backend call."""
 
+
+class SteleSecurityWarning(UserWarning):
+    """An insecure-but-permitted configuration is in effect.
+
+    Emitted (never raised) so the default posture is loud, not silent.
+    Suppress with ``warnings.filterwarnings("ignore",
+    category=SteleSecurityWarning)``.
+    """
+
