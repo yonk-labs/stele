@@ -142,10 +142,15 @@ INGEST_CONFIGS: dict[str, dict[str, Any]] = {
         "embedding_model": "BAAI/bge-base-en-v1.5", "embedding_dim": 768,
         "_db": "pg_raggraph_e768",
     },
-    "M_llm_768": {
+    # LLM extraction via the FREE network-local Qwen3-Coder vLLM (no
+    # OpenAI spend on the ~2000+-chunk extraction). gpt-4o-mini dropped
+    # (outdated); if an OpenAI extractor arm is ever wanted, gpt-5-mini
+    # is the current pick — not gpt-4o-mini.
+    "M_llm_qwen_768": {
         "fact_extractor": "llm", "skip_extraction": False,
-        "llm_base_url": "https://api.openai.com/v1",
-        "llm_model": "gpt-4o-mini", "_needs_openai": True,
+        "llm_base_url": "http://192.168.1.193:8000/v1",
+        "llm_model": "Intel/Qwen3-Coder-Next-int4-AutoRound",
+        "llm_api_key": "",
         "embedding_model": "BAAI/bge-base-en-v1.5", "embedding_dim": 768,
         "_db": "pg_raggraph_e768",
     },
@@ -330,10 +335,12 @@ class _RankAcc:
 # is the LongMemEval-style grader; self-grading is internally consistent
 # across cells (apples-to-apples) but slightly lenient vs a separate
 # judge — recorded as a methodology caveat in the report. ---
-JUDGE_BASE_URL = os.environ.get("PGRG_JUDGE_URL", "http://192.168.1.193:8000/v1")
-JUDGE_MODEL = os.environ.get(
-    "PGRG_JUDGE_MODEL", "Intel/Qwen3-Coder-Next-int4-AutoRound"
-)
+# Judge defaults to gpt-5-mini (current frontier-mini, INDEPENDENT from
+# the local-Qwen extractor → no same-model self-grading bias; low volume
+# so ~$2). Override to the local vLLM via PGRG_JUDGE_URL/MODEL for a
+# zero-cost run.
+JUDGE_BASE_URL = os.environ.get("PGRG_JUDGE_URL", "https://api.openai.com/v1")
+JUDGE_MODEL = os.environ.get("PGRG_JUDGE_MODEL", "gpt-5-mini")
 _JUDGE_SYS = (
     "You grade a memory/retrieval system. Using ONLY the retrieved context, "
     "answer the question, then judge whether the reference answer is fully "
@@ -344,19 +351,36 @@ _JUDGE_SYS = (
 )
 
 
+_IS_GPT5 = "openai.com" in JUDGE_BASE_URL and JUDGE_MODEL.startswith("gpt-5")
+
+
 async def _judge_one(client: Any, q: str, gold: str, ctx: str) -> bool | None:
     import json as _json
 
-    body = {
+    body: dict[str, Any] = {
         "model": JUDGE_MODEL,
-        "temperature": 0,
-        "max_tokens": 200,
         "messages": [
             {"role": "system", "content": _JUDGE_SYS},
             {"role": "user", "content":
                 f"QUESTION: {q}\nREFERENCE: {gold}\nCONTEXT:\n{ctx[:6000]}"},
         ],
     }
+    if _IS_GPT5:
+        # gpt-5+ is NOT a param rename. Verified empirically against the
+        # live API: at default reasoning_effort gpt-5-mini burns ~128
+        # hidden reasoning tokens/call (cost+latency, empty-content risk
+        # if the budget is tight). reasoning_effort=minimal → 0 reasoning
+        # tokens, ~22 completion tokens, still correct. json_object mode
+        # guarantees a parseable body (no substring scraping). No
+        # `temperature` (reasoning models reject non-default); the cap is
+        # `max_completion_tokens`.
+        body["max_completion_tokens"] = 600
+        body["reasoning_effort"] = "minimal"
+        body["verbosity"] = "low"
+        body["response_format"] = {"type": "json_object"}
+    else:
+        body["temperature"] = 0
+        body["max_tokens"] = 200
     try:
         r = await client.post(f"{JUDGE_BASE_URL}/chat/completions", json=body)
         txt = r.json()["choices"][0]["message"]["content"]
@@ -377,8 +401,19 @@ async def _judge_one(client: Any, q: str, gold: str, ctx: str) -> bool | None:
 async def _judge_batch(items: list[tuple[str, str, str]]) -> dict[str, Any]:
     import httpx
 
-    sem = asyncio.Semaphore(8)
-    async with httpx.AsyncClient(timeout=90.0) as client:
+    headers = {}
+    if "openai.com" in JUDGE_BASE_URL:
+        key = os.environ.get("OPENAI_API_KEY", "")
+        if not key:
+            raise SystemExit(
+                "LLM-judge points at OpenAI but OPENAI_API_KEY is unset. "
+                "Export it (never hard-code) or set PGRG_JUDGE_URL to the "
+                "local vLLM for a zero-cost judge."
+            )
+        headers["Authorization"] = f"Bearer {key}"
+    # gpt-5 reasoning judge is slower; allow more concurrency + time.
+    sem = asyncio.Semaphore(6 if _IS_GPT5 else 8)
+    async with httpx.AsyncClient(timeout=120.0, headers=headers) as client:
         async def _w(it):
             async with sem:
                 return await _judge_one(client, *it)
