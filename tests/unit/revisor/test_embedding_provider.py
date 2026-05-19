@@ -25,7 +25,8 @@ from typing import Any
 
 import pytest
 
-from stele.core.config import GraphConfig, StashConfig
+from stele.core.config import EmbeddingConfig, GraphConfig, StashConfig
+from stele.core.stash import _resolve_graph_embedding
 from stele.revisor.pg_raggraph_revisor import PgRaggraphRevisor
 
 _DSN = "postgresql://x:y@localhost:1/db"
@@ -158,3 +159,103 @@ def test_stash_wiring_threads_graph_embedding_into_revisor(
     assert out["embedding_dim"] == 1536
     assert out["llm_base_url"] == "http://embed.svc/v1"
     assert out["llm_api_key"] == "sk-test"
+
+
+# --- WS2: core EmbeddingConfig is the global default both paths read ---
+
+
+def test_resolver_default_both_local_is_unchanged() -> None:
+    """Default GraphConfig + default EmbeddingConfig -> local, no remote
+    keys (back-compat lock)."""
+    out = _resolve_graph_embedding(GraphConfig(), EmbeddingConfig())
+    assert out == {
+        "embedding_provider": "local",
+        "embedding_model": None,
+        "embedding_dim": None,
+        "embedding_base_url": None,
+        "embedding_api_key": "",
+    }
+
+
+def test_resolver_global_drives_graph_when_graph_default() -> None:
+    """When the graph-specific override is unset (provider='local'), the
+    core EmbeddingConfig drives the graph path. 'openai-compatible' MUST
+    map to pg-raggraph 'ollama' (caveat A: pg-raggraph 'openai' hardcodes
+    api.openai.com and ignores base_url)."""
+    out = _resolve_graph_embedding(
+        GraphConfig(enabled=True),
+        EmbeddingConfig(
+            provider="openai-compatible",
+            base_url="http://embed.svc/v1",
+            model="bge-small",
+            dim=384,
+            api_key="sek",
+        ),
+    )
+    assert out["embedding_provider"] == "ollama"
+    assert out["embedding_base_url"] == "http://embed.svc/v1"
+    assert out["embedding_model"] == "bge-small"
+    assert out["embedding_dim"] == 384
+    assert out["embedding_api_key"] == "sek"
+
+
+def test_resolver_explicit_graph_override_wins_over_global() -> None:
+    """An explicitly-set graph.embedding_* (WS1 graph-specific override)
+    takes precedence over the global EmbeddingConfig."""
+    out = _resolve_graph_embedding(
+        GraphConfig(
+            enabled=True,
+            embedding_provider="ollama",
+            embedding_base_url="http://graph.svc/v1",
+            embedding_model="graph-model",
+        ),
+        EmbeddingConfig(
+            provider="openai-compatible",
+            base_url="http://global.svc/v1",
+            model="global-model",
+        ),
+    )
+    assert out["embedding_provider"] == "ollama"
+    assert out["embedding_base_url"] == "http://graph.svc/v1"
+    assert out["embedding_model"] == "graph-model"
+
+
+def test_stash_wiring_global_embedding_reaches_revisor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """End-to-end: StashConfig.embedding (no graph-specific override)
+    reaches the real Revisor as 'ollama' + base_url on llm_base_url."""
+    import stele.core.stash as stash_mod
+
+    class _StubStorage:
+        def __init__(self, *_a: Any, **_k: Any) -> None: ...
+        def initialize(self) -> None: ...
+        def close(self) -> None: ...
+
+    class _StubRetrieval:
+        def __init__(self, *_a: Any, **_k: Any) -> None: ...
+
+    monkeypatch.setattr(stash_mod, "PostgresStorageBackend", _StubStorage)
+    monkeypatch.setattr(stash_mod, "PostgresRetrievalBackend", _StubRetrieval)
+
+    cfg = StashConfig.load(
+        {
+            "backend": {"type": "postgres", "dsn": _DSN},
+            "indexing": {"mode": "skip"},
+            "graph": {"enabled": True},
+            "embedding": {
+                "provider": "openai-compatible",
+                "base_url": "http://embed.svc/v1",
+                "model": "bge-small",
+                "api_key": "sek",
+            },
+        }
+    )
+    s = stash_mod.Stele(cfg)
+    rev = s.revisor
+    assert isinstance(rev, PgRaggraphRevisor)
+    assert rev._embedding_provider == "ollama"
+    out = rev._cfg("surface_both", "surface_both")
+    assert out["embedding_provider"] == "ollama"
+    assert out["llm_base_url"] == "http://embed.svc/v1"
+    assert out["llm_api_key"] == "sek"

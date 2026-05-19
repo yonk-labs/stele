@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -199,6 +200,35 @@ class GraphConfig(BaseModel):
     embedding_api_key: str = ""
 
 
+class EmbeddingConfig(BaseModel):
+    """The single core embedding-deployment lever (WS2). Default is the
+    per-worker local fastembed model (byte-identical to pre-WS2). Set
+    ``provider="openai-compatible"`` + ``base_url`` to point every Stele
+    instance at one shared remote ``/v1/embeddings`` deployment instead
+    of N local model loads.
+
+    ``STELE_EMBED_*`` env overrides each field (operator override wins),
+    so a deployment can flip embedding globally without touching call
+    sites. ``dim`` MUST match the vector index's dim — a mismatch
+    silently corrupts similarity, so it is guarded at construction
+    (see ``StashConfig`` validator)."""
+
+    provider: Literal["local", "openai-compatible"] = "local"
+    base_url: str | None = None
+    model: str | None = None
+    dim: int | None = None
+    api_key: str = ""
+
+
+_EMBED_ENV = {
+    "provider": "STELE_EMBED_PROVIDER",
+    "base_url": "STELE_EMBED_BASE_URL",
+    "model": "STELE_EMBED_MODEL",
+    "dim": "STELE_EMBED_DIM",
+    "api_key": "STELE_EMBED_API_KEY",
+}
+
+
 class StashConfig(BaseModel):
     backend: BackendConfig = Field(default_factory=BackendConfig)
     summary: SummaryConfig = Field(default_factory=SummaryConfig)
@@ -210,6 +240,40 @@ class StashConfig(BaseModel):
     extraction: ExtractionConfig = Field(default_factory=ExtractionConfig)
     recall: RecallConfig = Field(default_factory=RecallConfig)
     graph: GraphConfig = Field(default_factory=GraphConfig)
+    embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
+
+    @model_validator(mode="after")
+    def _embedding_env_and_dim_guard(self) -> StashConfig:
+        # STELE_EMBED_* env overrides config (operator override wins).
+        overrides: dict[str, Any] = {}
+        for field, env in _EMBED_ENV.items():
+            raw = os.environ.get(env)
+            if raw is None:
+                continue
+            if field == "dim":
+                try:
+                    overrides[field] = int(raw)
+                except ValueError as exc:
+                    raise ConfigError(
+                        f"{env} must be an integer, got {raw!r}"
+                    ) from exc
+            else:
+                overrides[field] = raw
+        if overrides:
+            self.embedding = self.embedding.model_copy(update=overrides)
+        # A remote model whose output dim differs from the existing vector
+        # index silently corrupts similarity with no other error — reject
+        # it loudly. Unconstrained when either side is unset (the default
+        # path: vector_dim is None).
+        e_dim = self.embedding.dim
+        i_dim = self.indexing.vector_dim
+        if e_dim is not None and i_dim is not None and e_dim != i_dim:
+            raise ConfigError(
+                f"embedding.dim ({e_dim}) must equal indexing.vector_dim "
+                f"({i_dim}) — a different embedding dim invalidates the "
+                "vector index and silently corrupts similarity."
+            )
+        return self
 
     @classmethod
     def load(cls, value: StashConfig | dict[str, Any] | str | Path | None) -> StashConfig:
