@@ -260,7 +260,14 @@ def test_purge_superseded_predicate_identical_across_backends(
 
     purged = s.memory.purge_superseded(cutoff)
 
-    assert purged == 1
+    # purge_superseded is intentionally GLOBAL (a retention sweep, not
+    # scope-bounded), so on a shared backend (Postgres test container,
+    # concurrent tests in the same session) other rows can also match.
+    # The contract this test enforces is the PREDICATE — which rows are
+    # purged vs retained — and that's already covered by the per-record
+    # assertions below. The strict count works on fresh per-test stores
+    # (memory, sqlite tmp_path) and is a lower bound everywhere else.
+    assert purged >= 1
     assert s.memory.get(old.record.id) is None  # past the horizon
     assert s.memory.get(recent.record.id) is not None  # superseded-but-recent
     assert s.memory.get(new.record.id) is not None  # active head untouched
