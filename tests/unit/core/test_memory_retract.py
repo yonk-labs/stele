@@ -52,14 +52,17 @@ def test_add_with_supersedes_projects_supersede() -> None:
         text="old", kind="fact", source_refs=["stele://n/a"],
         scope=MemoryScope(namespace="n"),
     )
-    b = m.add(
+    m.add(
         text="new", kind="fact", source_refs=["stele://n/b"],
         scope=MemoryScope(namespace="n"), supersedes=[a.record.id],
     )
+    # BUG-4: the graph-supersede projection mirrors memory supersession at the
+    # evidence-document level — it must use the memories' real source_refs[0]
+    # document refs, not synthetic stele://<ns>/mem-<id> refs.
     assert (
         "supersede",
-        f"stele://n/mem-{a.record.id}",
-        f"stele://n/mem-{b.record.id}",
+        "stele://n/a",
+        "stele://n/b",
     ) in rev.calls
 
 
