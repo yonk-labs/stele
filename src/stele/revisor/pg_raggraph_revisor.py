@@ -7,6 +7,7 @@ os.environ), async->sync bridge contained HERE, no native object escapes
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any
@@ -89,7 +90,17 @@ class PgRaggraphRevisor:
 
     # --- async->sync bridge (lives ONLY here; DC-P5-2) ---
     def _run(self, coro: Coroutine[Any, Any, Any]) -> Any:
-        return asyncio.run(coro)
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop (normal sync path): unchanged behavior.
+            return asyncio.run(coro)
+        # A loop is already running in THIS thread (FastAPI/Starlette,
+        # async agent runtime, Jupyter): run the coro to completion on a
+        # FRESH loop in a dedicated worker thread so we never re-enter or
+        # await the caller's loop. .result() re-raises coro exceptions.
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            return ex.submit(asyncio.run, coro).result()
 
     def _cfg(
         self, retracted_behavior: RetractedBehavior, supersession_behavior: str
