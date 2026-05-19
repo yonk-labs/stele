@@ -162,6 +162,12 @@ def test_search_with_score_matches_search_scope_and_temporal(
         supersedes=[older.record.id],
     )
 
+    # Corpus is << limit (20) on purpose: this asserts parity of the
+    # CANDIDATE SET (scope + temporal predicate), not ranking/truncation.
+    # search orders by effective_from DESC, search_with_score by score DESC;
+    # with a small corpus LIMIT never truncates, so ordering can't perturb
+    # set membership. Do NOT raise the corpus past `limit` without rethinking
+    # this assertion (post-LIMIT subsets can legitimately differ by design).
     s_ids = {
         r.id
         for r in s.memory.search(
