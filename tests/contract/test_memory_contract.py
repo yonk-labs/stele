@@ -207,3 +207,60 @@ def test_unsupported_backend_raises_capability_error(
             scope=MemoryScope(user_id=_unique_user()),
         )
     assert "not yet implemented" in str(exc.value)
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_purge_superseded_predicate_identical_across_backends(
+    tmp_path: Path,
+    backend: str,
+) -> None:
+    """Every real memory-store backend applies the SAME predicate:
+    status='superseded' AND effective_until < cutoff. Active and
+    superseded-but-recent records survive."""
+    import time
+
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    scope = MemoryScope(user_id=user)
+
+    # old: superseded before the cutoff -> purged
+    old = s.memory.add(
+        text="alpha v1",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=scope,
+    )
+    time.sleep(0.05)
+    s.memory.add(
+        text="alpha v2",
+        kind="fact",
+        source_refs=["stele://default/b"],
+        scope=scope,
+        supersedes=[old.record.id],
+    )
+    time.sleep(0.05)
+    cutoff = datetime.now(UTC)
+    time.sleep(0.05)
+
+    # recent: superseded AFTER the cutoff -> retained
+    recent = s.memory.add(
+        text="beta v1",
+        kind="fact",
+        source_refs=["stele://default/c"],
+        scope=scope,
+    )
+    time.sleep(0.05)
+    new = s.memory.add(
+        text="beta v2",
+        kind="fact",
+        source_refs=["stele://default/d"],
+        scope=scope,
+        supersedes=[recent.record.id],
+    )
+
+    purged = s.memory.purge_superseded(cutoff)
+
+    assert purged == 1
+    assert s.memory.get(old.record.id) is None  # past the horizon
+    assert s.memory.get(recent.record.id) is not None  # superseded-but-recent
+    assert s.memory.get(new.record.id) is not None  # active head untouched

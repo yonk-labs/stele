@@ -52,6 +52,15 @@ class MemoryStore(Protocol):
         ArtifactNotFound if absent. Additive Phase-5 surface."""
         ...
 
+    def purge_superseded(self, before: datetime) -> int:
+        """Hard-delete memory rows with status='superseded' AND
+        effective_until strictly before ``before``. Returns the count
+        removed. Records still valid, active, or superseded-but-recent
+        (effective_until >= before, or NULL) are untouched. This is the
+        only primitive that destroys history — callers bound it with an
+        explicit retention horizon."""
+        ...
+
     def find_duplicate(
         self,
         scope: MemoryScope,

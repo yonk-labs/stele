@@ -21,7 +21,7 @@ class MariaDBMemoryStore:
         if name in {
             "add", "search", "list", "get",
             "update_metadata", "soft_delete", "set_retracted",
-            "find_duplicate", "close",
+            "purge_superseded", "find_duplicate", "close",
         }:
             def _raise(*_args: object, **_kwargs: object) -> None:
                 raise CapabilityError(_MSG)

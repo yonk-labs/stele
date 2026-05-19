@@ -3,6 +3,7 @@
 from stele.core.artifact import (
     Artifact,
     ArtifactRecord,
+    CleanupReport,
     CleanupResult,
     ExportResult,
     FetchResult,
@@ -69,6 +70,7 @@ __all__ = [
     "ArtifactRecord",
     "BackendError",
     "CapabilityError",
+    "CleanupReport",
     "CleanupResult",
     "ConfigError",
     "ExportResult",

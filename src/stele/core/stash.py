@@ -6,7 +6,7 @@ import builtins
 import uuid
 import warnings
 from collections.abc import Sequence
-from datetime import timedelta
+from datetime import datetime, timedelta
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from importlib.util import find_spec
@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, cast
 from stele.core.artifact import (
     Artifact,
     ArtifactRecord,
+    CleanupReport,
     CleanupResult,
     ExportResult,
     FetchResult,
@@ -491,6 +492,39 @@ class Stele:
 
     def cleanup_expired(self, *, limit: int = 1000) -> CleanupResult:
         return self.storage.cleanup_expired(limit=limit)
+
+    def cleanup(
+        self,
+        *,
+        expired_artifact_limit: int = 1000,
+        superseded_memory_before: datetime | None = None,
+    ) -> CleanupReport:
+        """Umbrella retention entrypoint.
+
+        Always runs the existing expired-artifact cleanup. The
+        superseded-memory purge is OPT-IN and horizon-bounded:
+
+        - ``superseded_memory_before is None`` (default) → purges ZERO
+          superseded memories. This is default-safe: ``as_of``
+          time-travel history is never silently destroyed.
+        - a datetime → hard-deletes only memory records whose validity
+          window ended strictly before that cutoff (status='superseded'
+          AND effective_until < cutoff). Records still valid, active, or
+          superseded-but-recent are kept, so time-travel after the
+          horizon is preserved.
+
+        Operators schedule this (cron / systemd timer) with an explicit
+        retention horizon. There is deliberately no automatic default —
+        an aggressive default would silently break ``as_of`` history.
+        """
+        expired = self.cleanup_expired(limit=expired_artifact_limit)
+        purged = 0
+        if superseded_memory_before is not None:
+            purged = self.memory.purge_superseded(superseded_memory_before)
+        return CleanupReport(
+            artifacts_expired=expired.deleted_count,
+            superseded_memories_purged=purged,
+        )
 
     def export_jsonl(
         self,

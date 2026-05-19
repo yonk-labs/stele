@@ -154,6 +154,82 @@ changing it requires a full reindex (output dim must match the index).
 - [ ] Readiness probe = `run-full-sweep.sh preflight`-style checks (DB +
       embedding + LLM reachable)
 
+## Retention & connection pooling (operations)
+
+This expands Tier-1 §1.1 (pooling) and §1.3 (retention) with the concrete
+operator surface. Read those first for the *why*; this is the *how*.
+
+### `Stele.cleanup(...)` — the umbrella retention entrypoint
+
+`Stele.cleanup(*, expired_artifact_limit=1000, superseded_memory_before=None)`
+returns a `CleanupReport(artifacts_expired, superseded_memories_purged)`.
+
+- It **always** runs the existing expired-artifact cleanup (same effect as
+  `cleanup_expired()`, which is unchanged and still supported for back-compat).
+- The superseded-memory purge is **opt-in and horizon-bounded**:
+  - `superseded_memory_before=None` (**default**) → purges **zero** superseded
+    memories. This is deliberately default-safe.
+  - a `datetime` → hard-deletes **only** memory rows with
+    `status='superseded'` **and** `effective_until` strictly before that
+    cutoff. Active, still-valid, and superseded-but-recent records are kept.
+
+**The `as_of` trade-off (by design).** `as_of` time-travel recall *reads*
+superseded records — they **are** the history. Purging past a horizon
+permanently forfeits time-travel for anything *before* that horizon; recent
+history (anything superseded at/after the cutoff) is preserved. Choose the
+horizon as your retention SLA (e.g. "keep 90 days of history"):
+`superseded_memory_before = now - timedelta(days=90)`.
+
+**Why no aggressive/auto default ships:** an automatic blanket
+"delete superseded" would silently break `as_of` history for every operator
+who didn't realize it ran — so operators must opt in with an explicit horizon.
+
+### Recommended scheduled job
+
+Run a small script from cron or a systemd timer (nightly is typical). It opens
+one `Stele`, calls `cleanup()` with an explicit horizon, and exits:
+
+```python
+# retention_job.py
+from datetime import UTC, datetime, timedelta
+from stele import Stele
+
+RETENTION = timedelta(days=90)  # your history-retention SLA
+
+def main() -> None:
+    stele = Stele.from_config({"backend": {"type": "postgres",
+                                            "dsn": "YOUR_DSN_HERE"}})
+    try:
+        report = stele.cleanup(
+            superseded_memory_before=datetime.now(UTC) - RETENTION,
+        )
+        print(report.model_dump_json())
+    finally:
+        stele.close()
+
+if __name__ == "__main__":
+    main()
+```
+
+```cron
+# nightly at 03:17
+17 3 * * *  /path/to/.venv/bin/python /path/to/retention_job.py >> /var/log/stele-retention.log 2>&1
+```
+
+(systemd-timer equivalent: a `OnCalendar=*-*-* 03:17:00` timer driving a
+oneshot service that runs the same command.) This satisfies the
+"Scheduled `cleanup_expired()` + superseded-memory purge job" checklist item.
+
+### Connection pooling is still NOT built in
+
+An internal connection pool is **deliberately not implemented** (it's a
+re-architecture, tracked separately). Stele keeps one DB connection per
+instance — see [Tier-1 §1.1](#11-no-connection-pooling--one-db-connection-per-stele-instance):
+use **pgbouncer** (transaction pooling) or an application-level pool, one
+`Stele` per process reused across requests, pool sized ≥ worker count. The
+retention job above is a short-lived single-connection process, so it does not
+add to steady-state pool pressure.
+
 ## Honest unknowns (not yet verified — do not assume safe)
 - Thread-safety of a `Stele` instance shared across threads (per-instance
   connection reuse) — **UNVERIFIED**; assume one-per-thread or lock-wrap.

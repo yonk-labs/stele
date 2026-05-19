@@ -162,6 +162,15 @@ class Memory:
         assert updated is not None
         return updated
 
+    def purge_superseded(self, before: datetime) -> int:
+        """Hard-delete superseded memories whose validity window ended
+        strictly before ``before``. Returns the count removed.
+
+        This forfeits ``as_of`` time-travel for anything before the
+        horizon — by design. Callers (operators) opt in with an explicit
+        cutoff; there is no automatic default. See Stele.cleanup()."""
+        return self._store.purge_superseded(before)
+
     def search_with_score(
         self,
         query: str,

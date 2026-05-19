@@ -314,6 +314,17 @@ class PostgresMemoryStore:
             raise ArtifactNotFound(f"memory not found: {memory_id}")
         self.conn.commit()
 
+    def purge_superseded(self, before: datetime) -> int:
+        # Predicate: status='superseded' AND effective_until < before.
+        with self.conn.cursor() as cur:
+            affected = cur.execute(
+                "DELETE FROM memories WHERE status='superseded' "
+                "AND effective_until IS NOT NULL AND effective_until < %s",
+                (before,),
+            ).rowcount
+        self.conn.commit()
+        return int(affected)
+
     def find_duplicate(
         self,
         scope: MemoryScope,

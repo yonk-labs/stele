@@ -154,6 +154,18 @@ class CleanupResult(BaseModel):
     deleted_count: int
 
 
+class CleanupReport(BaseModel):
+    """Result of the umbrella :meth:`Stele.cleanup` entrypoint.
+
+    ``superseded_memories_purged`` is 0 unless the caller passes an
+    explicit retention horizon — the default is a no-op so ``as_of``
+    time-travel history is never silently destroyed.
+    """
+
+    artifacts_expired: int
+    superseded_memories_purged: int
+
+
 class ImportResult(BaseModel):
     imported_count: int
 
