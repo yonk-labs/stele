@@ -113,8 +113,10 @@ class Memory:
         scope: MemoryScope,
         status_filter: list[MemoryStatus] | None = None,
         limit: int = 100,
+        *,
+        as_of: datetime | None = None,
     ) -> list[MemoryRecord]:
-        return self._store.list(scope, status_filter, limit)
+        return self._store.list(scope, status_filter, limit, as_of=as_of)
 
     def get(self, memory_id: str) -> MemoryRecord | None:
         return self._store.get(memory_id)

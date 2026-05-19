@@ -264,3 +264,98 @@ def test_purge_superseded_predicate_identical_across_backends(
     assert s.memory.get(old.record.id) is None  # past the horizon
     assert s.memory.get(recent.record.id) is not None  # superseded-but-recent
     assert s.memory.get(new.record.id) is not None  # active head untouched
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_list_with_as_of_returns_records_valid_at_that_time(
+    tmp_path: Path, backend: str
+) -> None:
+    """Issue #3 — the late-binding filter trap.
+
+    A record that was active at `as_of` but has since been RETRACTED must
+    still appear in ``Memory.list(scope, as_of=t_between)``. The naive
+    consumer pattern (``list(status_filter=["active"]) + Python time
+    filter``) silently drops it because current status is now 'retracted'.
+    The fix pushes the time-window filter down to SQL and expands the
+    default status set when ``as_of`` is set.
+    """
+    import time as _time
+
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    r = s.memory.add(
+        text="fact-at-t0",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=MemoryScope(user_id=user),
+    )
+    t_between = datetime.now(UTC) + timedelta(milliseconds=10)
+    _time.sleep(0.05)  # ensure retraction lands strictly after t_between
+    s.memory.retract(r.record.id, reason="wrong")
+
+    # Default (no explicit status_filter) + as_of: must include the
+    # was-active-at-as_of record even though current status is 'retracted'.
+    historical = s.memory.list(MemoryScope(user_id=user), as_of=t_between)
+    assert {m.id for m in historical} == {r.record.id}
+
+    # Current view (no as_of) keeps current behavior: default
+    # status_filter=["active","superseded"] excludes retracted.
+    current = s.memory.list(MemoryScope(user_id=user))
+    assert r.record.id not in {m.id for m in current}
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_list_with_as_of_excludes_future_records(
+    tmp_path: Path, backend: str
+) -> None:
+    """Records whose ``effective_from`` is AFTER ``as_of`` must not appear."""
+    import time as _time
+
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    t_before = datetime.now(UTC)
+    _time.sleep(0.05)  # ensure the new record's effective_from > t_before
+    s.memory.add(
+        text="fact-after-as_of",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=MemoryScope(user_id=user),
+    )
+    out = s.memory.list(MemoryScope(user_id=user), as_of=t_before)
+    assert out == []
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_list_with_as_of_and_explicit_status_filter_composes(
+    tmp_path: Path, backend: str
+) -> None:
+    """Explicit ``status_filter`` + ``as_of`` composes: a record is returned
+    only if it (a) was valid at as_of AND (b) currently matches the filter.
+    Honor what the caller asked for — don't expand the status set."""
+    import time as _time
+
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    r = s.memory.add(
+        text="fact-at-t0",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=MemoryScope(user_id=user),
+    )
+    t_between = datetime.now(UTC) + timedelta(milliseconds=10)
+    _time.sleep(0.05)
+    s.memory.retract(r.record.id)
+
+    # Was valid at as_of, but caller explicitly asked for active only:
+    # current status is retracted, so it must NOT appear.
+    active_only = s.memory.list(
+        MemoryScope(user_id=user), status_filter=["active"], as_of=t_between
+    )
+    assert active_only == []
+
+    # Caller explicitly asks for retracted: it's valid at as_of AND
+    # currently retracted -> appears.
+    retracted_only = s.memory.list(
+        MemoryScope(user_id=user), status_filter=["retracted"], as_of=t_between
+    )
+    assert {m.id for m in retracted_only} == {r.record.id}

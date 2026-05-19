@@ -35,7 +35,17 @@ class MemoryStore(Protocol):
         scope: MemoryScope,
         status_filter: list[MemoryStatus] | None = None,
         limit: int = 100,
-    ) -> list[MemoryRecord]: ...
+        *,
+        as_of: datetime | None = None,
+    ) -> list[MemoryRecord]:
+        """When ``as_of`` is set, return records that were VALID at that
+        time (``effective_from <= as_of`` AND ``effective_until > as_of``
+        or NULL), regardless of CURRENT status — so a record retracted or
+        superseded after ``as_of`` still appears in the historical view.
+        If ``status_filter`` is also supplied, it composes on top
+        (current status must match too). Default ``as_of=None`` keeps the
+        existing current-view behavior unchanged."""
+        ...
 
     def get(self, memory_id: str) -> MemoryRecord | None: ...
 
