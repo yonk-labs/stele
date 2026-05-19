@@ -35,6 +35,31 @@ def _fts_query(query: str) -> str:
     return " OR ".join(f'"{term}"' for term in terms)
 
 
+def _temporal_sql(
+    alias: str, as_of: str, *, include_superseded: bool
+) -> tuple[str, list[object]]:
+    """Scope-independent temporal predicate shared by ``search`` and
+    ``search_with_score`` so the status/effective_until interplay — the
+    exact BUG-1 re-divergence locus — has ONE definition. Newest-valid
+    view (active, or superseded after ``as_of``) when not including
+    superseded; ``effective_from`` bound always applies."""
+    parts = [f"AND {alias}.effective_from <= ?"]
+    params: list[object] = [as_of]
+    if not include_superseded:
+        parts.append(
+            f"AND ({alias}.effective_until IS NULL OR {alias}.effective_until > ?)"
+        )
+        params.append(as_of)
+        parts.append(
+            f"AND ({alias}.status = 'active'"
+            f" OR ({alias}.status = 'superseded' AND {alias}.effective_until > ?))"
+        )
+        params.append(as_of)
+    else:
+        parts.append(f"AND {alias}.status != 'deleted'")
+    return " ".join(parts), params
+
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS memories (
   id TEXT PRIMARY KEY,
@@ -231,24 +256,17 @@ class SQLiteMemoryStore:
 
     def search(self, query: MemoryQuery) -> list[MemoryRecord]:
         as_of = (query.as_of or datetime.now(UTC)).isoformat()
-        params: list[object] = [_fts_query(query.query), as_of]
+        temporal_sql, temporal_params = _temporal_sql(
+            "memories", as_of, include_superseded=query.include_superseded
+        )
+        params: list[object] = [_fts_query(query.query), *temporal_params]
         sql = [
             "SELECT memories.* FROM memories",
             "JOIN memories_fts ON memories.rowid = memories_fts.rowid",
             "WHERE memories_fts MATCH ?",
-            "AND memories.effective_from <= ?",
+            temporal_sql,
+            "AND memories.namespace = ?",
         ]
-        if not query.include_superseded:
-            sql.append("AND (memories.effective_until IS NULL OR memories.effective_until > ?)")
-            params.append(as_of)
-            sql.append(
-                "AND (memories.status = 'active'"
-                " OR (memories.status = 'superseded' AND memories.effective_until > ?))"
-            )
-            params.append(as_of)
-        else:
-            sql.append("AND memories.status != 'deleted'")
-        sql.append("AND memories.namespace = ?")
         params.append(query.scope.namespace)
         for field, value in (
             ("user_id", query.scope.user_id),
@@ -274,11 +292,13 @@ class SQLiteMemoryStore:
     ) -> list[ScoredMemoryHit]:
         if not query.strip():
             return []
-        # Mirror search()'s scope + temporal predicate (newest valid view:
-        # as_of = now, include_superseded = False) so this never diverges
-        # from Memory.search(). See BUG-1.
+        # Newest-valid view (as_of = now, include_superseded = False) via
+        # the shared predicate so this never diverges from search(). BUG-1.
         as_of = datetime.now(UTC).isoformat()
-        params: list[object] = [_fts_query(query), as_of, as_of, as_of]
+        temporal_sql, temporal_params = _temporal_sql(
+            "m", as_of, include_superseded=False
+        )
+        params: list[object] = [_fts_query(query), *temporal_params]
         scope_sql = ["AND m.namespace = ?"]
         params.append(scope.namespace)
         for field, value in (
@@ -305,10 +325,7 @@ class SQLiteMemoryStore:
             SELECT m.id, -bm25(memories_fts) AS raw_score
             FROM memories_fts JOIN memories m ON memories_fts.rowid = m.rowid
             WHERE memories_fts MATCH ?
-              AND m.effective_from <= ?
-              AND (m.effective_until IS NULL OR m.effective_until > ?)
-              AND (m.status = 'active'
-                   OR (m.status = 'superseded' AND m.effective_until > ?))
+              {temporal_sql}
               {scope_clause}
               {source_ref_sql}
             ORDER BY raw_score DESC

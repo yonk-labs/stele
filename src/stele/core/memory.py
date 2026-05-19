@@ -84,6 +84,13 @@ class Memory:
                 old = self._store.get(old_id)
                 if old is None:
                     continue
+                # BUG-4: project the real evidence-document ref (not a
+                # synthetic mem- ref) into the graph supersede edge. Known
+                # limitation: a multi-source memory contributes only its
+                # FIRST source_ref to the edge — the graph models one
+                # old→new document supersession, not a fan-out across every
+                # cited source. Acceptable: the primary citation carries the
+                # supersession; secondary refs remain queryable as evidence.
                 old_doc_ref = old.source_refs[0] if old.source_refs else None
                 new_doc_ref = stored.source_refs[0] if stored.source_refs else None
                 if old_doc_ref is not None and new_doc_ref is not None:

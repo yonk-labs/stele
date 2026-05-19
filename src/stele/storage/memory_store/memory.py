@@ -31,6 +31,31 @@ def _is_valid_at(record: MemoryRecord, when: datetime) -> bool:
     return record.effective_until is None or record.effective_until > when
 
 
+def _passes_scope_and_temporal(
+    record: MemoryRecord,
+    scope: MemoryScope,
+    as_of: datetime,
+    *,
+    include_superseded: bool,
+) -> bool:
+    """Single scope + temporal predicate shared by ``search`` and
+    ``search_with_score`` so the two can never re-diverge (BUG-1: a copy
+    of this logic in ``search_with_score`` once used strict full-scope
+    equality + a status='active'-only filter and silently dropped
+    in-scope / still-valid rows). One definition, one behavior."""
+    if not _scope_matches(record.scope, scope):
+        return False
+    if record.status == "deleted":
+        return False
+    if not _is_valid_at(record, as_of):
+        return False
+    return not (
+        not include_superseded
+        and record.status == "superseded"
+        and (record.effective_until is None or record.effective_until <= as_of)
+    )
+
+
 class InProcessMemoryStore:
     def __init__(self) -> None:
         self._records: dict[str, MemoryRecord] = {}
@@ -66,16 +91,8 @@ class InProcessMemoryStore:
         results: list[MemoryRecord] = []
         q_lower = query.query.lower()
         for r in self._records.values():
-            if not _scope_matches(r.scope, query.scope):
-                continue
-            if r.status == "deleted":
-                continue
-            if not _is_valid_at(r, as_of):
-                continue
-            if (
-                not query.include_superseded
-                and r.status == "superseded"
-                and (r.effective_until is None or r.effective_until <= as_of)
+            if not _passes_scope_and_temporal(
+                r, query.scope, as_of, include_superseded=query.include_superseded
             ):
                 continue
             if q_lower not in r.text.lower():
@@ -179,20 +196,13 @@ class InProcessMemoryStore:
         terms = [t for t in query.lower().split() if t]
         if not terms:
             return []
-        # Mirror search()'s scope + temporal semantics (newest valid view:
-        # as_of = now, include_superseded = False) so this never diverges
-        # from Memory.search(). See BUG-1.
+        # Newest-valid view (as_of = now, include_superseded = False) via
+        # the shared predicate so this never diverges from search(). BUG-1.
         as_of = datetime.now(UTC)
         candidates: list[tuple[MemoryRecord, int]] = []
         for record in self._records.values():
-            if not _scope_matches(record.scope, scope):
-                continue
-            if record.status == "deleted":
-                continue
-            if not _is_valid_at(record, as_of):
-                continue
-            if record.status == "superseded" and (
-                record.effective_until is None or record.effective_until <= as_of
+            if not _passes_scope_and_temporal(
+                record, scope, as_of, include_superseded=False
             ):
                 continue
             if source_ref_filter is not None and source_ref_filter not in record.source_refs:
