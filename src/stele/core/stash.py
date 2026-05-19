@@ -82,6 +82,10 @@ class Stele:
     def __init__(self, config: StashConfig) -> None:
         self.config = config
         if config.signing.mode == "disabled":
+            # NOTE: if pytest `filterwarnings = error` is ever enabled in
+            # pyproject, whitelist this category, else every default-config
+            # construction reddens the suite:
+            #   filterwarnings = ["error", "default::stele.core.exceptions.SteleSecurityWarning"]
             warnings.warn(
                 "stele: reference signing is DISABLED — stele:// references "
                 "are unsigned and forgeable. Safe for single-user/local. For any "

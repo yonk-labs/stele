@@ -67,3 +67,17 @@ secure them accordingly (encryption at rest, access control, retention).
   (hard blockers) and Tier-2 (operational discipline) detail.
 - [EMBEDDING-DEPLOYMENT-GAP.md](EMBEDDING-DEPLOYMENT-GAP.md) /
   [EMBEDDING-FIX-PLAN.md](EMBEDDING-FIX-PLAN.md) — embedding-tier specifics.
+
+## CI / test note
+
+The disabled-signing advisory is a `SteleSecurityWarning` (a `UserWarning`
+subclass), emitted once per `Stele` construction with default config. The
+test suite intentionally has no `filterwarnings = error`, so it surfaces as
+a *reported* warning, not a failure. **If CI hardening later enables
+`filterwarnings = error`**, whitelist this category or every default-config
+test reddens:
+
+```toml
+[tool.pytest.ini_options]
+filterwarnings = ["error", "default::stele.core.exceptions.SteleSecurityWarning"]
+```
