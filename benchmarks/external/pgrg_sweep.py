@@ -275,8 +275,12 @@ def _persist(cell: dict[str, Any]) -> None:
     OUT.write_text(json.dumps(data, indent=2))
 
 
-async def run_sweep(ingest_keys: list[str], samples: int, k: int) -> None:
+async def run_sweep(ingest_keys: list[str], samples: int, k: int,
+                    only: list[str] | None = None) -> None:
     from pg_raggraph import GraphRAG
+
+    def _keep(label: str) -> bool:
+        return not only or any(o in label for o in only)
 
     cases = locomo_cases(samples)
     qd = _qid_digest(cases)
@@ -290,12 +294,15 @@ async def run_sweep(ingest_keys: list[str], samples: int, k: int) -> None:
     for ik in ingest_keys:
         ns_map = {c.name: _ns(ik, c.name) for c in cases}
         # L0 reference
-        r = await l0_probe(ik, cases, k)
-        _persist({**common, "ingest_key": ik, "query_label": "L0_fts_only",
-                  "level": "L0", "mode": "raw_ts_rank", "knobs": {}, **r})
-        print(f"[{ik}] L0_fts_only -> {r['answer_span_recall_at_k_pct']}%")
+        if _keep("L0_fts_only"):
+            r = await l0_probe(ik, cases, k)
+            _persist({**common, "ingest_key": ik, "query_label": "L0_fts_only",
+                      "level": "L0", "mode": "raw_ts_rank", "knobs": {}, **r})
+            print(f"[{ik}] L0_fts_only -> {r['answer_span_recall_at_k_pct']}%")
         # L1..L4 + graph-primary contrast
         for label, level, knobs, qkw in _ladder():
+            if not _keep(label):
+                continue
             cfg = _base_cfg(ik)
             cfg.update(knobs)
             cfg["top_k"] = k
@@ -331,15 +338,19 @@ def main() -> None:
                     help="comma list of " + ",".join(INGEST_CONFIGS))
     ap.add_argument("--samples", type=int, default=2)
     ap.add_argument("--k", type=int, default=20)
+    ap.add_argument("--only", default="",
+                    help="comma substrings of query_label to restrict the "
+                         "sweep (narrow pass). Empty = full ladder.")
     a = ap.parse_args()
     keys = [x.strip() for x in a.ingest.split(",") if x.strip()]
     bad = [x for x in keys if x not in INGEST_CONFIGS]
     if bad:
         raise SystemExit(f"unknown ingest keys: {bad}")
+    only = [x.strip() for x in a.only.split(",") if x.strip()] or None
     if a.phase == "stage":
         asyncio.run(run_stage(keys, a.samples))
     else:
-        asyncio.run(run_sweep(keys, a.samples, a.k))
+        asyncio.run(run_sweep(keys, a.samples, a.k, only))
 
 
 if __name__ == "__main__":
