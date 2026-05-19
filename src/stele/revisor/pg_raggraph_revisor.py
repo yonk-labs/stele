@@ -45,6 +45,11 @@ class PgRaggraphRevisor:
         llm_api_key: str = "",
         query_mode: str = "smart",
         rerank: bool = False,
+        embedding_provider: str = "local",
+        embedding_model: str | None = None,
+        embedding_dim: int | None = None,
+        embedding_base_url: str | None = None,
+        embedding_api_key: str = "",
     ) -> None:
         if find_spec("pg_raggraph") is None:  # pragma: no cover - env-dependent
             raise OptionalDependencyError(
@@ -69,6 +74,18 @@ class PgRaggraphRevisor:
         # documented retrieval lever.
         self._query_mode = query_mode
         self._rerank = rerank
+        # Opt-in remote embedding (WS1). Default "local" keeps the
+        # per-worker fastembed model and a byte-identical _cfg() dict.
+        # pg-raggraph 0.3.0a3 has no embedding_base_url/embedding_api_key
+        # fields (verified: PGRGConfig rejects unknown kwargs); its
+        # get_embedding_provider() reads a remote (openai|ollama) endpoint
+        # from llm_base_url and the key from llm_api_key. So stele's
+        # embedding_base_url/_api_key surface maps onto those cfg keys.
+        self._embedding_provider = embedding_provider
+        self._embedding_model = embedding_model
+        self._embedding_dim = embedding_dim
+        self._embedding_base_url = embedding_base_url
+        self._embedding_api_key = embedding_api_key
 
     # --- async->sync bridge (lives ONLY here; DC-P5-2) ---
     def _run(self, coro: Coroutine[Any, Any, Any]) -> Any:
@@ -79,7 +96,7 @@ class PgRaggraphRevisor:
     ) -> dict[str, Any]:
         cfg: dict[str, Any] = dict(
             namespace=self._ns,
-            embedding_provider="local",
+            embedding_provider=self._embedding_provider,
             skip_extraction=not self._llm_extraction,
             evolution_tier=self._tier,
             retracted_behavior=retracted_behavior,
@@ -91,6 +108,19 @@ class PgRaggraphRevisor:
             if self._llm_model:
                 cfg["llm_model"] = self._llm_model
             cfg["llm_api_key"] = self._llm_api_key
+        # Remote embedding keys are added ONLY for a non-"local" provider,
+        # so the default path's dict stays byte-identical to pre-WS1.
+        if self._embedding_provider != "local":
+            if self._embedding_model is not None:
+                cfg["embedding_model"] = self._embedding_model
+            if self._embedding_dim is not None:
+                cfg["embedding_dim"] = self._embedding_dim
+            # pg-raggraph's remote embedder reads llm_base_url/llm_api_key.
+            # Do not clobber an endpoint the LLM-extraction path already set.
+            if self._embedding_base_url is not None and "llm_base_url" not in cfg:
+                cfg["llm_base_url"] = self._embedding_base_url
+            if self._embedding_api_key and "llm_api_key" not in cfg:
+                cfg["llm_api_key"] = self._embedding_api_key
         return cfg
 
     def _graphrag(self, **cfg: Any) -> Any:

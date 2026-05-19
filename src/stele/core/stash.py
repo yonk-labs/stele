@@ -645,6 +645,11 @@ class Stele:
                     llm_api_key=self.config.graph.llm_api_key,
                     query_mode=self.config.graph.query_mode,
                     rerank=self.config.graph.rerank,
+                    embedding_provider=self.config.graph.embedding_provider,
+                    embedding_model=self.config.graph.embedding_model,
+                    embedding_dim=self.config.graph.embedding_dim,
+                    embedding_base_url=self.config.graph.embedding_base_url,
+                    embedding_api_key=self.config.graph.embedding_api_key,
                 )
         return self._revisor
 

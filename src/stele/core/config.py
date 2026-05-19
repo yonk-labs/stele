@@ -177,6 +177,17 @@ class GraphConfig(BaseModel):
         "smart", "naive", "naive_boost", "local", "global", "hybrid"
     ] = "smart"
     rerank: bool = False
+    # Graph-path embedding provider. Default "local" keeps the per-worker
+    # fastembed model (byte-identical to pre-WS1 behavior). Set "openai" or
+    # "ollama" to point the graph at a shared remote embedding deployment.
+    # pg-raggraph 0.3.0a3 has no dedicated embedding endpoint field; its
+    # remote embedder reads ``llm_base_url`` / ``llm_api_key``, so
+    # embedding_base_url/embedding_api_key map onto those in the Revisor.
+    embedding_provider: Literal["local", "openai", "ollama"] = "local"
+    embedding_model: str | None = None
+    embedding_dim: int | None = None
+    embedding_base_url: str | None = None
+    embedding_api_key: str = ""
 
 
 class StashConfig(BaseModel):
