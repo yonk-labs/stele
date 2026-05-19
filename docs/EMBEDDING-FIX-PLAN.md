@@ -62,6 +62,32 @@ openai | ollama`). Stele's Revisor simply hardcodes `"local"` and ignores it.
 **DoD:** graph cells in a 100-worker run make zero local embedding-model
 inits; `mypy --strict`/`ruff` clean; back-compat test green.
 
+**Known pg-raggraph 0.3.0a3 limitations (WS1):**
+
+These are inherent pg-raggraph limitations, not WS1 bugs. WS1 wires the
+passthrough correctly; the constraints live upstream.
+
+- **(A) `embedding_provider="openai"` ignores the endpoint.**
+  pg-raggraph's `embedding_provider="openai"` HARDCODES
+  `https://api.openai.com/v1` and IGNORES the configured endpoint (source:
+  installed `pg_raggraph/embedding.py:~115`). To reach a self-hosted /
+  OpenAI-compatible embedding server you MUST use
+  `embedding_provider="ollama"` (it honors `llm_base_url`). Using
+  `"openai"` against a self-hosted embedding endpoint silently sends
+  traffic to api.openai.com.
+- **(B) One `llm_base_url`/`llm_api_key` shared by extraction + embedding.**
+  pg-raggraph uses a SINGLE `llm_base_url`/`llm_api_key` pair for BOTH the
+  entity-extraction LLM and the (ollama) embedding endpoint. WS1's
+  no-clobber guard makes the extraction endpoint win, so when
+  `fact_extractor="llm"` AND a remote embedding provider are both set, the
+  extraction and embedding endpoints CANNOT differ — the separate
+  embedding endpoint is silently dropped. This is correct precedence given
+  the upstream single-field constraint, not a WS1 defect.
+
+WS3 (chunkshop HTTP embedder) — or a future pg-raggraph that exposes a
+dedicated embedding endpoint distinct from the extraction LLM — would lift
+(B) by giving the embedding path its own endpoint.
+
 ---
 
 ### WS2 — Stele-core `EmbeddingConfig` surface  *(the real override knob)*

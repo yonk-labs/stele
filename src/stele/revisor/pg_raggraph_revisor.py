@@ -116,7 +116,11 @@ class PgRaggraphRevisor:
             if self._embedding_dim is not None:
                 cfg["embedding_dim"] = self._embedding_dim
             # pg-raggraph's remote embedder reads llm_base_url/llm_api_key.
-            # Do not clobber an endpoint the LLM-extraction path already set.
+            # Do not clobber an endpoint the LLM-extraction path already set:
+            # the extraction-LLM endpoint intentionally wins. pg-raggraph
+            # 0.3.0a3 has a SINGLE llm_base_url shared by extraction and
+            # embedding, so the two endpoints cannot differ here (see the
+            # GraphConfig embedding-fields note in core/config.py).
             if self._embedding_base_url is not None and "llm_base_url" not in cfg:
                 cfg["llm_base_url"] = self._embedding_base_url
             if self._embedding_api_key and "llm_api_key" not in cfg:

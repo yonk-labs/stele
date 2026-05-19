@@ -64,6 +64,32 @@ today still loads a local embedder per worker — acceptable only if you
 pin one worker-per-process and set `threads` explicitly. A fully shared
 embedding tier across all paths requires WS1+WS2+WS3.
 
+> **⚠️ Graph-path shared embedding — pg-raggraph 0.3.0a3 caveats (read
+> before relying on the "shared embedding tier" for the graph path).** The
+> shared-tier guidance above holds, but the graph path reaches a shared
+> embedding endpoint only under two constraints inherent to pg-raggraph
+> 0.3.0a3 (not Stele/WS1 bugs):
+>
+> 1. **Use `embedding_provider="ollama"`, NOT `"openai"`.** pg-raggraph's
+>    `"openai"` provider HARDCODES `https://api.openai.com/v1` and IGNORES
+>    the configured embedding base URL. A self-hosted / OpenAI-compatible
+>    embedding deployment is reachable from the graph path ONLY via
+>    `embedding_provider="ollama"` (it honors the configured base URL).
+>    Setting `"openai"` against your own embedding service silently routes
+>    embeddings to api.openai.com.
+> 2. **With `fact_extractor="llm"`, the LLM and embedding endpoints must be
+>    the SAME endpoint.** pg-raggraph 0.3.0a3 uses a single
+>    `llm_base_url`/`llm_api_key` for BOTH entity-extraction and the
+>    embedding endpoint. If you enable LLM graph extraction, the extraction
+>    endpoint wins and the separate embedding endpoint is dropped — so the
+>    shared embedding deployment and the shared LLM deployment must be one
+>    OpenAI-compatible endpoint, or you must run graph extraction without
+>    `fact_extractor="llm"`.
+>
+> See `docs/EMBEDDING-FIX-PLAN.md` → "Known pg-raggraph 0.3.0a3 limitations
+> (WS1)". A future pg-raggraph with a dedicated embedding endpoint (or WS3's
+> chunkshop HTTP embedder for the hybrid path) lifts constraint 2.
+
 ## Configuration / env reference (service mode)
 
 Available **today** (verified env, used by the sweep harness):

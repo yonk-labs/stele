@@ -54,6 +54,17 @@ def test_back_compat_default_cfg_is_byte_identical() -> None:
         "supersession_behavior": "surface_both",
         "fact_extractor": "none",
     }
+    # Key ORDER is also load-bearing for byte-identical back-compat
+    # (== is order-insensitive for dicts; this locks the emission order).
+    assert list(cfg.keys()) == [
+        "namespace",
+        "embedding_provider",
+        "skip_extraction",
+        "evolution_tier",
+        "retracted_behavior",
+        "supersession_behavior",
+        "fact_extractor",
+    ]
     # No remote-embedding keys leak onto the default path.
     assert "embedding_model" not in cfg
     assert "embedding_dim" not in cfg
