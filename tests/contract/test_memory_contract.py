@@ -120,6 +120,64 @@ def test_delete_excludes_from_search(tmp_path: Path, backend: str) -> None:
     assert s.memory.get(r.record.id) is not None  # still retrievable
 
 
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_search_with_score_matches_search_scope_and_temporal(
+    tmp_path: Path,
+    backend: str,
+) -> None:
+    """BUG-1: search_with_score must honor the SAME scope + temporal
+    semantics as search. It previously used strict full-scope equality and
+    a status='active'-only filter, silently dropping in-scope / still-valid
+    records that search() returns."""
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+
+    # Case 1 — hierarchical scope: record carries a session_id; the query
+    # scope omits it. search() matches hierarchically (only filters non-None
+    # scope fields); search_with_score() must agree.
+    scoped = MemoryScope(user_id=user, session_id="sess-A")
+    query_scope = MemoryScope(user_id=user)
+    s.memory.add(
+        text="acme kafka streaming pipeline",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=scoped,
+    )
+
+    # Case 2 — superseded-but-still-valid at now: search()'s default view
+    # keeps a record that is status='active' OR (superseded AND
+    # effective_until > now). A live record superseded by a *future*-dated
+    # one stays valid; search_with_score must keep it too.
+    older = s.memory.add(
+        text="acme kafka retention policy",
+        kind="fact",
+        source_refs=["stele://default/b"],
+        scope=MemoryScope(user_id=user),
+    )
+    s.memory.add(
+        text="acme kafka retention revised",
+        kind="fact",
+        source_refs=["stele://default/c"],
+        scope=MemoryScope(user_id=user),
+        supersedes=[older.record.id],
+    )
+
+    s_ids = {
+        r.id
+        for r in s.memory.search(
+            MemoryQuery(query="kafka", scope=query_scope, limit=20)
+        )
+    }
+    sws_ids = {
+        h.record.id
+        for h in s.memory.search_with_score("kafka", query_scope, limit=20)
+    }
+    assert s_ids == sws_ids and len(s_ids) >= 2, (
+        f"BUG-1 [{backend}]: search={s_ids} search_with_score={sws_ids} "
+        "must agree on hierarchical scope + temporal validity"
+    )
+
+
 @pytest.mark.parametrize("backend", ["mariadb", "clickhouse"])
 def test_unsupported_backend_raises_capability_error(
     tmp_path: Path,

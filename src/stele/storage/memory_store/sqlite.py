@@ -274,10 +274,23 @@ class SQLiteMemoryStore:
     ) -> list[ScoredMemoryHit]:
         if not query.strip():
             return []
-        params: list[object] = [
-            _fts_query(query),
-            scope.user_id, scope.agent_id, scope.app_id, scope.session_id, scope.namespace,
-        ]
+        # Mirror search()'s scope + temporal predicate (newest valid view:
+        # as_of = now, include_superseded = False) so this never diverges
+        # from Memory.search(). See BUG-1.
+        as_of = datetime.now(UTC).isoformat()
+        params: list[object] = [_fts_query(query), as_of, as_of, as_of]
+        scope_sql = ["AND m.namespace = ?"]
+        params.append(scope.namespace)
+        for field, value in (
+            ("user_id", scope.user_id),
+            ("agent_id", scope.agent_id),
+            ("app_id", scope.app_id),
+            ("session_id", scope.session_id),
+        ):
+            if value is not None:
+                scope_sql.append(f"AND m.{field} = ?")
+                params.append(value)
+        scope_clause = "\n              ".join(scope_sql)
         source_ref_sql = ""
         if source_ref_filter is not None:
             source_ref_sql = (
@@ -292,9 +305,11 @@ class SQLiteMemoryStore:
             SELECT m.id, -bm25(memories_fts) AS raw_score
             FROM memories_fts JOIN memories m ON memories_fts.rowid = m.rowid
             WHERE memories_fts MATCH ?
-              AND m.status = 'active'
-              AND m.user_id IS ? AND m.agent_id IS ? AND m.app_id IS ?
-              AND m.session_id IS ? AND m.namespace = ?
+              AND m.effective_from <= ?
+              AND (m.effective_until IS NULL OR m.effective_until > ?)
+              AND (m.status = 'active'
+                   OR (m.status = 'superseded' AND m.effective_until > ?))
+              {scope_clause}
               {source_ref_sql}
             ORDER BY raw_score DESC
             LIMIT ?
