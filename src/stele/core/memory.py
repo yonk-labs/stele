@@ -82,10 +82,14 @@ class Memory:
             )
             for old_id in superseded_ids:
                 old = self._store.get(old_id)
-                if old is not None:
+                if old is None:
+                    continue
+                old_doc_ref = old.source_refs[0] if old.source_refs else None
+                new_doc_ref = stored.source_refs[0] if stored.source_refs else None
+                if old_doc_ref is not None and new_doc_ref is not None:
                     self._revisor.supersede(
-                        old_ref=self._mem_ref(old),
-                        new_ref=self._mem_ref(stored),
+                        old_ref=old_doc_ref,
+                        new_ref=new_doc_ref,
                         reason="superseded",
                     )
         return MemoryAddResult(

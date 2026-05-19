@@ -192,21 +192,32 @@ class PostgresMemoryStore:
     ) -> list[ScoredMemoryHit]:
         if not query.strip():
             return []
+        # Mirror search()'s scope + temporal predicate (newest valid view:
+        # as_of = now, include_superseded = False) so this never diverges
+        # from Memory.search(). See BUG-1.
+        as_of = datetime.now(UTC)
         sql_parts = [
             "SELECT id, ts_rank_cd(search_tsv, plainto_tsquery('english', %s)) AS raw_score",
             "FROM memories",
             "WHERE search_tsv @@ plainto_tsquery('english', %s)",
-            "  AND status = 'active'",
-            "  AND user_id IS NOT DISTINCT FROM %s",
-            "  AND agent_id IS NOT DISTINCT FROM %s",
-            "  AND app_id IS NOT DISTINCT FROM %s",
-            "  AND session_id IS NOT DISTINCT FROM %s",
+            "  AND effective_from <= %s",
+            "  AND (effective_until IS NULL OR effective_until > %s)",
+            "  AND (status = 'active'"
+            "       OR (status = 'superseded' AND effective_until > %s))",
             "  AND namespace = %s",
         ]
         params: list[object] = [
-            query, query,
-            scope.user_id, scope.agent_id, scope.app_id, scope.session_id, scope.namespace,
+            query, query, as_of, as_of, as_of, scope.namespace,
         ]
+        for field, value in (
+            ("user_id", scope.user_id),
+            ("agent_id", scope.agent_id),
+            ("app_id", scope.app_id),
+            ("session_id", scope.session_id),
+        ):
+            if value is not None:
+                sql_parts.append(f"  AND {field} = %s")
+                params.append(value)
         if source_ref_filter is not None:
             sql_parts.append(
                 "  AND EXISTS ("

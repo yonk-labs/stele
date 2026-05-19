@@ -36,7 +36,14 @@ class AdaptiveStrategy:
         }
 
     def execute(self, request: RecallRequest, deps: _RecallDeps) -> RecallResult:
-        tier_order = list(deps.config.adaptive_tier_order)
+        tier_order: list[StrategyName]
+        if request.as_of is not None or request.version_filter is not None:
+            # Time-travel / versioned query: only temporal-aware strategies
+            # are valid. Falling back to a non-temporal strategy and
+            # returning today's answer is a correctness violation (BUG-3).
+            tier_order = ["graph_search", "abstain"]
+        else:
+            tier_order = list(deps.config.adaptive_tier_order)
         floor = (
             request.confidence_floor
             if request.confidence_floor is not None
