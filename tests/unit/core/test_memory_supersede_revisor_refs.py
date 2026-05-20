@@ -21,11 +21,11 @@ class _SpyRevisor:
         return 0
 
     def search_current(self, query, *, namespace, limit,
-                       retracted_behavior, version_filter):
+                       retracted_behavior, supersession_behavior, version_filter):
         return []
 
     def search_as_of(self, query, *, namespace, limit, as_of,
-                     retracted_behavior, version_filter):
+                     retracted_behavior, supersession_behavior, version_filter):
         return []
 
     def close(self):

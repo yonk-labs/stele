@@ -18,9 +18,11 @@ def test_noop_revisor_is_inactive_and_inert() -> None:
     assert r.retract(stele_ref="a") == 0
     assert r.search_current("q", namespace="ns", limit=5,
                             retracted_behavior="surface_both",
+                            supersession_behavior="prefer_new",
                             version_filter=None) == []
     assert r.search_as_of("q", namespace="ns", limit=5,
                           as_of=datetime.now(UTC),
                           retracted_behavior="hide",
+                          supersession_behavior="hide",
                           version_filter=None) == []
     r.close()
