@@ -79,6 +79,17 @@ The current runnable slice includes:
 - every memory cites the `stele://` evidence that produced it; PII scrubbing
   is inherited end to end and never duplicated
 
+**Multi-platform packaging**
+
+- `stele-mcp` stdio MCP server — full 18-tool read/write surface over the
+  `Stele` facade with sanitized egress and structured error codes
+- `stele` CLI — `init` / `install` / `uninstall` / `status` / `doctor` / `mcp`
+- one-table routing (`PLATFORM_CONFIG`) for 7 launch agent platforms: Claude
+  Code, Codex, OpenCode, Cursor, Gemini CLI, Copilot, Aider
+- single Jinja template per content type (skill, agents-md section, hooks,
+  `mcp.json`); idempotent install with **merge** of existing `mcp.json` and
+  marker-bounded section editing of shared agent docs
+
 See the [Memory tutorial](docs/tutorial-memory.md) for a runnable walkthrough.
 
 ## Sovereign Memory in 30 Seconds
@@ -160,6 +171,37 @@ past = stele.recall(query="does Z prevent disease", scope=scope,
 `graph_search` raises `CapabilityError` and the rest of Stele is unaffected.
 Full guide: [docs/living-knowledge-setup.md](docs/living-knowledge-setup.md).
 Runnable: `STELE_PG_RAGGRAPH_DSN=… scripts/demo-living-knowledge.sh`.
+
+## Multi-platform Packaging (MCP + Slash-skills)
+
+`pip install stele-core` exposes two binaries: `stele` (CLI) and `stele-mcp`
+(stdio MCP server). The MCP server presents 18 tools over the public Stele
+facade — `stele_store` / `stele_fetch` / `stele_search` / `stele_query` /
+`stele_list` / `stele_delete` for artifacts, `stele_memory_{add,get,search,
+list,update,delete,retract}` for evidence-cited memory,
+`stele_extract_from_{text,messages,artifact}` for deterministic extraction,
+`stele_recall` for policy-driven recall, and `stele_stash_tool_result` for
+interception of oversize tool output.
+
+```bash
+stele init                              # write .stele/config.yaml
+stele install --platform claude-code    # or --all for every supported platform
+stele doctor                            # validate config + backend
+stele status                            # per-platform install state
+```
+
+Seven launch platforms are wired through one routing table (`PLATFORM_CONFIG`
+in `src/stele/packaging/platforms.py`): Claude Code, Codex, OpenCode, Cursor,
+Gemini CLI, Copilot, Aider. Adding a new platform = one dict entry. Skill
+content renders from a single Jinja template; no per-platform duplication.
+
+`mcp.json` is **merged**, not overwritten — your existing MCP server entries
+for other tools are preserved.
+
+- Full tool reference: [docs/mcp-tools.md](docs/mcp-tools.md)
+- CLI user guide: [docs/cli-guide.md](docs/cli-guide.md)
+- Auth model (stdio-only, local-trusted): [docs/packaging-auth-model.md](docs/packaging-auth-model.md)
+- Manual smoke before releases: [docs/packaging-smoke-checklist.md](docs/packaging-smoke-checklist.md)
 
 ## Showcase Benchmark
 
