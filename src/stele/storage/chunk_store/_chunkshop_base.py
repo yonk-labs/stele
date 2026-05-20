@@ -17,6 +17,7 @@ their documented ctor param into ``dsn``.
 
 from __future__ import annotations
 
+import logging
 from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -32,6 +33,39 @@ if TYPE_CHECKING:
 
 _DEFAULT_DIM = 384
 _PIP_HINT = "pip install 'stele-core[chunkshop]'"
+
+_logger = logging.getLogger("stele.retrieval")
+
+
+def _warn_vector_recall_shortfall(
+    *,
+    rows_returned: int,
+    top_k_requested: int,
+    seed_size: int,
+    has_reference_filter: bool,
+) -> None:
+    """Emit a structured WARNING when vector search returns fewer rows than
+    requested. Mirrors pg-raggraph's vector_first guard: surfaces the
+    silent-failure mode where the HNSW seed missed the predicate-matching
+    candidates. See docs/retrieval-tuning-guide.md#vector-recall-shortfall.
+    """
+    mitigation = (
+        "increase IndexingConfig.chunk_overlap_words or oversample factor; "
+        "try keyword/hybrid mode; broaden the reference filter"
+        if has_reference_filter
+        else "the corpus may be smaller than top_k; otherwise increase oversample "
+        "factor or try keyword/hybrid mode"
+    )
+    _logger.warning(
+        "vector recall shortfall: returned=%d requested=%d seed_size=%d "
+        "has_reference_filter=%s — %s "
+        "(see docs/retrieval-tuning-guide.md#vector-recall-shortfall)",
+        rows_returned,
+        top_k_requested,
+        seed_size,
+        has_reference_filter,
+        mitigation,
+    )
 
 
 def _assert_no_pii(text: str) -> None:
@@ -173,6 +207,13 @@ class ChunkshopChunkStore:
             )
             if len(hits) >= limit:
                 break
+        if len(hits) < limit:
+            _warn_vector_recall_shortfall(
+                rows_returned=len(hits),
+                top_k_requested=limit,
+                seed_size=k,
+                has_reference_filter=reference is not None,
+            )
         return hits
 
     def keyword_search(
