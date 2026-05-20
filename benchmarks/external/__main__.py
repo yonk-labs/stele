@@ -30,14 +30,38 @@ def _safe(fn: Any, **kw: Any) -> dict[str, Any]:
 
 def run_all(locomo_samples: int | None, mhr_queries: int,
             lme_questions: int, *, longbench_per_task: int = 40,
-            ragbench_per_subset: int = 60) -> dict[str, Any]:
-    results = [
-        _safe(harness.run_locomo, max_samples=locomo_samples),
-        _safe(harness.run_multihoprag, max_queries=mhr_queries),
-        _safe(harness.run_longmemeval_s, max_questions=lme_questions),
-        _safe(harness.run_longbench, max_per_task=longbench_per_task),
-        _safe(harness.run_ragbench, max_per_subset=ragbench_per_subset),
-    ]
+            ragbench_per_subset: int = 60,
+            profile: str = "default-keyword") -> dict[str, Any]:
+    spec = harness.PROFILES[profile]
+    cfg = spec["config"]
+    k = spec["k"]
+    # locomo-best is LoCoMo-only — it stacks extract+retain on top of the
+    # hybrid config and uses a deeper k. Other benchmarks are skipped (run
+    # them via --profile hybrid-best in a separate invocation).
+    if profile == "locomo-best":
+        results = [
+            _safe(harness.run_locomo, max_samples=locomo_samples,
+                  k=k, config=cfg,
+                  use_stele_extract=True,
+                  retain_message_text=spec.get("retain_message_text", True)),
+        ]
+    else:
+        results = [
+            _safe(harness.run_locomo, max_samples=locomo_samples,
+                  k=k, config=cfg),
+            _safe(harness.run_multihoprag, max_queries=mhr_queries,
+                  k=k, config=cfg),
+            _safe(harness.run_longmemeval_s, max_questions=lme_questions,
+                  k=k, config=cfg),
+            _safe(harness.run_longbench, max_per_task=longbench_per_task,
+                  k=k, config=cfg),
+            _safe(harness.run_ragbench, max_per_subset=ragbench_per_subset,
+                  k=k, config=cfg),
+        ]
+    for r in results:
+        if isinstance(r, dict) and "benchmark" in r and "status" not in r:
+            r["profile"] = profile
+            r["profile_notes"] = spec.get("notes", "")
     # honest unavailable entries (loaders raise; recorded, not faked)
     for name, fn in (("CRAG", loaders.load_crag),
                      ("AgentLongMemEval", loaders.load_agentlongmemeval)):
@@ -75,17 +99,23 @@ def main() -> None:
     ap.add_argument("--lme-questions", type=int, default=30)
     ap.add_argument("--longbench-per-task", type=int, default=40)
     ap.add_argument("--ragbench-per-subset", type=int, default=60)
+    ap.add_argument("--profile", default="default-keyword",
+                    choices=sorted(harness.PROFILES.keys()),
+                    help="Named per-shape recipe. See harness.PROFILES.")
     ap.add_argument("--output-root", type=Path, default=Path("benchmarks/runs"))
     a = ap.parse_args()
     report = run_all(
         a.locomo_samples, a.mhr_queries, a.lme_questions,
         longbench_per_task=a.longbench_per_task,
         ragbench_per_subset=a.ragbench_per_subset,
+        profile=a.profile,
     )
+    report["profile"] = a.profile
     out_dir = a.output_root / datetime.now(UTC).strftime("%Y-%m-%d")
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "External.json").write_text(json.dumps(report, indent=2))
-    (out_dir / "External.md").write_text(_md(report))
+    suffix = f"-{a.profile}" if a.profile != "default-keyword" else ""
+    (out_dir / f"External{suffix}.json").write_text(json.dumps(report, indent=2))
+    (out_dir / f"External{suffix}.md").write_text(_md(report))
     print(json.dumps(report, indent=2))
 
 

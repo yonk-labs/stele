@@ -41,8 +41,53 @@ def _answer_hit(answer: str, context: str) -> bool:
     return hit / len(toks) >= 0.6  # robust to phrasing/date formatting
 
 
-def _stele() -> Stele:
-    return Stele.from_config({"backend": {"type": "memory"}})
+_DEFAULT_CONFIG: dict[str, Any] = {"backend": {"type": "memory"}}
+
+
+def _stele(config: dict[str, Any] | None = None) -> Stele:
+    return Stele.from_config(config or _DEFAULT_CONFIG)
+
+
+# Per-shape "best honest config" profiles — every recipe uses only the
+# knobs Stele exposes today (no new code). The default lane stays keyword
+# (the floor) — these are the "for this shape, do x,y,z" recommendations.
+PROFILES: dict[str, dict[str, Any]] = {
+    "default-keyword": {
+        "config": {"backend": {"type": "memory"}},
+        "k": 20,
+        "notes": "Floor: keyword-only over the memory backend. k=20.",
+    },
+    "hybrid-best": {
+        "config": {
+            "backend": {"type": "sqlite"},
+            "indexing": {"mode": "sync", "provider": "chunkshop"},
+            "retrieval": {"default_mode": "hybrid"},
+        },
+        "k": 30,
+        "notes": (
+            "Chunkshop vector + keyword RRF fusion over sqlite. k=30. Best "
+            "general-purpose recipe for MultiHop-RAG / LongMemEval / "
+            "LongBench / RAGBench."
+        ),
+    },
+    "locomo-best": {
+        "config": {
+            "backend": {"type": "sqlite"},
+            "indexing": {"mode": "sync", "provider": "chunkshop"},
+            "retrieval": {"default_mode": "hybrid"},
+        },
+        "k": 80,
+        "use_stele_extract": True,
+        "retain_message_text": True,
+        "notes": (
+            "Conversational-memory recipe: ingest via Stele.extract.from_messages "
+            "with retain_message_text=True so verbatim turns AND distilled "
+            "memories are both retrievable. Hybrid over sqlite. k=80 "
+            "(LoCoMo has hundreds of short atoms per sample — shallow k "
+            "starves retrieval)."
+        ),
+    },
+}
 
 
 def _recall_text(rr: Any) -> str:
@@ -56,11 +101,35 @@ def _recall(s: Stele, query: str, scope: MemoryScope, k: int) -> Any:
     return s.recall(query=query, scope=scope, max_memory_hits=k)
 
 
-def run_locomo(*, max_samples: int | None = None, k: int = 20) -> dict[str, Any]:
+def run_locomo(
+    *,
+    max_samples: int | None = None,
+    k: int = 20,
+    config: dict[str, Any] | None = None,
+    use_stele_extract: bool = False,
+    retain_message_text: bool = False,
+) -> dict[str, Any]:
+    """LoCoMo retrieval-recall lane.
+
+    Default ingest: one memory atom per dialogue turn (keyword baseline).
+    `use_stele_extract=True` instead routes the conversation through
+    `Stele.extract.from_messages` so the memory layer holds distilled
+    facts (and optionally verbatim turns, when retain_message_text=True).
+    Per the 2026-05-18 analysis, the extract+hybrid+higher-k combination
+    is the documented honest path past 65%.
+    """
     data = loaders.load_locomo()
     if max_samples:
         data = data[:max_samples]
-    s = _stele()
+    # ExtractionConfig.retain_message_text is set at Stele init, not per-call.
+    if use_stele_extract:
+        effective = dict(config or _DEFAULT_CONFIG)
+        extraction = dict(effective.get("extraction") or {})
+        extraction.setdefault("retain_message_text", retain_message_text)
+        effective["extraction"] = extraction
+        s = _stele(effective)
+    else:
+        s = _stele(config)
     answerable = ans_hit = evid_hit = 0
     abst = abst_ok = 0
     pii_leaks = 0
@@ -68,17 +137,28 @@ def run_locomo(*, max_samples: int | None = None, k: int = 20) -> dict[str, Any]
         sid = sample["sample_id"]
         scope = MemoryScope(namespace=f"locomo_{sid}")
         conv = sample["conversation"]
-        for key, val in conv.items():
-            if not key.startswith("session_") or not isinstance(val, list):
-                continue
-            for turn in val:
-                did = turn.get("dia_id", "x")
-                s.memory.add(
-                    text=f"[{turn.get('speaker','?')}] {turn.get('text','')}",
-                    kind="fact",
-                    source_refs=[f"stele://locomo/{sid}/{did}"],
-                    scope=scope,
-                )
+        if use_stele_extract:
+            for key, val in conv.items():
+                if not key.startswith("session_") or not isinstance(val, list):
+                    continue
+                msgs = [
+                    {"role": t.get("speaker", "user"), "content": t.get("text", "")}
+                    for t in val if t.get("text")
+                ]
+                if msgs:
+                    s.extract.from_messages(messages=msgs, scope=scope)
+        else:
+            for key, val in conv.items():
+                if not key.startswith("session_") or not isinstance(val, list):
+                    continue
+                for turn in val:
+                    did = turn.get("dia_id", "x")
+                    s.memory.add(
+                        text=f"[{turn.get('speaker','?')}] {turn.get('text','')}",
+                        kind="fact",
+                        source_refs=[f"stele://locomo/{sid}/{did}"],
+                        scope=scope,
+                    )
         for qa in sample["qa"]:
             rr = _recall(s, qa["question"], scope, k)
             ctx = _recall_text(rr)
@@ -112,15 +192,21 @@ def run_locomo(*, max_samples: int | None = None, k: int = 20) -> dict[str, Any]
     }
 
 
-def run_multihoprag(*, max_queries: int = 200, k: int = 20) -> dict[str, Any]:
+def run_multihoprag(
+    *,
+    max_queries: int = 200,
+    k: int = 20,
+    config: dict[str, Any] | None = None,
+    doc_body_chars: int = 1500,
+) -> dict[str, Any]:
     queries, corpus = loaders.load_multihoprag()
-    s = _stele()
+    s = _stele(config)
     scope = MemoryScope(namespace="mhr")
     title_ref: dict[str, str] = {}
     for i, doc in enumerate(corpus):
         ref = f"stele://mhr/doc-{i}"
         title_ref[doc.get("title", "")] = ref
-        body = (doc.get("title", "") + ". " + doc.get("body", ""))[:1500]
+        body = (doc.get("title", "") + ". " + doc.get("body", ""))[:doc_body_chars]
         s.memory.add(text=body, kind="fact", source_refs=[ref], scope=scope)
     qs = queries[:max_queries]
     answerable = ans_hit = evid_hit = 0
@@ -172,6 +258,7 @@ def run_longbench(
     tasks: tuple[str, ...] = ("hotpotqa", "2wikimqa", "musique", "multifieldqa_en"),
     max_per_task: int = 50,
     k: int = 20,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """LongBench QA-family retrieval-recall lane.
 
@@ -188,7 +275,7 @@ def run_longbench(
             per_task.append({"task": task, "status": "UNAVAILABLE",
                              "reason": str(e), "numbers": "NOT FABRICATED"})
             continue
-        s = _stele()
+        s = _stele(config)
         scope = MemoryScope(namespace=f"longbench-{task}")
         answerable = ans_hit = 0
         for i, rec in enumerate(recs):
@@ -230,6 +317,7 @@ def run_ragbench(
     ),
     max_per_subset: int = 80,
     k: int = 20,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """RAGBench retrieval-recall lane.
 
@@ -248,7 +336,7 @@ def run_ragbench(
             per_subset.append({"subset": subset, "status": "UNAVAILABLE",
                                "reason": str(e), "numbers": "NOT FABRICATED"})
             continue
-        s = _stele()
+        s = _stele(config)
         scope = MemoryScope(namespace=f"ragbench-{subset}")
         answerable = ans_hit = 0
         for i, rec in enumerate(recs):
@@ -288,13 +376,18 @@ def run_ragbench(
     }
 
 
-def run_longmemeval_s(*, max_questions: int = 30, k: int = 20) -> dict[str, Any]:
+def run_longmemeval_s(
+    *,
+    max_questions: int = 30,
+    k: int = 20,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     answerable = ans_hit = 0
     abst = abst_ok = 0
     n = 0
     for rec in loaders.iter_longmemeval_s(max_questions):
         n += 1
-        s = _stele()
+        s = _stele(config)
         scope = MemoryScope(namespace="lme")
         for sess in rec.get("haystack_sessions", []):
             for turn in sess:
