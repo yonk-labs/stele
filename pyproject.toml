@@ -16,6 +16,8 @@ dependencies = [
   "pydantic>=2,<3",
   "pyyaml>=6,<7",
   "lede>=0.3,<0.4",
+  "mcp>=1.0,<2",
+  "jinja2>=3.1,<4",
 ]
 
 [project.optional-dependencies]
@@ -63,6 +65,8 @@ dev = [
 ]
 
 [project.scripts]
+stele = "stele.cli:main"
+stele-mcp = "stele.mcp.server:main"
 stele-showcase = "benchmarks.showcase:main"
 stele-recall = "benchmarks.recall:main"
 stele-longrun = "benchmarks.longrun:main"
