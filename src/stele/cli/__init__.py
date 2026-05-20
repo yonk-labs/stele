@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import sys
 
+from stele.cli.commands import doctor as doctor_cmd
 from stele.cli.commands import init as init_cmd
 from stele.cli.commands import install as install_cmd
+from stele.cli.commands import mcp as mcp_cmd
+from stele.cli.commands import status as status_cmd
 from stele.cli.commands import uninstall as uninstall_cmd
 
 
@@ -36,6 +39,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p_uninstall.add_argument("--platform", default=None)
     p_uninstall.add_argument("--all", action="store_true")
     p_uninstall.set_defaults(func=uninstall_cmd.run)
+
+    sub.add_parser("doctor", help="Validate config + backend").set_defaults(
+        func=doctor_cmd.run
+    )
+    sub.add_parser("status", help="Per-platform install state").set_defaults(
+        func=status_cmd.run
+    )
+    sub.add_parser(
+        "mcp", help="Run the stele-mcp server in foreground"
+    ).set_defaults(func=mcp_cmd.run)
 
     return parser
 
