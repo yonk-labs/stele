@@ -40,7 +40,12 @@ from stele.core.exceptions import (
     PIIBlockedError,
     SteleSecurityWarning,
 )
-from stele.core.jsonl import read_jsonl, write_jsonl
+from stele.core.jsonl import (
+    read_jsonl,
+    read_namespace_bundle,
+    write_jsonl,
+    write_namespace_bundle,
+)
 from stele.core.memory_record import MemoryScope
 from stele.core.reference import make_reference
 from stele.core.reference_auth import validate_reference_signature
@@ -758,6 +763,63 @@ class Stele:
             self.storage.store(artifact)
             self.indexer.submit(artifact)
         return ImportResult(imported_count=len(artifacts))
+
+    def export_namespace(
+        self, namespace: str, path: str | Path, *, limit: int = 100_000
+    ) -> ExportResult:
+        """Export every artifact + memory row in ``namespace`` as a
+        portable JSONL bundle. The supersession chain on memory rows
+        round-trips via ``MemoryRecord.supersedes``.
+
+        Reuses the existing JSONL machinery with a v2 mixed-record
+        format (one ``kind`` per line). Chunks and revisor projections
+        are NOT bundled — both are derived state that rebuilds on
+        import via the normal indexer / ingest paths.
+
+        Round-trips via :meth:`Stele.import_namespace`.
+        """
+        if not namespace:
+            raise ValueError("export_namespace requires a non-empty namespace")
+        page = self.storage.list(namespace=namespace, limit=limit)
+        artifact_records = page.items
+        memories: list[Any] = []
+        try:
+            memories = self.memory.list(
+                scope=MemoryScope(namespace=namespace),
+                status_filter=[
+                    "active", "superseded", "retracted", "disputed", "deleted",
+                ],
+                limit=limit,
+            )
+        except CapabilityError:
+            memories = []
+        count = write_namespace_bundle(artifact_records, memories, path)
+        return ExportResult(exported_count=count, path=str(path))
+
+    def import_namespace(self, path: str | Path) -> ImportResult:
+        """Restore an export_namespace bundle. Re-runs the indexer on
+        artifacts so the chunk index rebuilds. Memory rows insert
+        directly via the memory_store with their original supersedes
+        edges preserved."""
+        artifacts, memories = read_namespace_bundle(path)
+        for artifact in artifacts:
+            self.storage.store(artifact)
+            self.indexer.submit(artifact)
+        if memories:
+            # CRITICAL: pass supersedes=[] (NOT m.supersedes) so the
+            # store inserts each record AS-IS without re-firing the
+            # mark-old-superseded side-effect. The record itself already
+            # carries supersedes=[...], status=..., effective_until=...
+            # from the export — we want byte-identical restore, not
+            # re-running business logic.
+            try:
+                for memory in memories:
+                    self.memory._store.add(memory, [])
+            except CapabilityError:
+                # Backend has no memory support — skip silently. Artifacts
+                # restored regardless.
+                pass
+        return ImportResult(imported_count=len(artifacts) + len(memories))
 
     def capabilities(self) -> StashCapabilities:
         try:
