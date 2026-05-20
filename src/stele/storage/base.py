@@ -10,6 +10,18 @@ from stele.core.reference import Reference
 class StorageBackend(Protocol):
     def initialize(self) -> None: ...
     def store(self, artifact: Artifact) -> ArtifactRecord: ...
+    def store_many(self, artifacts: list[Artifact]) -> list[ArtifactRecord]:
+        """Persist N artifacts in one transaction / one server round-trip.
+
+        Returns per-row :class:`ArtifactRecord` in input order. Empty
+        input returns []. The semantic contract is: ``store_many([a, b])``
+        leaves the backend in the same observable state as
+        ``[store(a), store(b)]``.
+
+        Backends use the bulkiest primitive they expose (Postgres COPY,
+        MySQL/MariaDB executemany, ClickHouse bulk INSERT). The memory
+        backend uses a plain loop — append is already O(1)."""
+        ...
     def fetch(self, reference: Reference) -> ArtifactRecord: ...
     def try_fetch(self, reference: Reference) -> ArtifactRecord | None: ...
     def list(

@@ -164,6 +164,63 @@ class PostgresMemoryStore:
             raise
         return record, list(supersedes)
 
+    def add_many(
+        self,
+        items: list[tuple[MemoryRecord, list[str]]],
+    ) -> list[tuple[MemoryRecord, list[str]]]:
+        if not items:
+            return []
+        now = datetime.now(UTC)
+        try:
+            with self.conn.cursor() as cur:
+                # Supersedes: per-id UPDATE; rowcount must be verified per row.
+                # We can't use executemany for these because we need to detect
+                # missing IDs individually.
+                for _, sups in items:
+                    for old_id in sups:
+                        affected = cur.execute(
+                            "UPDATE memories SET status='superseded', "
+                            "effective_until=%s, updated_at=%s WHERE id=%s",
+                            (now, now, old_id),
+                        ).rowcount
+                        if affected == 0:
+                            raise ArtifactNotFound(f"memory not found: {old_id}")
+                rows = [
+                    (
+                        r.id, r.text, r.kind,
+                        r.scope.user_id, r.scope.agent_id,
+                        r.scope.app_id, r.scope.session_id, r.scope.namespace,
+                        json.dumps(r.source_refs),
+                        json.dumps(r.source_chunk_ids),
+                        r.confidence, r.status,
+                        json.dumps(r.supersedes),
+                        memory_text_hash(r.text, r.scope),
+                        r.created_at, r.updated_at,
+                        r.effective_from, r.effective_until,
+                        json.dumps(r.metadata),
+                        json.dumps(r.pii_flags),
+                    )
+                    for r, _ in items
+                ]
+                cur.executemany(
+                    "INSERT INTO memories ("
+                    "id, text, kind, user_id, agent_id, app_id, session_id, namespace,"
+                    "source_refs, source_chunk_ids, confidence, status, supersedes,"
+                    "text_hash, created_at, updated_at, effective_from, effective_until,"
+                    "metadata, pii_flags"
+                    ") VALUES ("
+                    "%s, %s, %s, %s, %s, %s, %s, %s,"
+                    "%s::jsonb, %s::jsonb, %s, %s, %s::jsonb,"
+                    "%s, %s, %s, %s, %s,"
+                    "%s::jsonb, %s::jsonb)",
+                    rows,
+                )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+        return [(r, list(s)) for r, s in items]
+
     def get(self, memory_id: str) -> MemoryRecord | None:
         with self.conn.cursor() as cur:
             cur.execute("SELECT * FROM memories WHERE id=%s", (memory_id,))

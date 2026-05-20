@@ -86,6 +86,13 @@ class InProcessMemoryStore:
         self._records[record.id] = record
         return record, actually_superseded
 
+    def add_many(
+        self,
+        items: list[tuple[MemoryRecord, list[str]]],
+    ) -> list[tuple[MemoryRecord, list[str]]]:
+        # Memory backend: dict ops are O(1). Loop matches add() observably.
+        return [self.add(r, s) for r, s in items]
+
     def search(self, query: MemoryQuery) -> list[MemoryRecord]:
         as_of = query.as_of or datetime.now(UTC)
         results: list[MemoryRecord] = []

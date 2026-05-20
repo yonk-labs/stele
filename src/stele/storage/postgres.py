@@ -144,6 +144,73 @@ class PostgresStorageBackend:
             )
         return ArtifactRecord.model_validate(artifact.model_dump())
 
+    def store_many(self, artifacts: list[Artifact]) -> list[ArtifactRecord]:
+        if not artifacts:
+            return []
+        params: list[dict[str, Any]] = []
+        for a in artifacts:
+            content = a.content if isinstance(a.content, bytes) else a.content.encode("utf-8")
+            params.append({
+                "artifact_id": a.artifact_id,
+                "reference": a.reference,
+                "namespace": a.namespace,
+                "session_id": a.session_id,
+                "content": content,
+                "search_text": a.content_as_text(),
+                "content_encoding": a.content_encoding,
+                "content_type": a.content_type,
+                "metadata_json": Jsonb(a.metadata),
+                "summary": a.summary,
+                "raw_summary": a.raw_summary,
+                "digest_sha256": a.digest_sha256,
+                "byte_size": a.byte_size,
+                "token_estimate": a.token_estimate,
+                "lifecycle": a.lifecycle,
+                "expires_at": a.expires_at,
+                "created_at": a.created_at,
+                "updated_at": a.updated_at,
+            })
+        # One transaction, executemany — eliminates N commits and N
+        # round-trips. UPSERT semantics preserved by reusing store()'s
+        # ON CONFLICT clause.
+        with self.conn.transaction():
+            self.conn.cursor().executemany(
+                """
+                INSERT INTO artifacts (
+                  artifact_id, reference, namespace, session_id, content,
+                  search_text, content_encoding, content_type, metadata_json,
+                  summary, raw_summary, digest_sha256, byte_size, token_estimate,
+                  lifecycle, expires_at, created_at, updated_at
+                )
+                VALUES (
+                  %(artifact_id)s, %(reference)s, %(namespace)s, %(session_id)s,
+                  %(content)s, %(search_text)s, %(content_encoding)s,
+                  %(content_type)s, %(metadata_json)s, %(summary)s, %(raw_summary)s,
+                  %(digest_sha256)s, %(byte_size)s, %(token_estimate)s, %(lifecycle)s,
+                  %(expires_at)s, %(created_at)s, %(updated_at)s
+                )
+                ON CONFLICT (artifact_id) DO UPDATE SET
+                  reference = EXCLUDED.reference,
+                  namespace = EXCLUDED.namespace,
+                  session_id = EXCLUDED.session_id,
+                  content = EXCLUDED.content,
+                  search_text = EXCLUDED.search_text,
+                  content_encoding = EXCLUDED.content_encoding,
+                  content_type = EXCLUDED.content_type,
+                  metadata_json = EXCLUDED.metadata_json,
+                  summary = EXCLUDED.summary,
+                  raw_summary = EXCLUDED.raw_summary,
+                  digest_sha256 = EXCLUDED.digest_sha256,
+                  byte_size = EXCLUDED.byte_size,
+                  token_estimate = EXCLUDED.token_estimate,
+                  lifecycle = EXCLUDED.lifecycle,
+                  expires_at = EXCLUDED.expires_at,
+                  updated_at = EXCLUDED.updated_at
+                """,
+                params,
+            )
+        return [ArtifactRecord.model_validate(a.model_dump()) for a in artifacts]
+
     def fetch(self, reference: Reference) -> ArtifactRecord:
         record = self.try_fetch(reference)
         if record is None:

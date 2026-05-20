@@ -224,6 +224,49 @@ class SQLiteMemoryStore:
             raise
         return record, list(supersedes)
 
+    def add_many(
+        self,
+        items: list[tuple[MemoryRecord, list[str]]],
+    ) -> list[tuple[MemoryRecord, list[str]]]:
+        if not items:
+            return []
+        now = datetime.now(UTC).isoformat()
+        cur = self.conn.cursor()
+        try:
+            cur.execute("BEGIN")
+            # Supersede in one executemany pass per item-supersedes pair.
+            # We must verify rowcount per UPDATE because executemany does
+            # not surface per-row affected counts on stdlib sqlite3.
+            for _, sups in items:
+                for old_id in sups:
+                    affected = cur.execute(
+                        "UPDATE memories SET status='superseded', "
+                        "effective_until=?, updated_at=? WHERE id=?",
+                        (now, now, old_id),
+                    ).rowcount
+                    if affected == 0:
+                        raise ArtifactNotFound(f"memory not found: {old_id}")
+            rows = [_record_to_row(r) for r, _ in items]
+            cur.executemany(
+                "INSERT INTO memories ("
+                "id, text, kind, user_id, agent_id, app_id, session_id, namespace,"
+                "source_refs, source_chunk_ids, confidence, status, supersedes,"
+                "text_hash, created_at, updated_at, effective_from, effective_until,"
+                "metadata, pii_flags"
+                ") VALUES ("
+                ":id, :text, :kind, :user_id, :agent_id, :app_id, :session_id, :namespace,"
+                ":source_refs, :source_chunk_ids, :confidence, :status, :supersedes,"
+                ":text_hash, :created_at, :updated_at, :effective_from, :effective_until,"
+                ":metadata, :pii_flags"
+                ")",
+                rows,
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+        return [(r, list(s)) for r, s in items]
+
     def get(self, memory_id: str) -> MemoryRecord | None:
         cur = self.conn.execute(
             "SELECT * FROM memories WHERE id=?", (memory_id,)

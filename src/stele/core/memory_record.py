@@ -87,6 +87,20 @@ class MemoryAddResult(BaseModel):
     superseded_ids: list[str] = Field(default_factory=list)
 
 
+class AddRequest(BaseModel):
+    """One row in a :meth:`Memory.add_many` batch.
+
+    Mirrors the per-row :meth:`Memory.add` kwargs exactly."""
+
+    text: str
+    kind: MemoryKind
+    source_refs: list[str]
+    scope: MemoryScope
+    supersedes: list[str] = Field(default_factory=list)
+    confidence: float = 1.0
+    metadata: dict[str, object] = Field(default_factory=dict)
+
+
 class ScoredMemoryHit(BaseModel):
     """A memory record + a normalized retrieval score."""
 

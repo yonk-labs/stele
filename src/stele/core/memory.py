@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 from stele.core.exceptions import CapabilityError
 from stele.core.memory_record import (
+    AddRequest,
     MemoryAddResult,
     MemoryKind,
     MemoryQuery,
@@ -118,6 +119,74 @@ class Memory:
             duplicate_of=dup_id,
             superseded_ids=superseded_ids,
         )
+
+    def add_many(self, items: list[AddRequest]) -> list[MemoryAddResult]:
+        """Insert N memories in one transaction. Returns per-row
+        :class:`MemoryAddResult` in input order.
+
+        Same per-row text-hash dedup + scrub as :meth:`add`. Revisor
+        projection (when active) fires per-row in this slice; batching
+        that surface is a follow-up."""
+        if not items:
+            return []
+        now = datetime.now(UTC)
+        records: list[MemoryRecord] = []
+        dup_ids: list[str | None] = []
+        for item in items:
+            scrubbed = self._scrubber.scrub(item.text)
+            record = MemoryRecord(
+                id=uuid.uuid4().hex,
+                text=scrubbed.text,
+                kind=item.kind,
+                scope=item.scope,
+                source_refs=item.source_refs,
+                supersedes=list(item.supersedes),
+                confidence=item.confidence,
+                created_at=now,
+                updated_at=now,
+                effective_from=now,
+                metadata=dict(item.metadata),
+                pii_flags=sorted({d.entity_type for d in scrubbed.detections}),
+            )
+            dup_ids.append(
+                self._store.find_duplicate(
+                    item.scope, memory_text_hash(record.text, item.scope)
+                )
+            )
+            records.append(record)
+        store_items = [
+            (records[i], list(items[i].supersedes)) for i in range(len(items))
+        ]
+        stored_pairs = self._store.add_many(store_items)
+        results: list[MemoryAddResult] = []
+        for (stored, superseded_ids), dup_id in zip(stored_pairs, dup_ids, strict=True):
+            if self._revisor.active:
+                self._revisor.ingest_evidence(
+                    stele_ref=self._evidence_ref(stored),
+                    text=stored.text,
+                    namespace=stored.scope.namespace,
+                    effective_from=stored.effective_from,
+                    session_id=stored.scope.session_id,
+                    extra={"source_refs": list(stored.source_refs)},
+                )
+                for old_id in superseded_ids:
+                    old = self._store.get(old_id)
+                    if old is None:
+                        continue
+                    old_doc_ref = old.source_refs[0] if old.source_refs else None
+                    new_doc_ref = stored.source_refs[0] if stored.source_refs else None
+                    if old_doc_ref is not None and new_doc_ref is not None:
+                        self._revisor.supersede(
+                            old_ref=old_doc_ref,
+                            new_ref=new_doc_ref,
+                            reason="superseded",
+                        )
+            results.append(MemoryAddResult(
+                record=stored,
+                duplicate_of=dup_id,
+                superseded_ids=superseded_ids,
+            ))
+        return results
 
     def search(self, query: MemoryQuery) -> list[MemoryRecord]:
         return self._store.search(query)

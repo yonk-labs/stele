@@ -190,3 +190,21 @@ class PurgeReport(BaseModel):
     memories: int
 
 
+class StoreRequest(BaseModel):
+    """One row in a :meth:`Stele.store_many` batch.
+
+    Mirrors the per-row :meth:`Stele.store` kwargs exactly. ``content``
+    is required; everything else has the same default as ``store()``.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    content: str | bytes
+    namespace: str = "default"
+    session_id: str | None = None
+    content_type: ContentType | str | None = None
+    metadata: dict[str, Any] | None = None
+    lifecycle: Lifecycle | str = "manual"
+    ttl_seconds: int | None = None
+
+

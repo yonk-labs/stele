@@ -22,6 +22,11 @@ class MemoryStorageBackend:
         self._records[record.reference] = record
         return record
 
+    def store_many(self, artifacts: list[Artifact]) -> list[ArtifactRecord]:
+        # Memory backend has no batched primitive; the loop *is* the bulk
+        # path. Dict assignment is O(1); this matches store() observably.
+        return [self.store(a) for a in artifacts]
+
     def fetch(self, reference: Reference) -> ArtifactRecord:
         record = self.try_fetch(reference)
         if record is None:

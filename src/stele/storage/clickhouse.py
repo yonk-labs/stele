@@ -119,6 +119,35 @@ class ClickHouseStorageBackend:
         )
         return ArtifactRecord.model_validate(artifact.model_dump())
 
+    def store_many(self, artifacts: list[Artifact]) -> list[ArtifactRecord]:
+        if not artifacts:
+            return []
+        rows = [
+            [
+                a.artifact_id, a.reference, a.namespace, a.session_id,
+                _encode_content(a.content), a.content_as_text(),
+                a.content_encoding, a.content_type, json.dumps(a.metadata),
+                a.summary, a.raw_summary, a.digest_sha256, a.byte_size,
+                a.token_estimate, a.lifecycle, a.expires_at, a.created_at,
+                a.updated_at,
+            ]
+            for a in artifacts
+        ]
+        # ClickHouse's client.insert is already batch-shaped — one request,
+        # one server-side append, idiomatic for the columnar engine.
+        self.client.insert(
+            f"{self.database}.{self.table}",
+            rows,
+            column_names=[
+                "artifact_id", "reference", "namespace", "session_id",
+                "content", "search_text", "content_encoding", "content_type",
+                "metadata_json", "summary", "raw_summary", "digest_sha256",
+                "byte_size", "token_estimate", "lifecycle", "expires_at",
+                "created_at", "updated_at",
+            ],
+        )
+        return [ArtifactRecord.model_validate(a.model_dump()) for a in artifacts]
+
     def fetch(self, reference: Reference) -> ArtifactRecord:
         record = self.try_fetch(reference)
         if record is None:
