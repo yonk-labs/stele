@@ -42,7 +42,10 @@ def test_retract_sets_status_and_projects() -> None:
     )
     rec = m.retract(res.record.id, reason="wrong")
     assert rec.status == "retracted"
-    assert ("retract", f"stele://n/mem-{res.record.id}") in rev.calls
+    # Issue #4: retract projects to the graph using source_refs[0] — the
+    # SAME ref ingest_evidence wrote — so pg-raggraph's join finds the
+    # row. Symmetric with the BUG-4 supersede projection.
+    assert ("retract", "stele://n/a") in rev.calls
 
 
 def test_add_with_supersedes_projects_supersede() -> None:
