@@ -23,6 +23,7 @@ from stele.core.artifact import (
     ImportResult,
     Page,
     PIIScrubSummary,
+    PurgeReport,
     ScrubResult,
     SearchHit,
     StoredResult,
@@ -39,6 +40,7 @@ from stele.core.exceptions import (
     SteleSecurityWarning,
 )
 from stele.core.jsonl import read_jsonl, write_jsonl
+from stele.core.memory_record import MemoryScope
 from stele.core.reference import make_reference
 from stele.core.reference_auth import validate_reference_signature
 from stele.core.types import ContentEncoding, ContentType, Lifecycle, RetrievalMode
@@ -564,6 +566,70 @@ class Stele:
         return CleanupReport(
             artifacts_expired=expired.deleted_count,
             superseded_memories_purged=purged,
+        )
+
+    def purge_namespace(
+        self, namespace: str, *, dry_run: bool = False
+    ) -> PurgeReport:
+        """Hard-delete every artifact and memory row in ``namespace``.
+
+        Lifecycle / GDPR primitive. Other namespaces are never touched.
+        ``dry_run=True`` returns the same shape with the counts that
+        *would* be deleted, mutating nothing — useful for confirmation
+        before invoking the destructive call.
+
+        This slice (8a) covers the artifact and memory surfaces. Chunk-
+        index and Revisor-projected evidence will be added in #8b — when
+        those are present this method's report still completes for the
+        surfaces it owns; callers integrating GDPR workflows should
+        consult :attr:`PurgeReport` field coverage on the running Stele
+        until #8b lands.
+        """
+        if not namespace:
+            raise ValueError("purge_namespace requires a non-empty namespace")
+        if dry_run:
+            # Count without mutating. List pages are bounded; sum until exhausted.
+            artifact_count = 0
+            cursor: str | None = None
+            while True:
+                page = self.storage.list(namespace=namespace, limit=1000, cursor=cursor)
+                artifact_count += len(page.items)
+                if page.next_cursor is None or not page.items:
+                    break
+                cursor = page.next_cursor
+            memory_count = 0
+            try:
+                # Count across every status — purge drops live AND historical.
+                memory_count = len(
+                    self.memory.list(
+                        scope=MemoryScope(namespace=namespace),
+                        status_filter=[
+                            "active", "superseded", "retracted", "disputed", "deleted",
+                        ],
+                        limit=10_000,
+                    )
+                )
+            except CapabilityError:
+                # Memory absent on this backend (mariadb/clickhouse stubs).
+                memory_count = 0
+            return PurgeReport(
+                namespace=namespace,
+                dry_run=True,
+                artifacts=artifact_count,
+                memories=memory_count,
+            )
+
+        artifacts = self.storage.delete_namespace(namespace)
+        memories = 0
+        try:
+            memories = self.memory.delete_namespace(namespace)
+        except CapabilityError:
+            memories = 0
+        return PurgeReport(
+            namespace=namespace,
+            dry_run=False,
+            artifacts=artifacts,
+            memories=memories,
         )
 
     def export_jsonl(

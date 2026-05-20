@@ -188,6 +188,15 @@ class InProcessMemoryStore:
             del self._records[mid]
         return len(to_remove)
 
+    def delete_namespace(self, namespace: str) -> int:
+        to_remove = [
+            mid for mid, r in self._records.items()
+            if r.scope.namespace == namespace
+        ]
+        for mid in to_remove:
+            del self._records[mid]
+        return len(to_remove)
+
     def find_duplicate(
         self,
         scope: MemoryScope,

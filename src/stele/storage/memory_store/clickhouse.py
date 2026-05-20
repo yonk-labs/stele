@@ -21,7 +21,7 @@ class ClickHouseMemoryStore:
         if name in {
             "add", "search", "list", "get",
             "update_metadata", "soft_delete", "set_retracted",
-            "purge_superseded", "find_duplicate", "close",
+            "purge_superseded", "delete_namespace", "find_duplicate", "close",
         }:
             def _raise(*_args: object, **_kwargs: object) -> None:
                 raise CapabilityError(_MSG)

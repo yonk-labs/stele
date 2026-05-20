@@ -437,3 +437,10 @@ class SQLiteMemoryStore:
         ).rowcount
         self.conn.commit()
         return int(affected)
+
+    def delete_namespace(self, namespace: str) -> int:
+        affected = self.conn.execute(
+            "DELETE FROM memories WHERE namespace = ?", (namespace,)
+        ).rowcount
+        self.conn.commit()
+        return int(affected)

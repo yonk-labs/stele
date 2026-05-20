@@ -194,6 +194,12 @@ class Memory:
         cutoff; there is no automatic default. See Stele.cleanup()."""
         return self._store.purge_superseded(before)
 
+    def delete_namespace(self, namespace: str) -> int:
+        """Hard-delete every memory row in ``namespace``. Returns the count
+        removed. Used by :meth:`Stele.purge_namespace` for GDPR-style
+        lifecycle ops — drops live and historical rows alike."""
+        return self._store.delete_namespace(namespace)
+
     def search_with_score(
         self,
         query: str,

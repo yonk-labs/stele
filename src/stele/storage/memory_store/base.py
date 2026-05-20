@@ -62,6 +62,15 @@ class MemoryStore(Protocol):
         ArtifactNotFound if absent. Additive Phase-5 surface."""
         ...
 
+    def delete_namespace(self, namespace: str) -> int:
+        """Hard-delete every memory row in ``namespace``. Returns the count
+        removed. Idempotent. Other namespaces are never touched.
+
+        Used by :meth:`Stele.purge_namespace` for GDPR-style lifecycle ops.
+        Unlike :meth:`purge_superseded`, this drops live and historical
+        rows alike — namespace purge is a deliberate forget."""
+        ...
+
     def purge_superseded(self, before: datetime) -> int:
         """Hard-delete memory rows with status='superseded' AND
         effective_until strictly before ``before``. Returns the count
