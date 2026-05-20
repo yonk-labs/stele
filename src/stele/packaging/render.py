@@ -37,24 +37,14 @@ def _ctx(spec: PlatformSpec) -> dict[str, object]:
 
 
 def _tool_reference_table() -> str:
-    """Render a one-row-per-tool reference table.
-
-    Lazy import keeps render.py independent of the MCP server module.
-    Returns just the header until the TOOLS list is populated.
-    """
-    tools: list[object] = []
-    try:
-        from stele.mcp.tools import TOOLS
-
-        tools = list(TOOLS)
-    except ImportError:
-        pass
+    """Render a one-row-per-tool reference table from the TOOLS registry."""
+    from stele.mcp.tools import TOOLS
 
     lines = ["| Tool | Purpose | Key inputs |", "|---|---|---|"]
-    for tool in tools:
-        required = ", ".join(tool.input_schema.get("required", []))  # type: ignore[attr-defined]
+    for tool in TOOLS:
+        required = ", ".join(tool.input_schema.get("required", []))
         lines.append(
-            f"| `{tool.name}` | {tool.description} | {required or '—'} |"  # type: ignore[attr-defined]
+            f"| `{tool.name}` | {tool.description} | {required or '—'} |"
         )
     return "\n".join(lines)
 
