@@ -84,6 +84,38 @@ mcp:
 
 `stele init` exits non-zero if `.stele/config.yaml` already exists, unless `--force` is passed.
 
+### Backend-specific notes
+
+#### Postgres
+
+A few things that are clear from the code but not obvious until you run into them:
+
+- **The `[postgres]` extra is required.** `stele init --backend postgres` writes the config file fine, but the backend itself raises `OptionalDependencyError` on first use without `psycopg`. Install with `pip install 'stele-core[postgres]'`. `stele doctor` pre-checks this and prints the pip command for any missing extra.
+- **Schema evolution is operator-managed.** stele uses `CREATE TABLE IF NOT EXISTS` plus `ADD COLUMN IF NOT EXISTS` patches on every connection rather than a numbered migration system. New stele versions may add columns idempotently; they will not drop or rename. On a long-lived shared Postgres, treat schema changes between releases as forward-compatible-only and back up before upgrading.
+- **`retrieval.default_mode: hybrid` requires the chunk index.** The Postgres artifact retrieval backend itself only supports `keyword` (vector lives in the optional chunkshop chunk index). Setting `retrieval.default_mode: hybrid` without `indexing.provider: chunkshop` + the `[chunkshop]` extra silently degrades to keyword. If you want true hybrid search on Postgres:
+  ```yaml
+  indexing:
+    mode: sync          # or async
+    provider: chunkshop
+  retrieval:
+    default_mode: hybrid
+  ```
+  And `pip install 'stele-core[chunkshop]'`.
+- **Tables land in `public.` by default.** If you're sharing a Postgres database with other apps, isolate stele with a dedicated schema by appending `options=-c search_path=stele` to the DSN:
+  ```
+  postgresql://user:pw@host:5432/db?options=-c%20search_path%3Dstele
+  ```
+  You'll need to `CREATE SCHEMA stele` first; stele auto-creates tables, not schemas.
+
+#### MariaDB / ClickHouse
+
+- Require their respective extras: `pip install 'stele-core[mariadb]'` or `'stele-core[clickhouse]'`.
+- Both support artifact storage; **memory rows are not yet implemented** on either backend — calls to `stele memory add` etc. raise `CapabilityError`. SQLite or Postgres are the supported memory backends today.
+
+#### Memory (in-process)
+
+- Zero deps, zero persistence. Good for tests and ephemeral CI; useless for any long-lived agent.
+
 ## `stele install` / `stele uninstall`
 
 Install the stele skill + (optionally) a hook + an `mcp.json` entry for one or more agent platforms. Renders content from a single Jinja template per content type and writes to per-platform locations.
