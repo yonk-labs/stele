@@ -1,0 +1,10 @@
+## stele
+
+stele is available via two equivalent surfaces: MCP tools (`stele_*`) and the `stele` CLI (`stele <verb> ...`). Same handlers under the hood; pick whichever fits. Default behavior:
+
+- For any single tool result over {{ stash_threshold }} tokens, route through `stele_stash_tool_result` (MCP) OR pipe through `stele stash <ToolName> -` (CLI) and keep the returned `stele://` ref in working context.
+- For any question that depends on prior session context, call `stele_memory_search` (MCP) OR `stele memory search "query"` (CLI) before answering.
+- When stating a fact, cite the `stele://` ref via `stele_fetch` (MCP) OR `stele fetch REF` (CLI). Never paraphrase from memory without verifying.
+- To change a previously-stated fact, use `stele_memory_add(supersedes=[old_id])` (MCP) OR `stele memory add "new fact" --source-ref REF --supersedes OLD_ID` (CLI). Never edit in place; never use `stele_memory_delete` to "fix" wrong info — use `stele_memory_retract` / `stele memory retract` instead.
+
+See `~/.stele/config.yaml` or the project's `.stele/config.yaml` for backend selection.

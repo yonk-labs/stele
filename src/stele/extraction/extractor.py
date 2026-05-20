@@ -143,13 +143,16 @@ class MemoryExtractor:
         scope: MemoryScope,
     ) -> ExtractionReport:
         self._check_enabled()
-        # Construct the full stele:// reference from the artifact_id so that
-        # Stele.fetch (which requires a stele:// URI) can resolve it.
-        # Stele.store always uses namespace="default" when none is specified,
-        # so we derive the reference accordingly.
+        # `artifact_id` may be either a bare id (legacy: assumes default
+        # namespace) or a full `stele://<namespace>/<artifact_id>` URI. Accept
+        # both so callers that stored into a non-default namespace can extract
+        # from those artifacts without rebuilding the ref.
         from stele.core.reference import make_reference
 
-        ref_uri = make_reference("default", artifact_id).canonical_without_params
+        if "://" in artifact_id:
+            ref_uri = artifact_id
+        else:
+            ref_uri = make_reference("default", artifact_id).canonical_without_params
         try:
             fetched = self._stele.fetch(ref_uri)
         except Exception as exc:

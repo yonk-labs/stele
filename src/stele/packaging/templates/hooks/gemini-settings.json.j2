@@ -1,0 +1,14 @@
+{
+  "tools": {
+    "beforeExecute": [
+      {
+        "name": "stele-large-output-reminder",
+        "match": { "tool": ["bash", "read"] },
+        "action": {
+          "type": "stderr",
+          "message": "[stele] consider stele_stash_tool_result for large outputs; threshold {{ stash_threshold }}"
+        }
+      }
+    ]
+  }
+}

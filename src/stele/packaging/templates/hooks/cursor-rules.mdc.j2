@@ -1,0 +1,12 @@
+---
+description: stele MCP usage rules
+alwaysApply: true
+---
+# stele rules
+
+When stele MCP is available:
+
+- Route Bash/Read outputs > {{ stash_threshold }} tokens through `stele_stash_tool_result`.
+- Call `stele_memory_search` before answering from prior context.
+- Cite `stele://` refs via `stele_fetch`; do not paraphrase from memory alone.
+- Use `stele_memory_add(supersedes=[id])` for fact changes; `stele_memory_retract` for corrections.

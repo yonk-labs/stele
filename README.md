@@ -22,8 +22,10 @@ see the [order of operations](docs/superpowers/2026-05-17-order-of-operations.md
 for the authoritative path and [current status](docs/current-status.md) for
 what's done.
 
-New here? Start with the [Memory tutorial](docs/tutorial-memory.md) — a
-hands-on walkthrough of store → extract → supersede → recall.
+New here? Two starting points:
+
+- **Want stele in your AI coding assistant (Claude Code, Codex, Cursor, etc.)?** [5-minute quickstart](docs/quickstart.md).
+- **Want to use stele as a Python library?** [Memory tutorial](docs/tutorial-memory.md) — store → extract → supersede → recall.
 
 Key planning docs:
 
@@ -78,6 +80,23 @@ The current runnable slice includes:
   `graph_search` reports `CapabilityError` (capability honesty).
 - every memory cites the `stele://` evidence that produced it; PII scrubbing
   is inherited end to end and never duplicated
+
+**Multi-platform packaging**
+
+- `stele-mcp` stdio MCP server — full 18-tool read/write surface over the
+  `Stele` facade with sanitized egress and structured error codes
+- `stele` CLI — two groups of subcommands:
+  - **operator**: `init` / `install` / `uninstall` / `status` / `doctor` / `mcp`
+  - **data plane**: `store` / `fetch` / `search` / `query` / `list` / `delete`
+    / `memory {add,get,search,list,update,delete,retract}` / `extract
+    {from-text,from-messages,from-artifact}` / `recall` / `stash` — same 18
+    operations the MCP server exposes, callable from a shell with identical
+    JSON shapes (same `bind_handlers()` engine under both)
+- one-table routing (`PLATFORM_CONFIG`) for 7 launch agent platforms: Claude
+  Code, Codex, OpenCode, Cursor, Gemini CLI, Copilot, Aider
+- single Jinja template per content type (skill, agents-md section, hooks,
+  `mcp.json`); idempotent install with **merge** of existing `mcp.json` and
+  marker-bounded section editing of shared agent docs
 
 See the [Memory tutorial](docs/tutorial-memory.md) for a runnable walkthrough.
 
@@ -160,6 +179,41 @@ past = stele.recall(query="does Z prevent disease", scope=scope,
 `graph_search` raises `CapabilityError` and the rest of Stele is unaffected.
 Full guide: [docs/living-knowledge-setup.md](docs/living-knowledge-setup.md).
 Runnable: `STELE_PG_RAGGRAPH_DSN=… scripts/demo-living-knowledge.sh`.
+
+## Multi-platform Packaging (MCP + Slash-skills)
+
+**Five-minute happy path: [docs/quickstart.md](docs/quickstart.md).**
+
+`pip install stele-core` exposes two binaries: `stele` (CLI) and `stele-mcp`
+(stdio MCP server). The MCP server presents 18 tools over the public Stele
+facade — `stele_store` / `stele_fetch` / `stele_search` / `stele_query` /
+`stele_list` / `stele_delete` for artifacts, `stele_memory_{add,get,search,
+list,update,delete,retract}` for evidence-cited memory,
+`stele_extract_from_{text,messages,artifact}` for deterministic extraction,
+`stele_recall` for policy-driven recall, and `stele_stash_tool_result` for
+interception of oversize tool output.
+
+```bash
+pip install stele-core
+stele init                              # write .stele/config.yaml
+stele install --platform claude-code    # or --all for every supported platform
+# restart your agent — /stele appears in the slash-skill list
+```
+
+Seven launch platforms are wired through one routing table (`PLATFORM_CONFIG`
+in `src/stele/packaging/platforms.py`): Claude Code, Codex, OpenCode, Cursor,
+Gemini CLI, Copilot, Aider. Adding a new platform = one dict entry. Skill
+content renders from a single Jinja template; no per-platform duplication.
+
+`mcp.json` is **merged**, not overwritten — your existing MCP server entries
+for other tools are preserved.
+
+- **5-minute quickstart**: [docs/quickstart.md](docs/quickstart.md)
+- Full tool reference (MCP + CLI equivalents): [docs/mcp-tools.md](docs/mcp-tools.md)
+- CLI guide + troubleshooting: [docs/cli-guide.md](docs/cli-guide.md)
+- Runnable tours: [examples/mcp_tour.py](examples/mcp_tour.py) (Python/MCP) · [examples/cli_tour.sh](examples/cli_tour.sh) (shell/CLI)
+- Auth model (stdio-only, local-trusted): [docs/packaging-auth-model.md](docs/packaging-auth-model.md)
+- Manual smoke before releases: [docs/packaging-smoke-checklist.md](docs/packaging-smoke-checklist.md)
 
 ## Showcase Benchmark
 

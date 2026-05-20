@@ -1,0 +1,15 @@
+// stele large-output reminder for OpenCode. Non-blocking stderr nudge.
+const THRESHOLD = {{ stash_threshold }};
+
+export default {
+  name: "stele-large-output-reminder",
+  hooks: {
+    "tool.execute.before": async (ctx) => {
+      const name = ctx?.tool?.name ?? "";
+      if (!["bash", "read"].includes(name.toLowerCase())) return;
+      const size = ctx?.lastOutputSize ?? 0;
+      if (size < THRESHOLD) return;
+      process.stderr.write(`[stele] last ${name} output ${size}B > ${THRESHOLD}; consider stele_stash_tool_result\n`);
+    },
+  },
+};

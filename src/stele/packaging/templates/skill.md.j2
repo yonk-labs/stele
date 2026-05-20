@@ -1,0 +1,29 @@
+---
+name: stele
+description: {{ description }}
+trigger: {{ trigger }}
+---
+
+# {{ trigger }}
+
+You have access to `stele` for evidence-cited memory and artifact storage via TWO equivalent paths: the MCP tool surface (`stele_*` tools) and the `stele` CLI (e.g., `stele memory search ...`). Both call the same handlers — pick whichever fits the moment. JSON in, JSON out.
+
+## When to use
+
+- Tool output > {{ stash_threshold }} tokens: call `stele_stash_tool_result` (MCP) OR pipe the output through `stele stash CommandName -` (CLI) to swap it for a `stele://` reference + summary.
+- User asks something needing prior context: call `stele_memory_search` (MCP) OR `stele memory search "query"` (CLI) before responding.
+- A claim depends on a specific artifact: call `stele_fetch` (MCP) OR `stele fetch REF` (CLI) on its `stele://` ref; never paraphrase from memory alone.
+- A previously-stated fact has changed: call `stele_memory_add` with `supersedes=[<old_id>]` (MCP) OR `stele memory add "new fact" --source-ref REF --supersedes OLD_ID` (CLI). Never edit in place.
+- A claim was wrong and must be retracted: call `stele_memory_retract` (MCP) OR `stele memory retract MEMORY_ID --reason "..."` (CLI). Don't delete; retract preserves audit.
+
+## Tool reference
+
+{{ tool_reference_table }}
+
+Every MCP tool above has a matching CLI subcommand under `stele` (the `stele_` prefix becomes the verb; underscores become spaces, e.g. `stele_memory_search` → `stele memory search`). The CLI is a fallback when MCP isn't wired up or for shell pipelines; the MCP path is preferred when both are available because it stays inside the agent's tool channel.
+
+## Notes
+
+- Every memory cites its evidence (`source_refs` = list of `stele://` URIs). The server enforces this.
+- PII scrubbing is on by default. Raw artifact bytes require `pii.raw_fetch_enabled=true` in `.stele/config.yaml`.
+- Time-travel: pass `as_of=<ISO datetime>` to `stele_memory_search` / `stele_memory_list` / `stele_recall` (MCP) or `--as-of <ISO>` on the matching CLI subcommand.
