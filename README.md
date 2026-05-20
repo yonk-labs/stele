@@ -22,8 +22,10 @@ see the [order of operations](docs/superpowers/2026-05-17-order-of-operations.md
 for the authoritative path and [current status](docs/current-status.md) for
 what's done.
 
-New here? Start with the [Memory tutorial](docs/tutorial-memory.md) — a
-hands-on walkthrough of store → extract → supersede → recall.
+New here? Two starting points:
+
+- **Want stele in your AI coding assistant (Claude Code, Codex, Cursor, etc.)?** [5-minute quickstart](docs/quickstart.md).
+- **Want to use stele as a Python library?** [Memory tutorial](docs/tutorial-memory.md) — store → extract → supersede → recall.
 
 Key planning docs:
 
@@ -174,6 +176,8 @@ Runnable: `STELE_PG_RAGGRAPH_DSN=… scripts/demo-living-knowledge.sh`.
 
 ## Multi-platform Packaging (MCP + Slash-skills)
 
+**Five-minute happy path: [docs/quickstart.md](docs/quickstart.md).**
+
 `pip install stele-core` exposes two binaries: `stele` (CLI) and `stele-mcp`
 (stdio MCP server). The MCP server presents 18 tools over the public Stele
 facade — `stele_store` / `stele_fetch` / `stele_search` / `stele_query` /
@@ -184,10 +188,10 @@ list,update,delete,retract}` for evidence-cited memory,
 interception of oversize tool output.
 
 ```bash
+pip install stele-core
 stele init                              # write .stele/config.yaml
 stele install --platform claude-code    # or --all for every supported platform
-stele doctor                            # validate config + backend
-stele status                            # per-platform install state
+# restart your agent — /stele appears in the slash-skill list
 ```
 
 Seven launch platforms are wired through one routing table (`PLATFORM_CONFIG`
@@ -198,8 +202,10 @@ content renders from a single Jinja template; no per-platform duplication.
 `mcp.json` is **merged**, not overwritten — your existing MCP server entries
 for other tools are preserved.
 
+- **5-minute quickstart**: [docs/quickstart.md](docs/quickstart.md)
 - Full tool reference: [docs/mcp-tools.md](docs/mcp-tools.md)
-- CLI user guide: [docs/cli-guide.md](docs/cli-guide.md)
+- CLI guide + troubleshooting: [docs/cli-guide.md](docs/cli-guide.md)
+- Runnable per-tool tour: [examples/mcp_tour.py](examples/mcp_tour.py)
 - Auth model (stdio-only, local-trusted): [docs/packaging-auth-model.md](docs/packaging-auth-model.md)
 - Manual smoke before releases: [docs/packaging-smoke-checklist.md](docs/packaging-smoke-checklist.md)
 
