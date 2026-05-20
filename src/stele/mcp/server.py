@@ -2,12 +2,6 @@
 
 Loads config (walk-up + user-global fallback), instantiates a single Stele,
 binds tool handlers, and exposes them over stdio.
-
-The top-level ``mcp`` (PyPI) package is imported lazily inside ``_serve`` so
-that ``import stele.mcp.server`` is safe to perform from test environments
-where pytest places ``tests/unit/mcp`` on ``sys.path`` and shadows the
-third-party ``mcp`` namespace. Tests exercise ``_build_stele`` directly; the
-networked serve loop is exercised by the integration smoke tests.
 """
 
 from __future__ import annotations
@@ -16,6 +10,10 @@ import asyncio
 import contextlib
 import json
 from typing import Any
+
+from mcp.server import Server
+from mcp.server.stdio import stdio_server
+from mcp.types import TextContent, Tool
 
 from stele.core.stash import Stele
 from stele.mcp.config import config_path, load_raw_config
@@ -42,11 +40,6 @@ def _sanitize(value: Any) -> Any:
 
 
 async def _serve() -> None:
-    # Lazy import: see module docstring.
-    from mcp.server import Server
-    from mcp.server.stdio import stdio_server
-    from mcp.types import TextContent, Tool
-
     stele = _build_stele()
     tools: list[ToolSpec] = bind_handlers(stele)
     by_name = {t.name: t for t in tools}
