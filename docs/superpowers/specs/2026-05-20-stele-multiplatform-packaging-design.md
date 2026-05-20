@@ -1,6 +1,6 @@
 # Stele Multi-Platform Packaging — Design Spec
 
-**Status:** Approved 2026-05-20 (brainstorming session, Approach A — channel-per-concern, single-source-of-truth).
+**Status:** Approved 2026-05-20 (brainstorming session, Approach A — channel-per-concern, single-source-of-truth). Implementation complete on `feat/multiplatform-packaging`; §4.1 was retroactively reconciled with the real `bind_handlers` signatures after the facade probe revealed `MemoryScope`/`ContentType`/etc. constraints the original draft missed. **The ground-truth tool reference is [`docs/mcp-tools.md`](../../mcp-tools.md)** — this spec describes intent and shape; that doc describes wire reality.
 **Author:** brainstorming session driven by The Yonk.
 **Roadmap slot:** Independent of Phase 6/7 critical path. This work is structurally a candidate to become the first concrete adapter for Phase 7 (Adapter SDK + Runtime Capture), but does NOT block on T-RAM-005..008 scaffolding. If Phase 7 lands first, the MCP server gets retrofitted to use the adapter contract; if this lands first, Phase 7 absorbs the lessons. Either order is fine.
 **Background:** Competitive research (`skill-output/research-and-design/Research-Report-graphify-vs-stele.md`) identified packaging/distribution as stele's primary gap vs. graphify's 49.7k-star slash-skill play. This spec defines how stele closes that gap without copying graphify's pitfalls.
@@ -95,27 +95,27 @@ Each channel has exactly one source of truth and one update path.
 
 - **Library:** `mcp` (Python). Stdio transport only in v1. (Matches graphify; widest ecosystem support.)
 - **Tool registration:** declarative — each tool is a `ToolSpec` dataclass with `name`, `description`, `input_schema` (JSON Schema dict), `handler` (callable). Registered in `tools.py:TOOLS: list[ToolSpec]`. The `@server.list_tools()` and `@server.call_tool()` handlers iterate this list. No decorator magic; the list is greppable.
-- **Tool surface (v1, full read/write):**
-  - `stele_store(payload, content_type=None, metadata=None) -> {ref}` — wraps `Stele.store`
-  - `stele_fetch(ref) -> {bytes_or_text, summary?, pii_scrubbed: bool}` — wraps `Stele.fetch`. `PIIBlockedError` becomes `error.code = "PII_BLOCKED"`.
-  - `stele_search(query, mode=None, limit=10) -> {hits: [...]}` — wraps `Stele.search`
-  - `stele_query(...)` — wraps `Stele.query`
-  - `stele_list(...)`, `stele_delete(ref)` — wraps `Stele.list`/`Stele.delete`
-  - `stele_memory_add(text, source_refs, supersedes=None, metadata=None) -> {memory_id}`
+- **Tool surface (v1, full read/write — see [`docs/mcp-tools.md`](../../mcp-tools.md) for the ground-truth reference; signatures below are the post-implementation reality, not the original draft):**
+  - `stele_store(payload, content_type=None, namespace=None, metadata=None) -> {ref}` — wraps `Stele.store`. `content_type` is the `ContentType` Literal enum (`text` / `json` / `markdown` / `code` / `code_diff` / `csv` / `sql` / `log` / `html` / `table` / `blob`), NOT a MIME string.
+  - `stele_fetch(ref) -> {content, content_type, scrubbed, pii, byte_size}` — wraps `Stele.fetch`. `PIIBlockedError` → `error.code = "PII_BLOCKED"`.
+  - `stele_search(ref, query, mode=None, limit=10) -> {hits}` — wraps `Stele.search`. `ref` is required because search is artifact-scoped; cross-artifact queries use `stele_query`.
+  - `stele_query(query, namespace="default", mode=None, limit=10) -> {hits}` — wraps `Stele.query` across a namespace's chunk index.
+  - `stele_list(namespace=None, limit=100) -> {page}` — wraps `Stele.list`; returns a `Page` shape.
+  - `stele_delete(ref) -> {ok}` — wraps `Stele.delete`; `ok` reflects whether the artifact existed.
+  - `stele_memory_add(text, source_refs, kind="fact", namespace="default", supersedes=None, confidence=1.0, metadata=None) -> {memory_id, duplicate_of, superseded_ids}` — `namespace` synthesized into a `MemoryScope`; `kind` and `confidence` surface facade fields.
   - `stele_memory_get(memory_id) -> {record}`
-  - `stele_memory_search(query, as_of=None, limit=10) -> {hits: [...]}`
-  - `stele_memory_list(as_of=None, ...) -> {records: [...]}`
-  - `stele_memory_update(memory_id, ...) -> {record}` (rejects text changes per facade)
+  - `stele_memory_search(query, namespace="default", as_of=None, limit=10, include_superseded=False) -> {hits}` — `as_of` is ISO-8601; handler parses to `datetime`.
+  - `stele_memory_list(namespace="default", as_of=None, limit=100, status_filter=None) -> {records}`
+  - `stele_memory_update(memory_id, metadata=None) -> {record}` (text changes rejected per facade)
   - `stele_memory_delete(memory_id) -> {ok}`
-  - `stele_memory_retract(memory_id, reason) -> {ok}` (Phase 5)
-  - `stele_extract_from_text(text, source_refs) -> {report}`
-  - `stele_extract_from_messages(messages, source_refs) -> {report}`
-  - `stele_extract_from_artifact(ref) -> {report}`
-  - `stele_recall(query, strategy=None, as_of=None, version_filter=None, retracted_behavior=None) -> {response}`
-  - `stele_stash_tool_result(tool_name, raw_output, threshold_override=None) -> {ref_or_passthrough}` — wraps `interception.stash_tool_result`. Centralizes stele's interception story for agents that can't call it natively.
+  - `stele_memory_retract(memory_id, reason) -> {record}` (Phase 5; `record.status` becomes `retracted`)
+  - `stele_extract_from_text(text, source_refs, namespace="default") -> {report}`
+  - `stele_extract_from_messages(messages, namespace="default") -> {report}` — NOT `source_refs`; the facade derives provenance from message order.
+  - `stele_extract_from_artifact(ref, namespace="default") -> {report}` — accepts full `stele://` ref; the facade was patched in fe9284f to parse the embedded namespace correctly.
+  - `stele_recall(query, namespace="default", strategy=None, as_of=None, version_filter=None, retracted_behavior=None, max_memory_hits=None, max_artifact_hits=None) -> {response}` — strategies: `summary_only`, `memory_search`, `artifact_search`, `adaptive`, `raw_fetch`, `abstain`, `graph_search` (Phase 5).
+  - `stele_stash_tool_result(tool_name, raw_output, namespace="default", metadata=None) -> {result}` — wraps `interception.wrapper.stash_tool_result`. The threshold is configured globally (`mcp.stash_threshold_tokens` in `.stele/config.yaml`); per-call override is not surfaced.
 - **Output handling:**
-  - Token-budget truncation borrowed from graphify (`serve.py:247-298` pattern), with actionable hints in the truncated tail: `"[truncated — call stele_fetch(ref) for the full artifact]"` or `"[truncated — narrow query or set limit lower]"`.
-  - All free-text fields pass through `pii.scrubber` and the new `mcp.sanitize.sanitize_label()` (ANSI-strip + control-char strip + 256-char clamp) before serialization. Anti-prompt-injection per graphify (`security.py:227-242` pattern).
+  - All free-text fields pass through `mcp.sanitize.sanitize_label()` (ANSI-strip + C0/`\x7f` control-char strip + 256-char clamp) before serialization. PII scrubbing is inherited from the facade and never re-applied. Token-budget truncation with actionable hints is deferred — not implemented in v1.
 - **Errors:** All exceptions reach a single `handle_exception(exc) -> McpError` boundary in `mcp/errors.py`. Map known stele exceptions to stable codes: `ConfigError → CONFIG`, `PIIBlockedError → PII_BLOCKED`, `CapabilityError → CAPABILITY`, `ValidationError → VALIDATION`, all others → `INTERNAL` with traceback to stderr. Never swallow.
 - **Config plumbing:** server boots from `.stele/config.yaml` resolved by walking up from CWD; falls back to `~/.config/stele/config.yaml`; can be overridden by `--config <path>`. DSN never read from env at this layer — config carries it.
 - **Hot-reload:** out of scope for v1 (the facade is in-process; config changes require restart, which an MCP host can do on its own).
