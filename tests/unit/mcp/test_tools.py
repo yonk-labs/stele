@@ -7,6 +7,7 @@ import pytest
 from stele.mcp.tools import TOOLS, ToolSpec, bind_handlers
 
 EXPECTED_TOOLS = {
+    # core artifact + memory + extract + recall (Phase 1-5, 18 tools)
     "stele_store",
     "stele_fetch",
     "stele_search",
@@ -25,10 +26,16 @@ EXPECTED_TOOLS = {
     "stele_extract_from_artifact",
     "stele_recall",
     "stele_stash_tool_result",
+    # lifecycle + bulk-write (#21, #22) — 5 new tools
+    "stele_purge_namespace",
+    "stele_export_namespace",
+    "stele_import_namespace",
+    "stele_store_many",
+    "stele_memory_add_many",
 }
 
 
-def test_all_eighteen_tools_registered() -> None:
+def test_all_tools_registered() -> None:
     assert {t.name for t in TOOLS} == EXPECTED_TOOLS
 
 

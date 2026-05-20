@@ -202,6 +202,93 @@ TOOLS: list[ToolSpec] = [
             ["query"],
         ),
     ),
+    # ---- lifecycle (namespace purge + export/import) ----
+    ToolSpec(
+        "stele_purge_namespace",
+        (
+            "GDPR-style namespace purge. Hard-deletes every artifact, memory row "
+            "(live + historical), chunk-index entry, and revisor-projected evidence "
+            "scoped to `namespace`. Other namespaces are never touched. "
+            "DESTRUCTIVE: refuses unless `confirm=true`. Use `dry_run=true` first "
+            "to preview counts without mutating."
+        ),
+        _obj(
+            {
+                "namespace": _STR,
+                "confirm": {"type": "boolean"},
+                "dry_run": {"type": "boolean"},
+            },
+            ["namespace"],
+        ),
+    ),
+    ToolSpec(
+        "stele_export_namespace",
+        (
+            "Export every artifact + memory row in `namespace` as a portable v2 JSONL "
+            "bundle at `path`. Path must be within the host's allowed filesystem scope. "
+            "Memory rows preserve their supersession chain. Round-trips via "
+            "stele_import_namespace."
+        ),
+        _obj(
+            {
+                "namespace": _STR,
+                "path": _STR,
+                "limit": _INT,
+            },
+            ["namespace", "path"],
+        ),
+    ),
+    ToolSpec(
+        "stele_import_namespace",
+        (
+            "Restore a v2 JSONL bundle previously written by stele_export_namespace. "
+            "Artifacts re-route through the indexer so chunks rebuild; memory rows "
+            "insert byte-identical with status/supersedes/effective_until preserved."
+        ),
+        _obj(
+            {
+                "path": _STR,
+            },
+            ["path"],
+        ),
+    ),
+    # ---- bulk-write ----
+    ToolSpec(
+        "stele_store_many",
+        (
+            "Bulk-write N artifacts in one transaction. `items` is a list of objects "
+            "mirroring the per-row stele_store kwargs (content, namespace, session_id, "
+            "content_type, metadata, lifecycle, ttl_seconds). Returns per-row StoredResult "
+            "in input order. ~10x postgres speedup at N=1000 vs per-row."
+        ),
+        _obj(
+            {
+                "items": {
+                    "type": "array",
+                    "items": _OBJ_ANY,
+                },
+            },
+            ["items"],
+        ),
+    ),
+    ToolSpec(
+        "stele_memory_add_many",
+        (
+            "Bulk-write N memory rows in one transaction. `items` is a list of objects "
+            "mirroring the per-row stele_memory_add kwargs (text, kind, source_refs, "
+            "scope { user_id, agent_id, app_id, session_id, namespace }, supersedes, "
+            "confidence, metadata). Returns per-row MemoryAddResult in input order."
+        ),
+        _obj(
+            {
+                "items": {
+                    "type": "array",
+                    "items": _OBJ_ANY,
+                },
+            },
+            ["items"],
+        ),
+    ),
     # ---- interception ----
     ToolSpec(
         "stele_stash_tool_result",
@@ -511,6 +598,65 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
         )
         return {"result": _to_jsonable(result)}
 
+    @guard
+    def purge_namespace(
+        namespace: str,
+        confirm: bool = False,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        if not dry_run and not confirm:
+            return {
+                "error": {
+                    "code": "VALIDATION",
+                    "message": (
+                        "purge_namespace is destructive; pass `confirm: true` to "
+                        "proceed or `dry_run: true` to preview counts"
+                    ),
+                    "context": {"namespace": namespace},
+                }
+            }
+        result = stele.purge_namespace(namespace, dry_run=dry_run)
+        return {"result": _to_jsonable(result)}
+
+    @guard
+    def export_namespace(
+        namespace: str,
+        path: str,
+        limit: int = 100_000,
+    ) -> dict[str, Any]:
+        result = stele.export_namespace(namespace, path, limit=limit)
+        return {"result": _to_jsonable(result)}
+
+    @guard
+    def import_namespace(path: str) -> dict[str, Any]:
+        result = stele.import_namespace(path)
+        return {"result": _to_jsonable(result)}
+
+    @guard
+    def store_many(items: list[dict[str, Any]]) -> dict[str, Any]:
+        from stele.core.artifact import StoreRequest
+
+        requests = [StoreRequest(**item) for item in items]
+        results = stele.store_many(requests)
+        return {"results": [_to_jsonable(r) for r in results]}
+
+    @guard
+    def memory_add_many(items: list[dict[str, Any]]) -> dict[str, Any]:
+        from stele.core.memory_record import AddRequest, MemoryScope
+
+        requests: list[AddRequest] = []
+        for item in items:
+            scope_raw = item.get("scope") or {}
+            scope = (
+                scope_raw
+                if isinstance(scope_raw, MemoryScope)
+                else MemoryScope(**scope_raw)
+            )
+            payload = {k: v for k, v in item.items() if k != "scope"}
+            requests.append(AddRequest(scope=scope, **payload))
+        results = stele.memory.add_many(requests)
+        return {"results": [_to_jsonable(r) for r in results]}
+
     by_name: dict[str, HandlerFn] = {
         "stele_store": store,
         "stele_fetch": fetch,
@@ -529,6 +675,11 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
         "stele_extract_from_messages": extract_from_messages,
         "stele_extract_from_artifact": extract_from_artifact,
         "stele_recall": recall,
+        "stele_purge_namespace": purge_namespace,
+        "stele_export_namespace": export_namespace,
+        "stele_import_namespace": import_namespace,
+        "stele_store_many": store_many,
+        "stele_memory_add_many": memory_add_many,
         "stele_stash_tool_result": stash_tool_result,
     }
     return [replace(t, handler=by_name[t.name]) for t in TOOLS]

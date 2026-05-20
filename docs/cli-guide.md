@@ -385,21 +385,64 @@ stele init
 stele install --platform claude-code
 ```
 
-## Library-only surfaces (not yet exposed as CLI/MCP)
+## Lifecycle + bulk-write subcommands
 
-The Python facade has surfaces that the CLI and MCP server don't expose yet.
-Use them via `import stele` until follow-up CLI/MCP tickets land.
+The 2026-05-20 hardening wave added five new surfaces; all are now exposed on both the CLI (here) and as MCP tools (see [`mcp-tools.md`](mcp-tools.md#lifecycle--bulk-write-tools-added-2026-05-20)).
+
+### `stele purge-namespace`
+
+```bash
+stele purge-namespace <namespace> --dry-run            # preview counts; no mutation
+stele purge-namespace <namespace> --yes                # destructive: drops artifacts + memory + chunks + revisor evidence
+```
+
+Refuses to mutate without `--yes` (or `--dry-run`). Returns a `PurgeReport` with per-surface counts. Idempotent.
+
+### `stele export-namespace`
+
+```bash
+stele export-namespace <namespace> --output bundle.jsonl
+stele export-namespace <namespace> --output bundle.jsonl --limit 50000
+```
+
+Emits a v2 JSONL bundle: one line per record, each tagged `kind: artifact | memory`. Supersession chain on memory rows is preserved.
+
+### `stele import-namespace`
+
+```bash
+stele import-namespace bundle.jsonl
+```
+
+Restores a v2 bundle. Artifacts re-route through the indexer so chunks rebuild on import; memory rows insert byte-identical (`status`, `supersedes`, `effective_until` preserved).
+
+### `stele store-many` / `stele memory add-many`
+
+Bulk-write API. Both read JSONL from `--input <file>` or stdin (`-`); each line is a JSON object matching the per-row request shape.
+
+```bash
+# stele store-many — one StoreRequest per line
+cat <<EOF > rows.jsonl
+{"content": "alpha", "namespace": "bulk"}
+{"content": "beta", "namespace": "bulk", "session_id": "s1"}
+EOF
+stele store-many --input rows.jsonl
+
+# stele memory add-many — one AddRequest per line
+cat <<EOF > memos.jsonl
+{"text": "user prefers Helix", "kind": "preference", "source_refs": ["stele://x/a"], "scope": {"namespace": "default", "user_id": "u1"}}
+EOF
+stele memory add-many --input memos.jsonl
+```
+
+~10× postgres speedup at N=1000 over per-row `store` / `memory add` loops. Microbench: `stele-bulk-write-bench` (or `python -m benchmarks.bulk_write`).
+
+### Library-only — for now
+
+One Phase-5 control is still Python-only:
 
 | Method | What |
 |---|---|
-| `Stele.purge_namespace(namespace, *, dry_run=False) → PurgeReport` | Hard-delete every artifact, memory row, chunk-index entry, and revisor-projected evidence row in `namespace`. GDPR / lifecycle primitive. Idempotent. `dry_run=True` returns counts without mutating. |
-| `Stele.export_namespace(namespace, path)` | Write a portable v2 JSONL bundle for the namespace (artifacts + memory rows with the supersession chain). |
-| `Stele.import_namespace(path)` | Restore a v2 bundle. Artifacts re-route through the indexer so chunks rebuild; memory rows insert byte-identical with status/supersedes/effective_until preserved. |
-| `Stele.store_many(items: list[StoreRequest]) → list[StoredResult]` | Bulk artifact write. One transaction, one server round-trip. ~10× postgres speedup at N=1000. |
-| `Memory.add_many(items: list[AddRequest]) → list[MemoryAddResult]` | Bulk memory write. Same shape and per-row semantics as `add()`. |
-| `recall(..., supersession_behavior="hide" | "prefer_new" | "surface_both")` | Per-call override on `graph_search` recall strategy (mirrors the per-call `retracted_behavior` shape). |
-
-Microbench for the bulk path: `stele-bulk-write-bench` (or `python -m benchmarks.bulk_write`).
+| `recall(..., supersession_behavior="hide" \| "prefer_new" \| "surface_both")` | Per-call override on `graph_search` (mirrors the per-call `retracted_behavior` shape). |
 
 ## See also
 

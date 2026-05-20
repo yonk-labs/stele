@@ -49,13 +49,28 @@ out of `0.x`.
   without `indexing.provider: chunkshop`, `search_path` DSN tip for shared
   databases. (PR #20)
 
+### Added — CLI + MCP exposure (#21, #22)
+
+The lifecycle and bulk-write surfaces are now reachable from all three
+public interfaces (Python library, `stele` CLI, `stele-mcp` server) via
+the shared `bind_handlers()` engine.
+
+- **5 new MCP tools**: `stele_purge_namespace` (refuses unless
+  `confirm=true` or `dry_run=true`), `stele_export_namespace`,
+  `stele_import_namespace`, `stele_store_many`, `stele_memory_add_many`.
+  See `docs/mcp-tools.md` §"Lifecycle + bulk-write tools".
+- **5 new CLI subcommands**: `stele purge-namespace` (refuses without
+  `--yes` or `--dry-run`), `stele export-namespace`,
+  `stele import-namespace`, `stele store-many`,
+  `stele memory add-many`. Bulk-write subcommands read JSONL from
+  `--input <file>` or stdin (`-`).
+
 ### Known limitations
 
-- The new lifecycle and bulk-write surfaces (`purge_namespace`,
-  `export_namespace`, `import_namespace`, `store_many`, `add_many`,
-  per-call `supersession_behavior`) are **library-only** today. No
-  matching `stele` CLI subcommand and no matching `stele-mcp` tool. CLI
-  and MCP exposure tracked as follow-up issues.
+- One Phase-5 control is still Python-only: per-call
+  `recall(..., supersession_behavior=...)`. Adding it to the CLI / MCP
+  surface is straightforward when needed; left out of this batch because
+  no consumer asked for it.
 
 ## Earlier — Phases 1–7 + INFRA-A + Multi-platform packaging
 
