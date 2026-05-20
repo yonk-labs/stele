@@ -109,6 +109,48 @@ class SQLiteStorageBackend:
             )
         return ArtifactRecord.model_validate(artifact.model_dump())
 
+    def store_many(self, artifacts: list[Artifact]) -> list[ArtifactRecord]:
+        if not artifacts:
+            return []
+        rows = []
+        fts_rows = []
+        ids: list[str] = []
+        for a in artifacts:
+            content = a.content if isinstance(a.content, bytes) else a.content.encode("utf-8")
+            rows.append((
+                a.artifact_id, a.reference, a.namespace, a.session_id, content,
+                a.content_encoding, a.content_type, json.dumps(a.metadata),
+                a.summary, a.raw_summary, a.digest_sha256, a.byte_size,
+                a.token_estimate, a.lifecycle,
+                _dt_to_str(a.expires_at), _dt_to_str(a.created_at), _dt_to_str(a.updated_at),
+            ))
+            fts_rows.append((a.artifact_id, a.namespace, a.reference, a.content_as_text()))
+            ids.append(a.artifact_id)
+        with self.conn:
+            self.conn.executemany(
+                """
+                INSERT OR REPLACE INTO artifacts (
+                  artifact_id, reference, namespace, session_id, content,
+                  content_encoding, content_type, metadata_json, summary, raw_summary,
+                  digest_sha256, byte_size, token_estimate, lifecycle, expires_at,
+                  created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+            # FTS upsert: clear-then-insert keeps the same OR-REPLACE semantics.
+            self.conn.executemany(
+                "DELETE FROM artifact_fts WHERE artifact_id = ?",
+                [(aid,) for aid in ids],
+            )
+            self.conn.executemany(
+                "INSERT INTO artifact_fts(artifact_id, namespace, reference, content) "
+                "VALUES (?, ?, ?, ?)",
+                fts_rows,
+            )
+        return [ArtifactRecord.model_validate(a.model_dump()) for a in artifacts]
+
     def fetch(self, reference: Reference) -> ArtifactRecord:
         record = self.try_fetch(reference)
         if record is None:

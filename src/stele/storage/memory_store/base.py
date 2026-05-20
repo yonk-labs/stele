@@ -28,6 +28,20 @@ class MemoryStore(Protocol):
         actually_superseded_ids)."""
         ...
 
+    def add_many(
+        self,
+        items: list[tuple[MemoryRecord, list[str]]],
+    ) -> list[tuple[MemoryRecord, list[str]]]:
+        """Insert N records in one transaction. Each input pair is
+        ``(record, supersedes_ids)``. Returns ``(stored_record,
+        actually_superseded_ids)`` per row, in input order.
+
+        Semantic contract: ``add_many([(r1, []), (r2, [])])`` leaves the
+        store in the same observable state as ``[add(r1, []), add(r2, [])]``.
+        Implementations may use ``executemany`` or bulk INSERT under
+        the hood; the memory backend just loops."""
+        ...
+
     def search(self, query: MemoryQuery) -> list[MemoryRecord]: ...
 
     def list(

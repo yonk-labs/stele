@@ -27,6 +27,7 @@ from stele.core.artifact import (
     ScrubResult,
     SearchHit,
     StoredResult,
+    StoreRequest,
     digest_content,
     estimate_tokens,
     utc_now,
@@ -409,6 +410,103 @@ class Stele:
             pii=self._scrub_text(raw_summary).summary,
             created_at=record.created_at,
         )
+
+    def store_many(self, items: list[StoreRequest]) -> list[StoredResult]:
+        """Persist N artifacts in one transaction / one server round-trip.
+
+        Returns per-row :class:`StoredResult` in input order. Empty input
+        returns []. Observably equivalent to ``[store(...), store(...)]``
+        for the same inputs — same dedup, same PII scrub, same indexer
+        and revisor side-effects — but the storage write is batched.
+
+        PII scrubbing remains per-row (deterministic, can't batch).
+        Revisor projection (when active) is per-row in this slice;
+        batching that surface is a follow-up. Indexer submission stays
+        per-row but the existing AsyncChunkIndexer already batches its
+        task backend.
+        """
+        if not items:
+            return []
+        artifacts: list[Artifact] = []
+        raw_summaries: list[str] = []
+        for item in items:
+            artifact_id = uuid.uuid4().hex
+            reference = make_reference(item.namespace, artifact_id).canonical_without_params
+            raw_text = _content_to_summary_text(item.content)
+            raw_summary = self.summary_provider.summarize(
+                raw_text,
+                max_chars=self.config.summary.max_chars,
+            )
+            scrubbed_summary = self._scrub_text(raw_summary).text
+            now = utc_now()
+            expires_at = (
+                now + timedelta(seconds=item.ttl_seconds) if item.ttl_seconds else None
+            )
+            content_encoding: ContentEncoding = (
+                "bytes" if isinstance(item.content, bytes) else "utf-8"
+            )
+            artifact = Artifact(
+                artifact_id=artifact_id,
+                reference=reference,
+                namespace=item.namespace,
+                session_id=item.session_id,
+                content=item.content,
+                content_encoding=content_encoding,
+                content_type=_normalize_content_type(item.content_type),
+                metadata=item.metadata or {},
+                summary=scrubbed_summary,
+                raw_summary=raw_summary,
+                digest_sha256=digest_content(item.content, content_encoding),
+                byte_size=len(
+                    item.content if isinstance(item.content, bytes)
+                    else item.content.encode("utf-8")
+                ),
+                token_estimate=estimate_tokens(item.content),
+                lifecycle=cast(Lifecycle, item.lifecycle),
+                expires_at=expires_at,
+                created_at=now,
+                updated_at=now,
+            )
+            artifacts.append(artifact)
+            raw_summaries.append(raw_summary)
+        records = self.storage.store_many(artifacts)
+        results: list[StoredResult] = []
+        for record, raw_summary in zip(records, raw_summaries, strict=True):
+            if isinstance(self.indexer, AsyncChunkIndexer):
+                self._pending_records[record.artifact_id] = record
+            index_result = self.indexer.submit(record)
+            if self.revisor.active:
+                self.revisor.ingest_evidence(
+                    stele_ref=record.reference,
+                    text=record.summary,
+                    namespace=record.namespace,
+                    effective_from=record.created_at,
+                    session_id=record.session_id,
+                )
+            replacement_char_count = len(record.summary) + len(record.reference)
+            original_tokens = record.token_estimate
+            replacement_tokens = estimate_tokens(record.summary) + estimate_tokens(
+                record.reference
+            )
+            savings = max(0, original_tokens - replacement_tokens)
+            pct = savings / original_tokens if original_tokens else 0.0
+            results.append(StoredResult(
+                artifact_id=record.artifact_id,
+                reference=record.reference,
+                namespace=record.namespace,
+                session_id=record.session_id,
+                summary=record.summary,
+                content_type=record.content_type,
+                byte_size=record.byte_size,
+                token_estimate=record.token_estimate,
+                replacement_char_count=replacement_char_count,
+                estimated_token_savings=savings,
+                estimated_token_savings_pct=pct,
+                index_status=index_result.status,
+                pii=self._scrub_text(raw_summary).summary,
+                created_at=record.created_at,
+            ))
+        return results
 
     def fetch(self, reference: str, *, raw: bool = False, scrub: bool | None = None) -> FetchResult:
         ref = validate_reference_signature(reference, self.config.signing)

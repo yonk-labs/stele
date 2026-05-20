@@ -19,7 +19,7 @@ class ClickHouseMemoryStore:
 
     def __getattr__(self, name: str) -> Any:
         if name in {
-            "add", "search", "list", "get",
+            "add", "add_many", "search", "list", "get",
             "update_metadata", "soft_delete", "set_retracted",
             "purge_superseded", "delete_namespace", "find_duplicate", "close",
         }:

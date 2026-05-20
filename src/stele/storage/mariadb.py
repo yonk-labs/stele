@@ -126,6 +126,54 @@ class MariaDBStorageBackend:
             )
         return ArtifactRecord.model_validate(artifact.model_dump())
 
+    def store_many(self, artifacts: list[Artifact]) -> list[ArtifactRecord]:
+        if not artifacts:
+            return []
+        rows = []
+        for a in artifacts:
+            content = a.content if isinstance(a.content, bytes) else a.content.encode("utf-8")
+            rows.append((
+                a.artifact_id, a.reference, a.namespace, a.session_id,
+                content, a.content_as_text(),
+                a.content_encoding, a.content_type,
+                json.dumps(a.metadata),
+                a.summary, a.raw_summary,
+                a.digest_sha256, a.byte_size, a.token_estimate,
+                a.lifecycle, a.expires_at, a.created_at, a.updated_at,
+            ))
+        with self.conn.cursor() as cursor:
+            cursor.executemany(
+                f"""
+                INSERT INTO `{self.table}` (
+                  artifact_id, reference, namespace, session_id, content, search_text,
+                  content_encoding, content_type, metadata_json, summary, raw_summary,
+                  digest_sha256, byte_size, token_estimate, lifecycle, expires_at,
+                  created_at, updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                  reference = VALUES(reference),
+                  namespace = VALUES(namespace),
+                  session_id = VALUES(session_id),
+                  content = VALUES(content),
+                  search_text = VALUES(search_text),
+                  content_encoding = VALUES(content_encoding),
+                  content_type = VALUES(content_type),
+                  metadata_json = VALUES(metadata_json),
+                  summary = VALUES(summary),
+                  raw_summary = VALUES(raw_summary),
+                  digest_sha256 = VALUES(digest_sha256),
+                  byte_size = VALUES(byte_size),
+                  token_estimate = VALUES(token_estimate),
+                  lifecycle = VALUES(lifecycle),
+                  expires_at = VALUES(expires_at),
+                  updated_at = VALUES(updated_at)
+                """,
+                rows,
+            )
+        return [ArtifactRecord.model_validate(a.model_dump()) for a in artifacts]
+
     def fetch(self, reference: Reference) -> ArtifactRecord:
         record = self.try_fetch(reference)
         if record is None:

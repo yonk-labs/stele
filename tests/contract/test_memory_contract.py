@@ -432,3 +432,62 @@ def test_purge_namespace_drops_superseded_history(
         )
         == []
     )
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_add_many_observably_equivalent(tmp_path: Path, backend: str) -> None:
+    """N memories in one add_many() ≡ N memories in N add() calls — same
+    final state, all rows retrievable, scope honored per row."""
+    from stele.core.memory_record import AddRequest
+
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    items = [
+        AddRequest(
+            text=f"fact {i}",
+            kind="fact",
+            source_refs=[f"stele://x/{i}"],
+            scope=MemoryScope(user_id=user),
+        )
+        for i in range(4)
+    ]
+    results = s.memory.add_many(items)
+    assert len(results) == 4
+    listed = s.memory.list(MemoryScope(user_id=user), limit=50)
+    assert {m.id for m in listed} == {r.record.id for r in results}
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_add_many_empty_returns_empty(tmp_path: Path, backend: str) -> None:
+    s = _stele(tmp_path, backend)
+    assert s.memory.add_many([]) == []
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_add_many_with_supersession(tmp_path: Path, backend: str) -> None:
+    """Per-row supersession works inside a batch."""
+    from stele.core.memory_record import AddRequest
+
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    old = s.memory.add(
+        text="user prefers Helix",
+        kind="preference",
+        source_refs=["stele://x/old"],
+        scope=MemoryScope(user_id=user),
+    )
+    items = [
+        AddRequest(
+            text="user prefers Zed",
+            kind="preference",
+            source_refs=["stele://x/new"],
+            scope=MemoryScope(user_id=user),
+            supersedes=[old.record.id],
+        ),
+    ]
+    results = s.memory.add_many(items)
+    assert results[0].superseded_ids == [old.record.id]
+    hits = s.memory.search(
+        MemoryQuery(query="prefers", scope=MemoryScope(user_id=user))
+    )
+    assert {h.id for h in hits} == {results[0].record.id}

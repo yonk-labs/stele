@@ -168,3 +168,49 @@ def test_purge_namespace_rejects_empty(tmp_path: Path, backend: str) -> None:
     with pytest.raises(ValueError):
         stash.purge_namespace("")
     stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_store_many_observably_equivalent(tmp_path: Path, backend: str) -> None:
+    """N rows in one store_many() ≡ N rows in N store() calls — same final
+    state, all rows fetchable by reference."""
+    from stele.core.artifact import StoreRequest
+
+    stash = _stash_for_backend(tmp_path, backend)
+    namespace = f"bw_{uuid.uuid4().hex}"
+
+    items = [
+        StoreRequest(content=f"row-{i}", namespace=namespace, session_id="s1")
+        for i in range(5)
+    ]
+    results = stash.store_many(items)
+
+    assert len(results) == 5
+    for i, r in enumerate(results):
+        fetched = stash.fetch(r.reference, raw=True)
+        assert fetched.content == f"row-{i}"
+    assert len(stash.list(namespace=namespace).items) == 5
+    stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_store_many_empty_returns_empty(tmp_path: Path, backend: str) -> None:
+    stash = _stash_for_backend(tmp_path, backend)
+    assert stash.store_many([]) == []
+    stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_store_many_preserves_input_order(tmp_path: Path, backend: str) -> None:
+    """Acceptance: results list ordering matches input. Important for
+    callers like memexify that pair input rows with idempotency keys."""
+    from stele.core.artifact import StoreRequest
+
+    stash = _stash_for_backend(tmp_path, backend)
+    namespace = f"ord_{uuid.uuid4().hex}"
+    contents = ["alpha", "bravo", "charlie", "delta"]
+    items = [StoreRequest(content=c, namespace=namespace) for c in contents]
+    results = stash.store_many(items)
+    fetched = [stash.fetch(r.reference, raw=True).content for r in results]
+    assert fetched == contents
+    stash.close()

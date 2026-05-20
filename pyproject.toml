@@ -73,6 +73,7 @@ stele-longrun = "benchmarks.longrun:main"
 stele-answer-workflow = "benchmarks.answer_workflow:main"
 stele-runtime-bench = "benchmarks.runtime:main"
 stele-external-bench = "benchmarks.external.__main__:main"
+stele-bulk-write-bench = "benchmarks.bulk_write:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/stele", "benchmarks"]
