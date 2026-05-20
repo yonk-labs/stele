@@ -1,6 +1,8 @@
 # Stele CLI Guide
 
-The `stele` binary is installed by `pip install stele-core` and exposes six subcommands. The companion `stele-mcp` binary runs the MCP server (same code path as `stele mcp`).
+The `stele` binary is installed by `pip install stele-core` and exposes **two groups** of subcommands. The companion `stele-mcp` binary runs the MCP server (same code path as `stele mcp`).
+
+**Operator subcommands** — setup, install, diagnostics. You'll run these once per project or once per platform.
 
 ```
 stele init       Write .stele/config.yaml with sensible defaults.
@@ -10,6 +12,30 @@ stele status     Show per-platform install state.
 stele doctor     Validate config + backend reachability.
 stele mcp        Run the stdio MCP server (foreground).
 ```
+
+**Data-plane subcommands** — the same 18 operations the MCP server exposes, callable from a shell. JSON in (via flags or stdin), JSON out (on stdout). Useful in scripts, pipelines, CI, and for debugging what an MCP client is actually doing.
+
+```
+stele store     Store text/bytes; emit a stele:// ref.
+stele fetch     Resolve a stele:// ref to content + metadata.
+stele search    Search within a single artifact.
+stele query     Query the chunk index across a namespace.
+stele list      List artifacts.
+stele delete    Delete an artifact by ref.
+stele memory    Memory operations:
+                  add | get | search | list | update | delete | retract
+stele extract   Extraction operations:
+                  from-text | from-messages | from-artifact
+stele recall    Run a recall strategy.
+stele stash     Stash an oversize tool output (pipe its raw_output via stdin).
+```
+
+Global flags:
+
+- `--pretty` — indent JSON output (can appear before or after the subcommand)
+- `--namespace NS` — partition data (default `"default"`); accepted by every data-plane subcommand
+
+See [`docs/mcp-tools.md`](mcp-tools.md) for the canonical schema of every operation; the CLI and MCP shapes are identical because both call into `bind_handlers()` over the same `Stele` instance.
 
 ## `stele init`
 
@@ -148,6 +174,121 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 ```
 
 The server loads `.stele/config.yaml` via the same walk-up + user-global resolution as the CLI. If no config exists anywhere, it falls back to the in-memory backend (good for tests; useless for real agent work).
+
+## Data-plane subcommands
+
+The seventeen data-plane subcommands mirror the eighteen MCP tools (`stele_stash_tool_result` is exposed as `stele stash`). Every command emits JSON to stdout; structured errors are returned with a non-zero exit code so scripts can branch on success/failure.
+
+For the canonical schema of each operation (inputs, response shape, edge cases, notes on `content_type` enum values, etc.), see [`docs/mcp-tools.md`](mcp-tools.md). The reference below is just the shell ergonomics.
+
+### Artifact surface
+
+```bash
+# Store text from a flag or stdin
+stele store --text "the team uses Postgres 17" --content-type text
+echo "free-text body" | stele store --text - --content-type text
+
+# Fetch by reference
+stele fetch stele://default/abc123...
+
+# Search within a single artifact
+stele search stele://default/abc123... "query" --mode hybrid --limit 5
+
+# Cross-artifact query against the chunk index
+stele query "postgres" --namespace prod --mode hybrid
+
+# List + delete
+stele list --namespace prod --limit 50
+stele delete stele://default/abc123...
+```
+
+`--content-type` is the `ContentType` literal enum (`text`, `json`, `markdown`, `code`, `code_diff`, `csv`, `sql`, `log`, `html`, `table`, `blob`), not a MIME string.
+
+### Memory surface
+
+```bash
+stele memory add "Project uses Postgres 17" \
+    --source-ref stele://default/abc123... \
+    --kind fact \
+    --confidence 1.0
+
+stele memory get MEMORY_ID
+
+stele memory search "postgres" --as-of 2026-05-01T00:00:00Z --limit 10
+stele memory search "postgres" --include-superseded
+
+stele memory list --status active --limit 50
+
+stele memory update MEMORY_ID --metadata '{"reviewed_by":"me"}'
+
+stele memory delete MEMORY_ID                  # soft delete
+stele memory retract MEMORY_ID --reason "fact was wrong"
+
+# Supersede a previous memory in one step
+stele memory add "Project upgraded to Postgres 18" \
+    --source-ref stele://default/def456... \
+    --supersedes MEMORY_ID_OLD
+```
+
+### Extraction surface
+
+```bash
+stele extract from-text \
+    --text "Decision: standardize on Postgres 17 as of 2026-05." \
+    --source-ref stele://default/...
+
+cat conversation.json | stele extract from-messages --input -
+
+stele extract from-artifact stele://default/abc123...
+```
+
+`from-messages` expects a JSON array of `{"role": "...", "content": "..."}` objects, either passed via `--input FILE` or piped on stdin.
+
+### Recall
+
+```bash
+stele recall "what postgres version are we on" \
+    --strategy memory_search \
+    --as-of 2026-05-15T00:00:00Z
+
+stele recall "summarize the launch decision" \
+    --strategy adaptive \
+    --max-memory-hits 5 \
+    --max-artifact-hits 3
+```
+
+Strategies: `summary_only` · `memory_search` · `artifact_search` · `adaptive` · `raw_fetch` · `abstain` · `graph_search` (requires the `postgres-graph` extra on a Postgres backend).
+
+### Interception (stash)
+
+```bash
+# Pipe oversize output through the interception path
+git log --all --pretty=format:"%h %s" | head -200 | stele stash Bash -
+
+# Or pass a file:
+stele stash MyTool --input /tmp/huge-output.txt
+```
+
+If the input is over the threshold (`mcp.stash_threshold_tokens` in `.stele/config.yaml`, default 4096), Stele stores the exact bytes, generates a summary via the `lede` extractive summarizer, and returns a `stele://` ref plus the summary. Below the threshold, the output passes through.
+
+### Common patterns
+
+**Round-trip a fact (shell):**
+
+```bash
+REF=$(stele store --text "smoke test fact" --content-type text | jq -r .ref)
+MID=$(stele memory add "smoke test fact" --source-ref "$REF" | jq -r .memory_id)
+stele memory search "smoke" --pretty
+```
+
+**Verify the MCP server matches the CLI:**
+
+```bash
+stele memory search "smoke"                                # via CLI
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"stele_memory_search","arguments":{"query":"smoke"}}}' | stele-mcp   # via MCP
+```
+
+Both produce the same JSON body.
 
 ## Troubleshooting
 

@@ -103,13 +103,47 @@ A working stele install will: store the text, add a memory citing the ref, searc
 
 ## 6. Try the runnable tour
 
-Outside the agent, you can exercise all 18 tools without restarting anything:
+Outside the agent, you can exercise the data plane two ways without restarting anything.
+
+**Python (calls handlers directly, JSON output):**
 
 ```bash
 python examples/mcp_tour.py
 ```
 
-This calls every tool against an in-memory Stele and prints request + response. Good for understanding what each tool does without committing to an agent loop.
+**Shell (calls the `stele` CLI for the same 18 operations):**
+
+```bash
+bash examples/cli_tour.sh
+```
+
+Both cover the same surface and produce comparable output. The Python version is closer to how an MCP client sees things; the shell version is closer to how a CI script or a scripted agent loop would call stele.
+
+## 7. Skip the agent — use the CLI directly
+
+You can do everything the agent does from a shell. The `stele` binary has 17 data-plane subcommands mirroring the MCP tools:
+
+```bash
+# Store an artifact
+REF=$(stele store --text "Project uses Postgres 17" --content-type text | jq -r .ref)
+
+# Add a memory citing it
+stele memory add "Database is Postgres 17" --source-ref "$REF"
+
+# Search memory
+stele memory search "postgres" --pretty
+
+# Time-travel
+stele memory search "postgres" --as-of 2026-03-01T00:00:00Z
+
+# Stash an oversize tool output
+git log --all | head -500 | stele stash Bash -
+
+# Run a recall strategy
+stele recall "what database are we using" --strategy memory_search --pretty
+```
+
+The CLI and the MCP server share one engine — `bind_handlers()` in `src/stele/mcp/tools.py` — so the JSON shapes are identical. Useful for shell scripts, CI, debugging the agent's behavior, or wiring stele into a non-MCP-capable agent. See [`docs/cli-guide.md`](cli-guide.md) for the full command reference and [`docs/mcp-tools.md`](mcp-tools.md) for the canonical schema per operation.
 
 ## What next
 

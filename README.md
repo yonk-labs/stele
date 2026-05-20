@@ -85,7 +85,13 @@ The current runnable slice includes:
 
 - `stele-mcp` stdio MCP server — full 18-tool read/write surface over the
   `Stele` facade with sanitized egress and structured error codes
-- `stele` CLI — `init` / `install` / `uninstall` / `status` / `doctor` / `mcp`
+- `stele` CLI — two groups of subcommands:
+  - **operator**: `init` / `install` / `uninstall` / `status` / `doctor` / `mcp`
+  - **data plane**: `store` / `fetch` / `search` / `query` / `list` / `delete`
+    / `memory {add,get,search,list,update,delete,retract}` / `extract
+    {from-text,from-messages,from-artifact}` / `recall` / `stash` — same 18
+    operations the MCP server exposes, callable from a shell with identical
+    JSON shapes (same `bind_handlers()` engine under both)
 - one-table routing (`PLATFORM_CONFIG`) for 7 launch agent platforms: Claude
   Code, Codex, OpenCode, Cursor, Gemini CLI, Copilot, Aider
 - single Jinja template per content type (skill, agents-md section, hooks,
@@ -203,9 +209,9 @@ content renders from a single Jinja template; no per-platform duplication.
 for other tools are preserved.
 
 - **5-minute quickstart**: [docs/quickstart.md](docs/quickstart.md)
-- Full tool reference: [docs/mcp-tools.md](docs/mcp-tools.md)
+- Full tool reference (MCP + CLI equivalents): [docs/mcp-tools.md](docs/mcp-tools.md)
 - CLI guide + troubleshooting: [docs/cli-guide.md](docs/cli-guide.md)
-- Runnable per-tool tour: [examples/mcp_tour.py](examples/mcp_tour.py)
+- Runnable tours: [examples/mcp_tour.py](examples/mcp_tour.py) (Python/MCP) · [examples/cli_tour.sh](examples/cli_tour.sh) (shell/CLI)
 - Auth model (stdio-only, local-trusted): [docs/packaging-auth-model.md](docs/packaging-auth-model.md)
 - Manual smoke before releases: [docs/packaging-smoke-checklist.md](docs/packaging-smoke-checklist.md)
 

@@ -2,6 +2,8 @@
 
 This document is the **ground-truth reference** for the 18 tools the `stele-mcp` server exposes to MCP-capable agents. Schemas, types, and examples are derived from `src/stele/mcp/tools.py` — not from the design spec, which the implementation diverged from in deliberate ways (see [§ Drift from spec](#drift-from-spec)).
 
+**Every tool has a CLI equivalent.** The `stele` binary's data-plane subcommands call the same `bind_handlers()` engine over the same `Stele` instance and emit the same JSON shapes. Pick whichever surface fits the moment — MCP for agent-driven calls, CLI for shell scripts, pipelines, and debugging. See the [Tool table](#tool-table) for the mapping and [`docs/cli-guide.md`](cli-guide.md) for the full CLI command reference with flags.
+
 - **Transport:** stdio only (v1).
 - **Server:** `stele-mcp` (or `stele mcp` — same code path).
 - **Auth:** none (local-trusted boundary; see [`docs/packaging-auth-model.md`](packaging-auth-model.md)).
@@ -12,26 +14,28 @@ This document is the **ground-truth reference** for the 18 tools the `stele-mcp`
 
 ### Tool table
 
-| Tool | Purpose | Required inputs |
-|---|---|---|
-| [`stele_store`](#stele_store) | Store bytes/text behind a `stele://` reference. | `payload` |
-| [`stele_fetch`](#stele_fetch) | Resolve a `stele://` ref to its bytes + summary. | `ref` |
-| [`stele_search`](#stele_search) | Search within an artifact via the configured retrieval backend. | `ref`, `query` |
-| [`stele_query`](#stele_query) | Query the chunk index (vector/hybrid when configured). | `query` |
-| [`stele_list`](#stele_list) | List stored artifacts in a namespace. | — |
-| [`stele_delete`](#stele_delete) | Delete an artifact by reference. | `ref` |
-| [`stele_memory_add`](#stele_memory_add) | Add a memory record citing `source_refs`. | `text`, `source_refs` |
-| [`stele_memory_get`](#stele_memory_get) | Fetch a memory record by id. | `memory_id` |
-| [`stele_memory_search`](#stele_memory_search) | Search memory with optional `as_of` time travel. | `query` |
-| [`stele_memory_list`](#stele_memory_list) | List memory records (with `as_of`, `status_filter`). | — |
-| [`stele_memory_update`](#stele_memory_update) | Update memory metadata. Text changes rejected. | `memory_id` |
-| [`stele_memory_delete`](#stele_memory_delete) | Soft-delete a memory record. | `memory_id` |
-| [`stele_memory_retract`](#stele_memory_retract) | Retract with reason (preserves audit). | `memory_id`, `reason` |
-| [`stele_extract_from_text`](#stele_extract_from_text) | Run extraction on free text. | `text`, `source_refs` |
-| [`stele_extract_from_messages`](#stele_extract_from_messages) | Extract from chat messages. | `messages` |
-| [`stele_extract_from_artifact`](#stele_extract_from_artifact) | Extract from a stored artifact. | `ref` |
-| [`stele_recall`](#stele_recall) | Run a recall strategy over memory + artifacts. | `query` |
-| [`stele_stash_tool_result`](#stele_stash_tool_result) | Route oversize tool output through interception. | `tool_name`, `raw_output` |
+| MCP tool | CLI equivalent | Purpose | Required inputs |
+|---|---|---|---|
+| [`stele_store`](#stele_store) | `stele store --text TEXT` (or `-` for stdin) | Store bytes/text behind a `stele://` reference. | `payload` |
+| [`stele_fetch`](#stele_fetch) | `stele fetch REF` | Resolve a `stele://` ref to its bytes + summary. | `ref` |
+| [`stele_search`](#stele_search) | `stele search REF QUERY` | Search within an artifact via the configured retrieval backend. | `ref`, `query` |
+| [`stele_query`](#stele_query) | `stele query QUERY` | Query the chunk index (vector/hybrid when configured). | `query` |
+| [`stele_list`](#stele_list) | `stele list` | List stored artifacts in a namespace. | — |
+| [`stele_delete`](#stele_delete) | `stele delete REF` | Delete an artifact by reference. | `ref` |
+| [`stele_memory_add`](#stele_memory_add) | `stele memory add TEXT --source-ref REF` | Add a memory record citing `source_refs`. | `text`, `source_refs` |
+| [`stele_memory_get`](#stele_memory_get) | `stele memory get MEMORY_ID` | Fetch a memory record by id. | `memory_id` |
+| [`stele_memory_search`](#stele_memory_search) | `stele memory search QUERY` | Search memory with optional `as_of` time travel. | `query` |
+| [`stele_memory_list`](#stele_memory_list) | `stele memory list` | List memory records (with `as_of`, `status_filter`). | — |
+| [`stele_memory_update`](#stele_memory_update) | `stele memory update MEMORY_ID --metadata JSON` | Update memory metadata. Text changes rejected. | `memory_id` |
+| [`stele_memory_delete`](#stele_memory_delete) | `stele memory delete MEMORY_ID` | Soft-delete a memory record. | `memory_id` |
+| [`stele_memory_retract`](#stele_memory_retract) | `stele memory retract MEMORY_ID --reason REASON` | Retract with reason (preserves audit). | `memory_id`, `reason` |
+| [`stele_extract_from_text`](#stele_extract_from_text) | `stele extract from-text --text TEXT --source-ref REF` | Run extraction on free text. | `text`, `source_refs` |
+| [`stele_extract_from_messages`](#stele_extract_from_messages) | `stele extract from-messages --input FILE` | Extract from chat messages. | `messages` |
+| [`stele_extract_from_artifact`](#stele_extract_from_artifact) | `stele extract from-artifact REF` | Extract from a stored artifact. | `ref` |
+| [`stele_recall`](#stele_recall) | `stele recall QUERY` | Run a recall strategy over memory + artifacts. | `query` |
+| [`stele_stash_tool_result`](#stele_stash_tool_result) | `<cmd> \| stele stash TOOL_NAME -` | Route oversize tool output through interception. | `tool_name`, `raw_output` |
+
+All CLI commands accept a `--namespace NS` flag (default `"default"`), a `--pretty` flag for indented JSON output (can appear before or after the subcommand), and JSON-formatted responses on stdout. Non-zero exit code means the response payload contains an `error` object — same shape as the MCP error model.
 
 ### Common concepts
 
