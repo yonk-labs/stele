@@ -453,10 +453,12 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
     def extract_from_artifact(
         ref: str, namespace: str | None = None
     ) -> dict[str, Any]:
-        # Facade takes artifact_id, not full ref. Strip prefix if given.
-        artifact_id = ref.rsplit("/", 1)[-1] if "://" in ref else ref
+        # Pass the full stele:// ref through; the facade parses it and
+        # resolves the correct namespace. (Previously we stripped to a bare
+        # artifact_id, which made the facade fall back to namespace="default"
+        # and silently miss non-default artifacts.)
         report = stele.extract.from_artifact(
-            artifact_id=artifact_id,
+            artifact_id=ref,
             scope=_build_scope(namespace),
         )
         return {"report": _to_jsonable(report)}
