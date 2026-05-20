@@ -31,7 +31,14 @@ stele --help
 stele-mcp --help  # exits after printing usage
 ```
 
-## 2. Initialize a project
+## 2. Runtime model — what runs where
+
+Before you wire stele into an agent, two things to know:
+
+- **`stele-mcp` is a stdio MCP server, not an HTTP daemon.** No port to open, no service to keep alive. The agent (Claude Code, Codex, Cursor, etc.) spawns it per session over stdin/stdout. If you're looking for "where do I check the logs," there isn't a server log — output goes to the agent's MCP transcript.
+- **Config resolution is current-working-directory relative.** `stele` and `stele-mcp` look for `.stele/config.yaml` by walking up from CWD; if none is found, they fall back to `~/.config/stele/config.yaml`; if that's also missing, you get an ephemeral in-memory store with no persistence. **Launching an agent from a different directory can silently use a different (or no) memory store.** Keep one config per project and start the agent from the project root.
+
+## 3. Initialize a project
 
 In your project directory:
 
@@ -54,7 +61,9 @@ stele doctor
 # stele doctor: ok (.stele/config.yaml) — backend=sqlite capabilities=StashCapabilities(...)
 ```
 
-## 3. Install the agent integration
+`stele doctor` also pre-checks that the optional extra for your backend is installed — e.g. `pip install 'stele-core[postgres]'` for `backend.type: postgres`. If anything's missing, it prints the exact `pip install` line you need.
+
+## 4. Install the agent integration
 
 ```bash
 stele install --platform claude-code
@@ -80,14 +89,14 @@ To see what's installed where:
 stele status
 ```
 
-## 4. Restart your agent
+## 5. Restart your agent
 
 Claude Code, Codex, Cursor, etc. load skills + MCP server lists at startup. Quit and re-open. After restart:
 
 - The agent's `/skills` list (or equivalent) should include `stele`.
 - The MCP server connects on first tool call.
 
-## 5. Verify the round-trip (in the agent)
+## 6. Verify the round-trip (in the agent)
 
 In your agent, paste this prompt:
 
@@ -101,7 +110,7 @@ Use the stele MCP to:
 
 A working stele install will: store the text, add a memory citing the ref, search and find it, and quote the original ref back. If any step fails, see [Troubleshooting in `cli-guide.md`](cli-guide.md#troubleshooting).
 
-## 6. Try the runnable tour
+## 7. Try the runnable tour
 
 Outside the agent, you can exercise the data plane two ways without restarting anything.
 
@@ -119,7 +128,7 @@ bash examples/cli_tour.sh
 
 Both cover the same surface and produce comparable output. The Python version is closer to how an MCP client sees things; the shell version is closer to how a CI script or a scripted agent loop would call stele.
 
-## 7. Skip the agent — use the CLI directly
+## 8. Skip the agent — use the CLI directly
 
 You can do everything the agent does from a shell. The `stele` binary has 17 data-plane subcommands mirroring the MCP tools:
 
