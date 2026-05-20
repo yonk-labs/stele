@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# stele large-output reminder hook for Claude Code.
+# Prints a stderr nudge when tool output looks large. Never blocks.
+# Fires silently if .stele/config.yaml is absent in the current tree.
+
+set -eu
+TOOL_NAME="${CLAUDE_TOOL_NAME:-}"
+OUTPUT_LEN="${CLAUDE_TOOL_OUTPUT_LEN:-0}"
+THRESHOLD={{ stash_threshold }}
+
+case "$TOOL_NAME" in
+  Bash|Read) ;;
+  *) exit 0 ;;
+esac
+
+if [ "${OUTPUT_LEN:-0}" -lt "$THRESHOLD" ]; then
+  exit 0
+fi
+
+if [ ! -f ".stele/config.yaml" ] && [ ! -f "$HOME/.config/stele/config.yaml" ]; then
+  exit 0
+fi
+
+echo "[stele] tool output ${OUTPUT_LEN} bytes (>${THRESHOLD}); consider stele_stash_tool_result to swap for a stele:// ref." >&2
+exit 0

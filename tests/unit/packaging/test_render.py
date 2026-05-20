@@ -7,6 +7,7 @@ import pytest
 from stele.packaging.platforms import PLATFORM_CONFIG
 from stele.packaging.render import (
     render_agents_md_section,
+    render_hook,
     render_mcp_server_config,
     render_skill,
 )
@@ -51,3 +52,28 @@ def test_mcp_server_config_is_valid_json(name: str) -> None:
 def test_unknown_platform_raises() -> None:
     with pytest.raises(KeyError):
         render_skill("not-a-platform")
+
+
+HOOK_PLATFORMS = ["claude-code", "gemini-cli", "opencode", "cursor"]
+NO_HOOK_PLATFORMS = ["codex", "copilot", "aider"]
+
+
+@pytest.mark.parametrize("name", HOOK_PLATFORMS)
+def test_hook_renders_for_supported_platforms(name: str) -> None:
+    out = render_hook(name)
+    assert out is not None
+    assert "{{" not in out
+    assert "{%" not in out
+    assert "stele" in out.lower()
+
+
+@pytest.mark.parametrize("name", NO_HOOK_PLATFORMS)
+def test_no_hook_returns_none(name: str) -> None:
+    assert render_hook(name) is None
+
+
+def test_gemini_hook_is_valid_json() -> None:
+    out = render_hook("gemini-cli")
+    assert out is not None
+    parsed = json.loads(out)
+    assert "tools" in parsed or "beforeTool" in parsed or isinstance(parsed, dict)
