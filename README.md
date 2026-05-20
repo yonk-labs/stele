@@ -81,6 +81,23 @@ The current runnable slice includes:
 - every memory cites the `stele://` evidence that produced it; PII scrubbing
   is inherited end to end and never duplicated
 
+**Lifecycle primitives**
+
+- `Stele.purge_namespace(namespace, *, dry_run)` — hard-deletes artifacts,
+  memory rows (live + historical), chunk-index entries, and revisor-projected
+  evidence in one call. GDPR-style operator primitive; idempotent;
+  `dry_run=True` returns counts without mutating
+- `Stele.export_namespace(namespace, path)` + `Stele.import_namespace(path)`
+  — portable v2 JSONL bundle. Artifact content + memory rows +
+  supersession chain round-trip byte-identical. Chunks and revisor projections
+  rebuild from artifacts on import
+
+**Bulk-write API**
+
+- `Stele.store_many(items)` and `Memory.add_many(items)` — N-row writes in
+  one transaction. **~10× postgres speedup at N=1000** vs per-row baseline.
+  Microbench: `stele-bulk-write-bench`
+
 **Multi-platform packaging**
 
 - `stele-mcp` stdio MCP server — full 18-tool read/write surface over the

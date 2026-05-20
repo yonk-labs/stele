@@ -385,6 +385,22 @@ stele init
 stele install --platform claude-code
 ```
 
+## Library-only surfaces (not yet exposed as CLI/MCP)
+
+The Python facade has surfaces that the CLI and MCP server don't expose yet.
+Use them via `import stele` until follow-up CLI/MCP tickets land.
+
+| Method | What |
+|---|---|
+| `Stele.purge_namespace(namespace, *, dry_run=False) → PurgeReport` | Hard-delete every artifact, memory row, chunk-index entry, and revisor-projected evidence row in `namespace`. GDPR / lifecycle primitive. Idempotent. `dry_run=True` returns counts without mutating. |
+| `Stele.export_namespace(namespace, path)` | Write a portable v2 JSONL bundle for the namespace (artifacts + memory rows with the supersession chain). |
+| `Stele.import_namespace(path)` | Restore a v2 bundle. Artifacts re-route through the indexer so chunks rebuild; memory rows insert byte-identical with status/supersedes/effective_until preserved. |
+| `Stele.store_many(items: list[StoreRequest]) → list[StoredResult]` | Bulk artifact write. One transaction, one server round-trip. ~10× postgres speedup at N=1000. |
+| `Memory.add_many(items: list[AddRequest]) → list[MemoryAddResult]` | Bulk memory write. Same shape and per-row semantics as `add()`. |
+| `recall(..., supersession_behavior="hide" | "prefer_new" | "surface_both")` | Per-call override on `graph_search` recall strategy (mirrors the per-call `retracted_behavior` shape). |
+
+Microbench for the bulk path: `stele-bulk-write-bench` (or `python -m benchmarks.bulk_write`).
+
 ## See also
 
 - [`docs/quickstart.md`](quickstart.md) — 5-minute happy path.
