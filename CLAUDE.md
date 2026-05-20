@@ -63,6 +63,9 @@ indexing/  optional Chunkshop chunk index for targeted span retrieval (sync/asyn
 interception/  `stash_tool_result(...)` wrapper that detects oversized tool output and swaps in a reference + summary
 extraction/    Phase 2 — pure `extract_candidates` core + `MemoryExtractor` orchestrator; `Stele.extract`
 recall/        Phase 3 — `Strategy` Protocol + 6 real strategies + adaptive + `Recall` callable facade; `Stele.recall`
+mcp/           stdio MCP server — 18-tool surface over the Stele facade; `stele-mcp` console script
+cli/           `stele` binary — init/install/uninstall/doctor/status/mcp subcommands
+packaging/     Jinja-rendered skill/hook/section content + `PLATFORM_CONFIG` for 7 launch platforms
 ```
 
 The sovereign-memory subsystems (Phases 1–3) sit on top of the artifact

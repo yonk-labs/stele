@@ -84,6 +84,18 @@ Source of truth for each slice:
   `docs/superpowers/specs/2026-05-17-phase5-SC-to-test-map.md`. See
   [living-knowledge-setup.md](living-knowledge-setup.md).
 
+### Packaging — Multi-platform MCP + slash-skill (2026-05-20, branch `feat/multiplatform-packaging`)
+
+- `stele-mcp` stdio server with the full 18-tool surface (`store`/`fetch`/`search`/`query`/`list`/`delete` + `memory_*` × 7 + `extract_*` × 3 + `recall` + `stash_tool_result`). Sanitized egress + structured `McpError` codes.
+- `stele` CLI: `init`, `install`, `uninstall`, `status`, `doctor`, `mcp`.
+- Seven launch platforms driven by `src/stele/packaging/platforms.py:PLATFORM_CONFIG`:
+  Claude Code, Codex, OpenCode, Cursor, Gemini CLI, Copilot, Aider.
+- One Jinja template per content type (skill, agents-md section, mcp.json, four hook variants); per-platform render via dict lookup. No duplicated skill files.
+- Idempotent shared-doc section editing (CLAUDE.md / AGENTS.md / GEMINI.md) with marker + next-H2 pattern; refuses to act on ambiguous double-marker corruption.
+- Spec: `docs/superpowers/specs/2026-05-20-stele-multiplatform-packaging-design.md`.
+- Plan: `docs/superpowers/plans/2026-05-20-stele-multiplatform-packaging.md`.
+- Smoke: `docs/packaging-smoke-checklist.md`. Auth model: `docs/packaging-auth-model.md`.
+
 ## What's next (authoritative — order-of-operations §2)
 
 | Phase | Scope |
