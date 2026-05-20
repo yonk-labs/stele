@@ -54,6 +54,13 @@ class Revisor(Protocol):
         self, *, stele_ref: str, reason: str = "", retracted_at: datetime | None = None
     ) -> int: ...
 
+    def purge_namespace(self, namespace: str) -> int:
+        """Hard-delete every projected evidence row (documents, facts,
+        relationships, entities, document_versions) in ``namespace``.
+        Returns a count representative of the deletion (typically the
+        document count). Used by :meth:`Stele.purge_namespace` (#8b)."""
+        ...
+
     def search_current(
         self,
         query: str,
@@ -103,6 +110,9 @@ class NoOpRevisor:
     def retract(
         self, *, stele_ref: str, reason: str = "", retracted_at: datetime | None = None
     ) -> int:
+        return 0
+
+    def purge_namespace(self, namespace: str) -> int:
         return 0
 
     def search_current(

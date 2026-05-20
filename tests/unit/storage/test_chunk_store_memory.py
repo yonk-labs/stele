@@ -9,12 +9,14 @@ from stele.core.config import IndexingConfig
 from stele.storage.chunk_store.memory import InProcessChunkStore
 
 
-def _artifact(text: str, artifact_id: str = "aid1") -> ArtifactRecord:
+def _artifact(
+    text: str, artifact_id: str = "aid1", namespace: str = "default"
+) -> ArtifactRecord:
     now = datetime.now(UTC)
     return ArtifactRecord(
         artifact_id=artifact_id,
-        reference=f"stele://default/{artifact_id}",
-        namespace="default",
+        reference=f"stele://{namespace}/{artifact_id}",
+        namespace=namespace,
         session_id=None,
         content=text,
         content_encoding="utf-8",
@@ -104,3 +106,27 @@ def test_chunkshop_backed_store_asserts_pii_at_write_boundary(tmp_path) -> None:
     with pytest.raises(BackendError, match="PII"):
         store.write(art)
     store.close()
+
+
+def test_in_process_delete_namespace_drops_target_only() -> None:
+    """Per #8b — chunk store must purge by namespace, leaving others intact."""
+    store = InProcessChunkStore(IndexingConfig())
+    store.write(_artifact("alphacontent only here", artifact_id="aa", namespace="ns_a"))
+    store.write(_artifact("alphacontent also here", artifact_id="ab", namespace="ns_a"))
+    store.write(_artifact("betacontent elsewhere", artifact_id="ba", namespace="ns_b"))
+
+    removed = store.delete_namespace("ns_a")
+
+    assert removed == 2
+    # ns_b survivor intact (unique token).
+    assert store.keyword_search("betacontent", limit=5)
+    # ns_a's unique token has no remaining hits.
+    assert store.keyword_search("alphacontent", limit=5) == []
+
+
+def test_in_process_delete_namespace_idempotent_when_absent() -> None:
+    store = InProcessChunkStore(IndexingConfig())
+    store.write(_artifact("solotoken", artifact_id="sa", namespace="ns_a"))
+    assert store.delete_namespace("ns_other") == 0
+    # Original ns_a row intact.
+    assert store.keyword_search("solotoken", limit=5)

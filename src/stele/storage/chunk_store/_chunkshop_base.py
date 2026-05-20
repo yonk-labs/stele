@@ -143,6 +143,18 @@ class ChunkshopChunkStore:
             if rec[1] != reference
         }
 
+    def delete_namespace(self, namespace: str) -> int:
+        # Walk the retained-chunks map to collect refs whose metadata
+        # records this namespace. The metadata dict is shared per ref
+        # (set at write()), so any chunk's meta represents its ref.
+        refs: set[str] = {
+            ref for _cid, (_text, ref, meta) in self._chunks.items()
+            if meta.get("namespace") == namespace
+        }
+        for ref in refs:
+            self.delete(ref)
+        return len(refs)
+
     def vector_search(
         self, query: str, *, limit: int, reference: str | None = None
     ) -> list[SearchHit]:

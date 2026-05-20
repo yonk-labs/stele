@@ -60,6 +60,16 @@ class InProcessChunkStore:
             self._embeddings.pop(chunk.chunk_id, None)
         self._index.delete(reference)
 
+    def delete_namespace(self, namespace: str) -> int:
+        refs = [
+            ref
+            for ref, chunks in self._chunks.items()
+            if chunks and chunks[0].namespace == namespace
+        ]
+        for ref in refs:
+            self.delete(ref)
+        return len(refs)
+
     def keyword_search(
         self, query: str, *, limit: int, reference: str | None = None
     ) -> list[SearchHit]:

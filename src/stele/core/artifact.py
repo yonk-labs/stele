@@ -179,8 +179,11 @@ class PurgeReport(BaseModel):
     """Result of :meth:`Stele.purge_namespace`.
 
     Counts are per-subsystem. ``artifacts`` and ``memories`` are always
-    populated; subsystem fields default to 0 when the surface is absent or
-    a chunk-index / revisor purge is implemented in a later slice.
+    populated; ``chunks`` is the number of artifact references whose
+    chunks were removed from the chunk index (0 when no chunk index is
+    configured); ``graph_evidence`` is the document count removed from
+    the Revisor projection (0 when no Revisor is active).
+
     A ``dry_run`` purge returns the same shape but mutates nothing.
     """
 
@@ -188,5 +191,7 @@ class PurgeReport(BaseModel):
     dry_run: bool
     artifacts: int
     memories: int
+    chunks: int = 0
+    graph_evidence: int = 0
 
 

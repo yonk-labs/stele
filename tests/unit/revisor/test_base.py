@@ -23,4 +23,5 @@ def test_noop_revisor_is_inactive_and_inert() -> None:
                           as_of=datetime.now(UTC),
                           retracted_behavior="hide",
                           version_filter=None) == []
+    assert r.purge_namespace("ns") == 0
     r.close()
