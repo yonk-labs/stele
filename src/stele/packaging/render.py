@@ -44,7 +44,7 @@ def _tool_reference_table() -> str:
     """
     tools: list[object] = []
     try:
-        from stele.mcp.tools import TOOLS  # type: ignore[import-not-found]
+        from stele.mcp.tools import TOOLS
 
         tools = list(TOOLS)
     except ImportError:
