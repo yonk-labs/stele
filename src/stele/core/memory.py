@@ -39,6 +39,20 @@ class Memory:
     def _mem_ref(record: MemoryRecord) -> str:
         return f"stele://{record.scope.namespace}/mem-{record.id}"
 
+    @staticmethod
+    def _evidence_ref(record: MemoryRecord) -> str:
+        """Stable pg-raggraph documents.source_path for this memory.
+
+        Memory.add enforces source_refs non-empty, so source_refs[0] is
+        normally the path. The synthetic mem-ref is a defensive fallback.
+        ALL revisor operations (ingest, supersede, retract) must use the
+        SAME ref so pg-raggraph's joins find the same row. Issue #4: the
+        BUG-4 fix flipped only the supersede side to source_refs[0];
+        this routes ingest + retract through the same choice."""
+        if record.source_refs:
+            return record.source_refs[0]
+        return Memory._mem_ref(record)
+
     def add(
         self,
         *,
@@ -73,7 +87,7 @@ class Memory:
         stored, superseded_ids = self._store.add(record, supersedes_ids)
         if self._revisor.active:
             self._revisor.ingest_evidence(
-                stele_ref=self._mem_ref(stored),
+                stele_ref=self._evidence_ref(stored),
                 text=stored.text,
                 namespace=stored.scope.namespace,
                 effective_from=stored.effective_from,
@@ -163,7 +177,7 @@ class Memory:
         self._store.set_retracted(memory_id, when)
         if self._revisor.active:
             self._revisor.retract(
-                stele_ref=self._mem_ref(existing),
+                stele_ref=self._evidence_ref(existing),
                 reason=reason,
                 retracted_at=when,
             )

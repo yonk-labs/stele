@@ -109,7 +109,10 @@ def test_retract_honors_policy_hide_flag_surface_both() -> None:
         scope=scope,
     )
     s.memory.retract(m.record.id, reason="retracted by journal")
-    ref = f"stele://{ns}/mem-{m.record.id}"
+    # Issue #4: the graph cites the user's source_ref (not a synthetic
+    # mem-ref) — symmetric with ingest_evidence and the BUG-4 supersede
+    # projection. The retraction's graph row is keyed by source_refs[0].
+    ref = f"stele://{ns}/study-x"
     hide = s.recall(
         query="does compound Z prevent disease",
         scope=scope,

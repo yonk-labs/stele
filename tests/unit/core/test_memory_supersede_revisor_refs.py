@@ -56,3 +56,38 @@ def test_supersede_projects_real_document_refs_not_synthetic_mem_refs():
     assert "/mem-" not in old_ref and "/mem-" not in new_ref
     assert reason == "superseded"
     s.close()
+
+
+def test_ingest_and_supersede_use_the_same_evidence_ref():
+    """Issue #4: ingest_evidence and the supersede projection MUST join
+    the same pg-raggraph documents.source_path. BUG-4 (ed67469) flipped
+    supersede to use source_refs[0]; this test locks ingest to the same
+    choice so the live join finds the document we wrote.
+    """
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    spy = _SpyRevisor()
+    s._revisor = spy
+
+    ns = "issue4"
+    scope = MemoryScope(namespace=ns)
+    art1 = s.store("Acme uses kafka.", namespace=ns)
+    m1 = s.memory.add(text="kafka", kind="fact",
+                      source_refs=[art1.reference], scope=scope)
+    art2 = s.store("Acme migrated to redpanda.", namespace=ns)
+    s.memory.add(text="redpanda", kind="fact",
+                 source_refs=[art2.reference], scope=scope,
+                 supersedes=[m1.record.id])
+
+    # Stele.store() ingests evidence with stele_ref=artifact.reference,
+    # and Memory.add() then ingests with the SAME ref (post-fix) instead
+    # of the synthetic mem-ref. The key invariants:
+    #   1. NO synthetic mem-ref ever reaches the graph.
+    #   2. Memory.add's ingest uses the SAME ref the supersede projection
+    #      will read (source_refs[0]) so pg-raggraph's join finds the row.
+    # pg-raggraph dedupes ingests by source_path, so duplicate ingests of
+    # the same ref (once from store, once from memory.add) are safe.
+    for ref in spy.ingested:
+        assert "/mem-" not in ref, f"synthetic mem-ref leaked into graph: {ref}"
+    assert art1.reference in spy.ingested, spy.ingested
+    assert art2.reference in spy.ingested, spy.ingested
+    s.close()
