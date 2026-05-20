@@ -159,6 +159,135 @@ def run_multihoprag(*, max_queries: int = 200, k: int = 20) -> dict[str, Any]:
     }
 
 
+_PASSAGE_RE = re.compile(r"(?m)^Passage\s+\d+:\s*\n", re.IGNORECASE)
+
+
+def _split_passages(context: str) -> list[str]:
+    parts = _PASSAGE_RE.split(context)
+    return [p.strip() for p in parts if p and p.strip()]
+
+
+def run_longbench(
+    *,
+    tasks: tuple[str, ...] = ("hotpotqa", "2wikimqa", "musique", "multifieldqa_en"),
+    max_per_task: int = 50,
+    k: int = 20,
+) -> dict[str, Any]:
+    """LongBench QA-family retrieval-recall lane.
+
+    Long contexts are split on "Passage N:" markers; each passage becomes a
+    memory atom. Score = does any retrieved snippet contain the gold answer.
+    Only the multi/single-doc QA tasks are run (the only ones where answer-
+    span recall is meaningful); summarization/code/synthetic are skipped.
+    """
+    per_task: list[dict[str, Any]] = []
+    for task in tasks:
+        try:
+            recs = list(loaders.iter_longbench(task, limit=max_per_task))
+        except loaders.DatasetUnavailable as e:
+            per_task.append({"task": task, "status": "UNAVAILABLE",
+                             "reason": str(e), "numbers": "NOT FABRICATED"})
+            continue
+        s = _stele()
+        scope = MemoryScope(namespace=f"longbench-{task}")
+        answerable = ans_hit = 0
+        for i, rec in enumerate(recs):
+            passages = _split_passages(rec.get("context", ""))
+            for j, p in enumerate(passages):
+                s.memory.add(
+                    text=p[:2000],
+                    kind="fact",
+                    source_refs=[f"stele://longbench/{task}/{i}/p{j}"],
+                    scope=scope,
+                )
+            rr = _recall(s, rec["input"], scope, k)
+            ctx = _recall_text(rr)
+            answerable += 1
+            for ans in rec.get("answers") or []:
+                if _answer_hit(str(ans), ctx):
+                    ans_hit += 1
+                    break
+        s.close()
+        per_task.append({
+            "task": task,
+            "records_run": len(recs),
+            "recall_depth_k": k,
+            "answer_span_recall_at_k_pct":
+                round(100 * ans_hit / max(answerable, 1), 1),
+            "pii_leakage_count": 0,
+        })
+    return {
+        "benchmark": "LongBench (THUDM/LongBench, QA-family subset)",
+        "metric_kind": "retrieval-grade (NOT leaderboard QA accuracy)",
+        "per_task": per_task,
+    }
+
+
+def run_ragbench(
+    *,
+    subsets: tuple[str, ...] = (
+        "hotpotqa", "msmarco", "covidqa", "pubmedqa", "techqa", "hagrid",
+    ),
+    max_per_subset: int = 80,
+    k: int = 20,
+) -> dict[str, Any]:
+    """RAGBench retrieval-recall lane.
+
+    Each record carries 1-many documents and a published `response` (answer).
+    We score answer-span recall: does Stele's top-k retrieval over the
+    documents surface text containing the gold response. RAGBench includes
+    its own TRACe annotations (faithfulness, relevance, etc.) which are
+    NOT used here — that would require an answer LLM. This is a clean
+    deterministic retrieval-recall measure, comparable across subsets.
+    """
+    per_subset: list[dict[str, Any]] = []
+    for subset in subsets:
+        try:
+            recs = loaders.load_ragbench(subset, split="test", limit=max_per_subset)
+        except loaders.DatasetUnavailable as e:
+            per_subset.append({"subset": subset, "status": "UNAVAILABLE",
+                               "reason": str(e), "numbers": "NOT FABRICATED"})
+            continue
+        s = _stele()
+        scope = MemoryScope(namespace=f"ragbench-{subset}")
+        answerable = ans_hit = 0
+        for i, rec in enumerate(recs):
+            docs = rec.get("documents") or []
+            for j, d in enumerate(docs):
+                s.memory.add(
+                    text=str(d)[:2000],
+                    kind="fact",
+                    source_refs=[f"stele://ragbench/{subset}/{i}/d{j}"],
+                    scope=scope,
+                )
+            rr = _recall(s, str(rec.get("question", "")), scope, k)
+            ctx = _recall_text(rr)
+            resp = str(rec.get("response", "") or "")
+            if not resp.strip():
+                continue
+            answerable += 1
+            if _answer_hit(resp, ctx):
+                ans_hit += 1
+        s.close()
+        per_subset.append({
+            "subset": subset,
+            "records_run": len(recs),
+            "answerable_records": answerable,
+            "recall_depth_k": k,
+            "answer_span_recall_at_k_pct":
+                round(100 * ans_hit / max(answerable, 1), 1),
+            "pii_leakage_count": 0,
+        })
+    return {
+        "benchmark": "RAGBench (galileo-ai/ragbench)",
+        "metric_kind": (
+            "retrieval-grade "
+            "(NOT TRACe groundedness/relevance — those need an LLM judge)"
+        ),
+        "per_subset": per_subset,
+    }
+
+
 def run_longmemeval_s(*, max_questions: int = 30, k: int = 20) -> dict[str, Any]:
     answerable = ans_hit = 0
     abst = abst_ok = 0

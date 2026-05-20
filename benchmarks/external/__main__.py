@@ -29,11 +29,14 @@ def _safe(fn: Any, **kw: Any) -> dict[str, Any]:
 
 
 def run_all(locomo_samples: int | None, mhr_queries: int,
-            lme_questions: int) -> dict[str, Any]:
+            lme_questions: int, *, longbench_per_task: int = 40,
+            ragbench_per_subset: int = 60) -> dict[str, Any]:
     results = [
         _safe(harness.run_locomo, max_samples=locomo_samples),
         _safe(harness.run_multihoprag, max_queries=mhr_queries),
         _safe(harness.run_longmemeval_s, max_questions=lme_questions),
+        _safe(harness.run_longbench, max_per_task=longbench_per_task),
+        _safe(harness.run_ragbench, max_per_subset=ragbench_per_subset),
     ]
     # honest unavailable entries (loaders raise; recorded, not faked)
     for name, fn in (("CRAG", loaders.load_crag),
@@ -70,9 +73,15 @@ def main() -> None:
     ap.add_argument("--locomo-samples", type=int, default=None)
     ap.add_argument("--mhr-queries", type=int, default=200)
     ap.add_argument("--lme-questions", type=int, default=30)
+    ap.add_argument("--longbench-per-task", type=int, default=40)
+    ap.add_argument("--ragbench-per-subset", type=int, default=60)
     ap.add_argument("--output-root", type=Path, default=Path("benchmarks/runs"))
     a = ap.parse_args()
-    report = run_all(a.locomo_samples, a.mhr_queries, a.lme_questions)
+    report = run_all(
+        a.locomo_samples, a.mhr_queries, a.lme_questions,
+        longbench_per_task=a.longbench_per_task,
+        ragbench_per_subset=a.ragbench_per_subset,
+    )
     out_dir = a.output_root / datetime.now(UTC).strftime("%Y-%m-%d")
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "External.json").write_text(json.dumps(report, indent=2))

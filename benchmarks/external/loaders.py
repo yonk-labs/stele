@@ -6,9 +6,11 @@ that cannot be fetched in this environment raises DatasetUnavailable with
 exact fetch instructions — it is NEVER faked.
 
 Cached & verified fetchable:
-  - LoCoMo            snap-research/locomo  locomo10.json   (~2.7MB)
-  - MultiHop-RAG      yixuantt/MultiHop-RAG (GitHub LFS)     (~12MB)
-  - LongMemEval-S     xiaowu0162/longmemeval longmemeval_s   (~266MB)
+  - LoCoMo            snap-research/locomo  locomo10.json     (~2.7MB)
+  - MultiHop-RAG      yixuantt/MultiHop-RAG (GitHub LFS)       (~12MB)
+  - LongMemEval-S     xiaowu0162/longmemeval longmemeval_s     (~266MB)
+  - LongBench         THUDM/LongBench data.zip                 (~110MB, 21 tasks)
+  - RAGBench          galileo-ai/ragbench parquet              (~MBs/subset, 12 subsets)
 
 NOT fetchable in this sandbox (loader is real, fails loud, runs when data
 is supplied — numbers are NOT fabricated):
@@ -22,6 +24,7 @@ is supplied — numbers are NOT fabricated):
 from __future__ import annotations
 
 import json
+import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -90,6 +93,75 @@ def iter_longmemeval_s(limit: int) -> Iterator[dict[str, Any]]:
         yield obj
         i = end
         n += 1
+
+
+def iter_longbench(task: str, *, limit: int) -> Iterator[dict[str, Any]]:
+    """Stream up to `limit` records from a LongBench task JSONL.
+
+    Each record: {"input": question, "context": long-doc with "Passage N:"
+    markers, "answers": [str, ...], "length": int, "dataset": task}.
+    Only the QA-family tasks are meaningfully retrieval-scoreable here;
+    summarization/code/synthetic tasks are intentionally NOT exposed.
+    """
+    p = _require(
+        CACHE / "longbench" / "data" / f"{task}.jsonl",
+        "Fetch: curl -sL -o benchmarks/.cache/longbench_data.zip "
+        "https://huggingface.co/datasets/THUDM/LongBench/resolve/main/data.zip "
+        "&& unzip -o benchmarks/.cache/longbench_data.zip "
+        "-d benchmarks/.cache/longbench/",
+    )
+    n = 0
+    with p.open(encoding="utf-8") as f:
+        for line in f:
+            if n >= limit:
+                break
+            line = line.strip()
+            if not line:
+                continue
+            yield json.loads(line)
+            n += 1
+
+
+def load_ragbench(subset: str, *, split: str = "test",
+                  limit: int) -> list[dict[str, Any]]:
+    """Load `limit` records from one RAGBench subset/split.
+
+    Schema (real, from galileo-ai/ragbench parquet):
+      id, question, documents (list[str]), response (str), dataset_name.
+
+    Caches the parquet to benchmarks/.cache/ragbench/<subset>_<split>.parquet
+    (gitignored). Requires pyarrow; raises DatasetUnavailable with the
+    install line if missing.
+    """
+    try:
+        import pyarrow.parquet as pq
+    except ImportError as e:
+        raise DatasetUnavailable(
+            "RAGBench loader needs pyarrow. Install: "
+            "uv pip install --python .venv/bin/python pyarrow"
+        ) from e
+
+    cache_dir = CACHE / "ragbench"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    local = cache_dir / f"{subset}_{split}.parquet"
+    if not local.exists():
+        url = (
+            "https://huggingface.co/datasets/galileo-ai/ragbench/"
+            f"resolve/refs%2Fconvert%2Fparquet/{subset}/{split}/0000.parquet"
+        )
+        try:
+            with urllib.request.urlopen(url, timeout=120) as r:  # noqa: S310
+                local.write_bytes(r.read())
+        except Exception as e:  # noqa: BLE001
+            raise DatasetUnavailable(
+                f"RAGBench {subset}/{split} fetch failed from {url}: {e}. "
+                f"Manual: curl -sL -o {local} {url}"
+            ) from e
+    table = pq.read_table(local)  # type: ignore[no-untyped-call]
+    out: list[dict[str, Any]] = []
+    for rec in table.slice(0, min(limit, table.num_rows)).to_pylist():
+        out.append(rec)
+    return out
 
 
 def load_crag() -> Any:
