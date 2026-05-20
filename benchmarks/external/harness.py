@@ -87,6 +87,25 @@ PROFILES: dict[str, dict[str, Any]] = {
             "starves retrieval)."
         ),
     },
+    "graph-multihop": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55453/stele",
+            },
+            "graph": {"enabled": True, "namespace": "stele-graph-multihop"},
+        },
+        "k": 30,
+        "strategy": "graph_search",
+        "notes": (
+            "Multi-hop recipe: postgres + pg-raggraph entity graph + "
+            "strategy='graph_search'. Designed for MultiHop-RAG, "
+            "LongBench musique / 2wikimqa where the gold answer requires "
+            "walking 2+ entity edges. Verified end-to-end on the "
+            "McManaman/Knowsley case 2026-05-20 (recall ~290ms, gpt-5-mini "
+            "answers correctly given the bridging passage)."
+        ),
+    },
 }
 
 

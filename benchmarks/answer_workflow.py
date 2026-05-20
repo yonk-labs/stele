@@ -309,15 +309,16 @@ class OpenAICompatAnswerer:
         max_tokens: int = 512,
     ) -> str:
         # GPT-5 family uses max_completion_tokens + doesn't accept
-        # arbitrary temperature, and burns part of the budget on hidden
-        # reasoning — raise the cap so the visible output fits.
+        # arbitrary temperature, and burns most of the budget on hidden
+        # reasoning — raise the cap to 32K so the visible JSON output
+        # always fits regardless of how much the model "thinks."
         is_gpt5 = model.lower().startswith("gpt-5")
         payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
         }
         if is_gpt5:
-            payload["max_completion_tokens"] = max(max_tokens, 4096)
+            payload["max_completion_tokens"] = max(max_tokens, 32768)
         else:
             payload["temperature"] = 0
             payload["max_tokens"] = max_tokens

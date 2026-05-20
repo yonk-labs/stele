@@ -20,6 +20,7 @@ vendor LongMemEval / LoCoMo headlines (LLM-as-judge, same metric class).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import time
@@ -225,60 +226,89 @@ def run_judge_lane(
     ragbench_items_list = list(_ragbench_items(max_ragbench_per_subset))
 
     rows: list[dict[str, Any]] = []
+    strategy = spec.get("strategy")
+
+    def _safe_ns(raw: str) -> str:
+        """pg-raggraph allows [A-Za-z0-9._-] only, max 64 chars."""
+        sanitized = "".join(
+            c if c.isalnum() or c in "._-" else "-" for c in raw
+        )
+        return sanitized[:64]
+
+    def _fresh(namespace: str) -> tuple[Stele, str]:
+        """Build a Stele with an isolated namespace (postgres+graph needs
+        graph.namespace too) and best-effort-purge prior state. Returns
+        (Stele, sanitized_namespace) so the caller's MemoryScope uses
+        the same sanitized string the graph layer does."""
+        ns = _safe_ns(namespace)
+        c = dict(cfg)
+        if "graph" in c:
+            graph = dict(c["graph"])
+            graph["namespace"] = ns
+            c["graph"] = graph
+        st = Stele.from_config(c)
+        with contextlib.suppress(Exception):
+            st.purge_namespace(ns)
+        return st, ns
 
     # -- LoCoMo (per-sample isolated Stele instances)
     for sid in sorted({i["sample_id"] for i in locomo_items}):
         sample_qs = [i for i in locomo_items if i["sample_id"] == sid]
-        s = Stele.from_config(cfg)
-        scope = MemoryScope(namespace=f"locomo_{sid}")
+        s, ns = _fresh(f"locomo_{sid}")
+        scope = MemoryScope(namespace=ns)
         t0 = time.perf_counter()
         _ingest_locomo(s, scope, sample_qs[0], use_extract=use_extract)
         ingest_ms = (time.perf_counter() - t0) * 1000
         for item in sample_qs:
-            rows.append(_one(item, s, scope, k_eff, answerer, ingest_ms_once=ingest_ms))
-            ingest_ms = 0.0  # only first row in sample carries ingest cost
+            rows.append(_one(item, s, scope, k_eff, answerer,
+                             ingest_ms_once=ingest_ms, strategy=strategy))
+            ingest_ms = 0.0
         s.close()
 
     # -- MHR (single shared corpus → one Stele, all queries)
     if mhr_items_list:
-        s = Stele.from_config(cfg)
-        scope = MemoryScope(namespace="mhr-judge")
+        s, ns = _fresh("mhr-judge")
+        scope = MemoryScope(namespace=ns)
         t0 = time.perf_counter()
         _ingest_mhr(s, scope, mhr_items_list[0])
         ingest_ms = (time.perf_counter() - t0) * 1000
         for item in mhr_items_list:
-            rows.append(_one(item, s, scope, k_eff, answerer, ingest_ms_once=ingest_ms))
+            rows.append(_one(item, s, scope, k_eff, answerer,
+                             ingest_ms_once=ingest_ms, strategy=strategy))
             ingest_ms = 0.0
         s.close()
 
     # -- LME (per-question isolated)
-    for item in lme_items_list:
-        s = Stele.from_config(cfg)
-        scope = MemoryScope(namespace="lme-judge")
+    for i, item in enumerate(lme_items_list):
+        s, ns = _fresh(f"lme-judge-{i}")
+        scope = MemoryScope(namespace=ns)
         t0 = time.perf_counter()
         _ingest_lme(s, scope, item)
         ingest_ms = (time.perf_counter() - t0) * 1000
-        rows.append(_one(item, s, scope, k_eff, answerer, ingest_ms_once=ingest_ms))
+        rows.append(_one(item, s, scope, k_eff, answerer,
+                         ingest_ms_once=ingest_ms, strategy=strategy))
         s.close()
 
     # -- LongBench (per-record isolated)
-    for item in longbench_items_list:
-        s = Stele.from_config(cfg)
-        scope = MemoryScope(namespace=item["benchmark"])
+    for i, item in enumerate(longbench_items_list):
+        s, ns = _fresh(f"{item['benchmark']}-{i}")
+        scope = MemoryScope(namespace=ns)
         t0 = time.perf_counter()
         _ingest_longbench(s, scope, item)
         ingest_ms = (time.perf_counter() - t0) * 1000
-        rows.append(_one(item, s, scope, k_eff, answerer, ingest_ms_once=ingest_ms))
+        rows.append(_one(item, s, scope, k_eff, answerer,
+                         ingest_ms_once=ingest_ms, strategy=strategy))
         s.close()
 
     # -- RAGBench (per-record isolated)
-    for item in ragbench_items_list:
-        s = Stele.from_config(cfg)
-        scope = MemoryScope(namespace=item["benchmark"])
+    for i, item in enumerate(ragbench_items_list):
+        s, ns = _fresh(f"{item['benchmark']}-{i}")
+        scope = MemoryScope(namespace=ns)
         t0 = time.perf_counter()
         _ingest_ragbench(s, scope, item)
         ingest_ms = (time.perf_counter() - t0) * 1000
-        rows.append(_one(item, s, scope, k_eff, answerer, ingest_ms_once=ingest_ms))
+        rows.append(_one(item, s, scope, k_eff, answerer,
+                         ingest_ms_once=ingest_ms, strategy=strategy))
         s.close()
 
     return _summarize(rows, profile=profile, spec=spec, k_eff=k_eff)
@@ -286,9 +316,15 @@ def run_judge_lane(
 
 def _one(item: dict[str, Any], s: Stele, scope: MemoryScope, k: int,
          answerer: OpenAICompatAnswerer,
-         *, ingest_ms_once: float) -> dict[str, Any]:
+         *, ingest_ms_once: float,
+         strategy: str | None = None) -> dict[str, Any]:
     t0 = time.perf_counter()
-    rr = s.recall(query=item["question"], scope=scope, max_memory_hits=k)
+    recall_kwargs: dict[str, Any] = {
+        "query": item["question"], "scope": scope, "max_memory_hits": k,
+    }
+    if strategy:
+        recall_kwargs["strategy"] = strategy
+    rr = s.recall(**recall_kwargs)
     recall_ms = (time.perf_counter() - t0) * 1000
     context, hits = _build_context(rr)
     prompt_tokens = _estimate_tokens(item["question"]) + _estimate_tokens(context)

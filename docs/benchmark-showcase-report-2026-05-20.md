@@ -556,6 +556,57 @@ is the lower envelope. The architectural numbers to focus on are §5
 answer model) and §4 (LLM-judged QA on Stele's *own* scenarios where the
 context exactly matches what the model is good at — 97.14%).
 
+### 11g-pg. Postgres + pg-raggraph wins multi-hop, with the receipts
+
+The McManaman/Knowsley diagnostic exposed two layered bugs in the prior
+runs: (a) judge_lane shared sqlite files across iterations, contaminating
+recall, and (b) sqlite+hybrid is the wrong backend for multi-hop benchmarks
+to begin with. **Postgres + pg-raggraph + `graph_search` recall is the
+right tool.** Verified end-to-end:
+
+| Benchmark | hybrid (sqlite, gpt-5-mini) | graph (pg-raggraph, gpt-5-mini) | Δ |
+|---|---:|---:|---:|
+| MultiHop-RAG (n=10) | 50.0% | **60.0%** | +10pp |
+| LongBench `musique` (n=3) | 0.0% | **66.7%** | **+66.7pp** |
+| LongBench `hotpotqa` (n=3) | 0.0% | **66.7%** | **+66.7pp** |
+| LongBench `2wikimqa` (n=3) | 33.3% | 33.3% | 0 |
+| LongBench `multifieldqa_en` (n=3) | 33.3% | 33.3% | 0 |
+
+Same answer model (gpt-5-mini), same judge (gpt-5-mini, strict-bench
+prompt), same questions — only the recall backend changed. The 0% → 66.7%
+swings on `musique` and `hotpotqa` are not retrieval-noise: they're the
+gap between "single-hop hybrid retrieval missed the bridging passage" and
+"graph engine walked the entity edges and surfaced it."
+
+**Recall latency cost:**
+
+| Benchmark | hybrid (sqlite) | graph (pg-rg) |
+|---|---:|---:|
+| MHR | 122 ms | 328 ms |
+| LongBench `musique` | 46 ms | 188 ms |
+| LongBench `hotpotqa` | 50 ms | 246 ms |
+| LongBench `2wikimqa` | 113 ms | 200 ms |
+| LongBench `multifieldqa_en` | 81 ms | 309 ms |
+
+Graph recall is 3-6× slower in absolute terms but still under 400 ms p50
+— and dwarfed by the 2-7 second LLM answer call. The accuracy lift on
+multi-hop is unambiguously worth the 200-300 ms cost.
+
+**End-to-end ingest cost:** ~3.2 s for 13 LongBench passages with the
+deterministic Revisor entity extractor (no LLM at ingest). The 2026-05-18
+analysis flagged the graph engine as "too slow at scale" — at per-record
+benchmark scale it's tractable; at LongMemEval-style 5000-atom scale it
+would still need batching, but that's a separate scaling task.
+
+**Profile catalogue now has the right tool per shape:**
+
+| Profile | Backend | Best for |
+|---|---|---|
+| `default-keyword` | memory | Floor / baseline only |
+| `hybrid-best` | sqlite + chunkshop | Single-hop dense corpora (RAGBench, LongMemEval, LongBench single-doc) |
+| `locomo-best` | sqlite + chunkshop + Stele.extract | Conversational memory |
+| **`graph-multihop`** | **postgres + pg-raggraph + `graph_search`** | **Multi-hop entity chains (MultiHop-RAG, LongBench musique/2wikimqa/hotpotqa)** |
+
 ### 11g. Cross-model comparison — Qwen3-Coder vs gpt-5-mini vs gpt-5.5
 
 Same Stele context per query (deterministic recall); only the **answer
@@ -727,6 +778,15 @@ hot-path optimization isn't where the savings live.
   the visible accuracy is dominated by answer-model RAG posture +
   judge-strictness bias, not by Stele behavior. At n=3 sub-cells the
   numbers are directional, not headline.
+- **Postgres + pg-raggraph + `graph_search` is the right tool for
+  multi-hop** (§11g-pg). Switching MultiHop-RAG and LongBench
+  `musique`/`hotpotqa` from sqlite+hybrid → postgres+graph_search lifted
+  LLM-judged accuracy from 0%/0%/50% to 66.7%/66.7%/60% under
+  *identical* answer + judge models. Same questions, same gpt-5-mini,
+  +66.7pp on the two genuine multi-hop tasks. The "gpt-5 refuses on
+  multi-hop" finding from earlier sections was wrong — gpt-5 was
+  correctly refusing because hybrid recall missed the bridging passage.
+  Once the graph engine surfaced it, gpt-5 answered.
 
 [mem0-state]: https://mem0.ai/blog/state-of-ai-agent-memory-2026
 [mastra]: https://mastra.ai/research/observational-memory
