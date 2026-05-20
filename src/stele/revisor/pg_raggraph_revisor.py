@@ -13,7 +13,7 @@ from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any
 
 from stele.core.exceptions import OptionalDependencyError, ValidationError
-from stele.revisor.base import GraphHit, RetractedBehavior
+from stele.revisor.base import GraphHit, RetractedBehavior, SupersessionBehavior
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
@@ -241,11 +241,12 @@ class PgRaggraphRevisor:
         namespace: str,
         limit: int,
         retracted_behavior: RetractedBehavior,
+        supersession_behavior: SupersessionBehavior,
         version_filter: str | None,
     ) -> list[GraphHit]:
         async def _op() -> list[GraphHit]:
             async with self._graphrag(
-                **self._cfg(retracted_behavior, "prefer_new")
+                **self._cfg(retracted_behavior, supersession_behavior)
             ) as rag:
                 res = await rag.query(
                     query,
@@ -266,13 +267,14 @@ class PgRaggraphRevisor:
         limit: int,
         as_of: datetime,
         retracted_behavior: RetractedBehavior,
+        supersession_behavior: SupersessionBehavior,
         version_filter: str | None,
     ) -> list[GraphHit]:
         as_of = _require_tz_aware(as_of, "as_of")
 
         async def _op() -> list[GraphHit]:
             async with self._graphrag(
-                **self._cfg(retracted_behavior, "prefer_new")
+                **self._cfg(retracted_behavior, supersession_behavior)
             ) as rag:
                 res = await rag.query(
                     query,

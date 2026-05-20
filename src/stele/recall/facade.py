@@ -65,6 +65,7 @@ class Recall:
         as_of: datetime | None = None,
         version_filter: str | None = None,
         retracted_behavior: str | None = None,
+        supersession_behavior: str | None = None,
     ) -> RecallResult:
         if not self._deps.config.enabled:
             raise CapabilityError("recall is disabled in config")
@@ -88,6 +89,7 @@ class Recall:
             as_of=as_of,
             version_filter=version_filter,
             retracted_behavior=retracted_behavior,  # type: ignore[arg-type]
+            supersession_behavior=supersession_behavior,  # type: ignore[arg-type]
         )
         return self._registry[req.strategy].execute(req, self._deps)
 
@@ -117,6 +119,7 @@ class Recall:
         as_of: datetime | None = None,
         version_filter: str | None = None,
         retracted_behavior: str | None = None,
+        supersession_behavior: str | None = None,
     ) -> RecallResult:
         return self(
             query=query,
@@ -126,6 +129,7 @@ class Recall:
             as_of=as_of,
             version_filter=version_filter,
             retracted_behavior=retracted_behavior,
+            supersession_behavior=supersession_behavior,
         )
 
     def adaptive(

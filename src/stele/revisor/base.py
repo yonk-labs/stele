@@ -14,6 +14,7 @@ from typing import Literal, Protocol
 from pydantic import BaseModel, ConfigDict
 
 RetractedBehavior = Literal["hide", "flag", "surface_both"]
+SupersessionBehavior = Literal["hide", "prefer_new", "surface_both"]
 
 
 class GraphHit(BaseModel):
@@ -61,6 +62,7 @@ class Revisor(Protocol):
         namespace: str,
         limit: int,
         retracted_behavior: RetractedBehavior,
+        supersession_behavior: SupersessionBehavior,
         version_filter: str | None,
     ) -> list[GraphHit]: ...
 
@@ -72,6 +74,7 @@ class Revisor(Protocol):
         limit: int,
         as_of: datetime,
         retracted_behavior: RetractedBehavior,
+        supersession_behavior: SupersessionBehavior,
         version_filter: str | None,
     ) -> list[GraphHit]: ...
 
@@ -112,6 +115,7 @@ class NoOpRevisor:
         namespace: str,
         limit: int,
         retracted_behavior: RetractedBehavior,
+        supersession_behavior: SupersessionBehavior,
         version_filter: str | None,
     ) -> list[GraphHit]:
         return []
@@ -124,6 +128,7 @@ class NoOpRevisor:
         limit: int,
         as_of: datetime,
         retracted_behavior: RetractedBehavior,
+        supersession_behavior: SupersessionBehavior,
         version_filter: str | None,
     ) -> list[GraphHit]:
         return []

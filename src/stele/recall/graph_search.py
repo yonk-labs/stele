@@ -33,6 +33,7 @@ class GraphSearchStrategy:
                 "Postgres backend with config.graph.enabled=true"
             )
         rb = request.retracted_behavior or "surface_both"
+        sb = request.supersession_behavior or deps.stele.config.graph.supersession_behavior
         ns = request.scope.namespace
         if request.as_of is not None:
             hits = revisor.search_as_of(
@@ -41,6 +42,7 @@ class GraphSearchStrategy:
                 limit=request.max_memory_hits,
                 as_of=request.as_of,
                 retracted_behavior=rb,
+                supersession_behavior=sb,
                 version_filter=request.version_filter,
             )
         else:
@@ -49,6 +51,7 @@ class GraphSearchStrategy:
                 namespace=ns,
                 limit=request.max_memory_hits,
                 retracted_behavior=rb,
+                supersession_behavior=sb,
                 version_filter=request.version_filter,
             )
         citations = normalize_scores(

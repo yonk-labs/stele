@@ -87,6 +87,7 @@ class RecallRequest(BaseModel):
     as_of: datetime | None = None
     version_filter: str | None = None
     retracted_behavior: Literal["hide", "flag", "surface_both"] | None = None
+    supersession_behavior: Literal["hide", "prefer_new", "surface_both"] | None = None
 
 
 class RecallResult(BaseModel):

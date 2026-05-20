@@ -9,6 +9,7 @@ def test_new_fields_default_none_preserve_behavior() -> None:
     assert r.as_of is None
     assert r.version_filter is None
     assert r.retracted_behavior is None
+    assert r.supersession_behavior is None
 
 
 def test_new_fields_accept_values() -> None:
@@ -18,5 +19,8 @@ def test_new_fields_accept_values() -> None:
         as_of=datetime.now(UTC),
         version_filter="v2",
         retracted_behavior="flag",
+        supersession_behavior="hide",
     )
-    assert r.version_filter == "v2" and r.retracted_behavior == "flag"
+    assert r.version_filter == "v2"
+    assert r.retracted_behavior == "flag"
+    assert r.supersession_behavior == "hide"
