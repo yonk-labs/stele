@@ -669,24 +669,28 @@ class Stele:
     def purge_namespace(
         self, namespace: str, *, dry_run: bool = False
     ) -> PurgeReport:
-        """Hard-delete every artifact and memory row in ``namespace``.
+        """Hard-delete every namespace-scoped row across all subsystems.
 
         Lifecycle / GDPR primitive. Other namespaces are never touched.
         ``dry_run=True`` returns the same shape with the counts that
         *would* be deleted, mutating nothing — useful for confirmation
         before invoking the destructive call.
 
-        This slice (8a) covers the artifact and memory surfaces. Chunk-
-        index and Revisor-projected evidence will be added in #8b — when
-        those are present this method's report still completes for the
-        surfaces it owns; callers integrating GDPR workflows should
-        consult :attr:`PurgeReport` field coverage on the running Stele
-        until #8b lands.
+        Covers four surfaces in one call:
+
+        - **Artifact storage** — always.
+        - **Memory rows** — when the backend supports memory.
+        - **Chunk index** — when one is configured.
+        - **Revisor-projected evidence** (pg-raggraph) — when active.
+
+        On ``dry_run``, only artifact and memory counts are populated;
+        chunk-index and revisor counts are best-effort 0 (the underlying
+        surfaces don't expose a cheap pre-count). The real call returns
+        accurate counts for every surface that ran.
         """
         if not namespace:
             raise ValueError("purge_namespace requires a non-empty namespace")
         if dry_run:
-            # Count without mutating. List pages are bounded; sum until exhausted.
             artifact_count = 0
             cursor: str | None = None
             while True:
@@ -697,7 +701,6 @@ class Stele:
                 cursor = page.next_cursor
             memory_count = 0
             try:
-                # Count across every status — purge drops live AND historical.
                 memory_count = len(
                     self.memory.list(
                         scope=MemoryScope(namespace=namespace),
@@ -708,7 +711,6 @@ class Stele:
                     )
                 )
             except CapabilityError:
-                # Memory absent on this backend (mariadb/clickhouse stubs).
                 memory_count = 0
             return PurgeReport(
                 namespace=namespace,
@@ -723,11 +725,19 @@ class Stele:
             memories = self.memory.delete_namespace(namespace)
         except CapabilityError:
             memories = 0
+        chunks = 0
+        if self._chunk_store is not None:
+            chunks = self._chunk_store.delete_namespace(namespace)
+        graph_evidence = 0
+        if self.revisor.active:
+            graph_evidence = self.revisor.purge_namespace(namespace)
         return PurgeReport(
             namespace=namespace,
             dry_run=False,
             artifacts=artifacts,
             memories=memories,
+            chunks=chunks,
+            graph_evidence=graph_evidence,
         )
 
     def export_jsonl(

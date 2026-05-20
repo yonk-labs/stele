@@ -288,5 +288,22 @@ class PgRaggraphRevisor:
 
         return list(self._run(_op()))
 
+    def purge_namespace(self, namespace: str) -> int:
+        # pg-raggraph's GraphRAG.delete() drops documents + chunks + facts
+        # + relationships + entities + document_versions atomically for
+        # the given namespace. We pre-count documents via status() so the
+        # report carries a meaningful number — delete() itself returns
+        # nothing.
+        async def _op() -> int:
+            async with self._graphrag(
+                **self._cfg("surface_both", "surface_both")
+            ) as rag:
+                stat = await rag.status(namespace=namespace)
+                count = int(stat.get("documents", 0))
+                await rag.delete(namespace=namespace)
+            return count
+
+        return int(self._run(_op()))
+
     def close(self) -> None:
         return None

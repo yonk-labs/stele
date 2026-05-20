@@ -122,6 +122,21 @@ def test_missing_chunkshop_raises(tmp_path: Path) -> None:
         SQLiteChunkStore(IndexingConfig(), db_path=str(tmp_path / "x.db"))
 
 
+def test_delete_namespace_drops_target_only(tmp_path: Path) -> None:
+    """Per #8b — chunkshop-backed chunk store must purge by namespace."""
+    store = SQLiteChunkStore(IndexingConfig(), db_path=str(tmp_path / "ns.db"))
+    store.write(_artifact("alpha widget alpha", artifact_id="aa", ns="ns_a"))
+    store.write(_artifact("beta widget beta", artifact_id="ba", ns="ns_b"))
+
+    removed = store.delete_namespace("ns_a")
+
+    assert removed == 1
+    # ns_b survives.
+    survivors = store.vector_search("widget", limit=5)
+    assert survivors and all(h.reference == "stele://ns_b/ba" for h in survivors)
+    store.close()
+
+
 def test_optionaldep_when_chunkshop_absent_simulated(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

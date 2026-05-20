@@ -27,6 +27,14 @@ class ChunkStore(Protocol):
 
     def delete(self, reference: str) -> None: ...
 
+    def delete_namespace(self, namespace: str) -> int:
+        """Drop every chunk whose source artifact lives in ``namespace``.
+        Returns the count of artifact references whose chunks were removed.
+
+        Used by :meth:`Stele.purge_namespace` (#8b) to ensure namespace
+        deletion reaches the chunk index, not just the artifact store."""
+        ...
+
     def keyword_search(
         self, query: str, *, limit: int, reference: str | None = None
     ) -> list[SearchHit]: ...
