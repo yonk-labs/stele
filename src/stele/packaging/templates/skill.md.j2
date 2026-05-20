@@ -1,0 +1,27 @@
+---
+name: stele
+description: {{ description }}
+trigger: {{ trigger }}
+---
+
+# {{ trigger }}
+
+You have access to the `stele` MCP tool surface for evidence-cited memory and artifact storage.
+
+## When to use
+
+- Tool output > {{ stash_threshold }} tokens: call `stele_stash_tool_result` to swap the output for a `stele://` reference + summary.
+- User asks something needing prior context: call `stele_memory_search` before responding.
+- A claim depends on a specific artifact: call `stele_fetch` on its `stele://` ref; never paraphrase from memory alone.
+- A previously-stated fact has changed: call `stele_memory_add` with `supersedes=[<old_id>]` — never edit in place.
+- A claim was wrong and must be retracted: call `stele_memory_retract`. Don't delete; retract preserves audit.
+
+## Tool reference
+
+{{ tool_reference_table }}
+
+## Notes
+
+- Every memory cites its evidence (`source_refs` = list of `stele://` URIs). The server enforces this.
+- PII scrubbing is on by default. Raw artifact bytes require `pii.raw_fetch_enabled=true` in `.stele/config.yaml`.
+- Time-travel: pass `as_of=<ISO datetime>` to `stele_memory_search` / `stele_memory_list` / `stele_recall`.
