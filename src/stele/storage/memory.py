@@ -55,6 +55,12 @@ class MemoryStorageBackend:
             return True
         return False
 
+    def delete_namespace(self, namespace: str) -> int:
+        to_remove = [k for k, r in self._records.items() if r.namespace == namespace]
+        for k in to_remove:
+            del self._records[k]
+        return len(to_remove)
+
     def cleanup_expired(self, *, limit: int = 1000) -> CleanupResult:
         now = datetime.now(UTC)
         deleted = 0

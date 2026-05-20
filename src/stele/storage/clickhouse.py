@@ -176,6 +176,25 @@ class ClickHouseStorageBackend:
         )
         return True
 
+    def delete_namespace(self, namespace: str) -> int:
+        # ClickHouse ALTER ... DELETE returns no rowcount; count first.
+        count_row = next(iter(self.client.query(
+            f"SELECT count() AS c FROM {self.fq_table} FINAL "
+            f"WHERE namespace = %(namespace)s",
+            parameters={"namespace": namespace},
+        ).named_results()))
+        count = int(count_row["c"])
+        if count:
+            self.client.command(
+                f"""
+                ALTER TABLE {self.fq_table}
+                DELETE WHERE namespace = %(namespace)s
+                SETTINGS mutations_sync = 1
+                """,
+                parameters={"namespace": namespace},
+            )
+        return count
+
     def cleanup_expired(self, *, limit: int = 1000) -> CleanupResult:
         rows = list(self.client.query(
             f"""

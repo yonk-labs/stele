@@ -356,6 +356,14 @@ class PostgresMemoryStore:
         self.conn.commit()
         return int(affected)
 
+    def delete_namespace(self, namespace: str) -> int:
+        with self.conn.cursor() as cur:
+            affected = cur.execute(
+                "DELETE FROM memories WHERE namespace = %s", (namespace,)
+            ).rowcount
+        self.conn.commit()
+        return int(affected)
+
     def find_duplicate(
         self,
         scope: MemoryScope,

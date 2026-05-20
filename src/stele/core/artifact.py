@@ -175,3 +175,18 @@ class ExportResult(BaseModel):
     path: str
 
 
+class PurgeReport(BaseModel):
+    """Result of :meth:`Stele.purge_namespace`.
+
+    Counts are per-subsystem. ``artifacts`` and ``memories`` are always
+    populated; subsystem fields default to 0 when the surface is absent or
+    a chunk-index / revisor purge is implemented in a later slice.
+    A ``dry_run`` purge returns the same shape but mutates nothing.
+    """
+
+    namespace: str
+    dry_run: bool
+    artifacts: int
+    memories: int
+
+

@@ -196,6 +196,14 @@ class PostgresStorageBackend:
             )
         return bool(cursor.rowcount)
 
+    def delete_namespace(self, namespace: str) -> int:
+        with self.conn.transaction():
+            cursor = self.conn.execute(
+                "DELETE FROM artifacts WHERE namespace = %(namespace)s",
+                {"namespace": namespace},
+            )
+        return int(cursor.rowcount or 0)
+
     def cleanup_expired(self, *, limit: int = 1000) -> CleanupResult:
         with self.conn.transaction():
             rows = self.conn.execute(

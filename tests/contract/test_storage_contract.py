@@ -112,3 +112,59 @@ def test_large_round_trip(tmp_path: Path, backend: str) -> None:
 
     assert stash.fetch(stored.reference, raw=True).content == content
     stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_purge_namespace_drops_target_only(tmp_path: Path, backend: str) -> None:
+    """GDPR-style namespace purge: target ns drops to zero, other ns intact."""
+    stash = _stash_for_backend(tmp_path, backend)
+    ns_a = f"a_{uuid.uuid4().hex}"
+    ns_b = f"b_{uuid.uuid4().hex}"
+    stash.store("one", namespace=ns_a)
+    stash.store("two", namespace=ns_a)
+    stash.store("three", namespace=ns_b)
+
+    report = stash.purge_namespace(ns_a)
+
+    assert report.namespace == ns_a
+    assert report.dry_run is False
+    assert report.artifacts == 2
+    assert stash.list(namespace=ns_a).items == []
+    assert len(stash.list(namespace=ns_b).items) == 1
+    stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_purge_namespace_dry_run_no_mutation(tmp_path: Path, backend: str) -> None:
+    stash = _stash_for_backend(tmp_path, backend)
+    ns = f"dry_{uuid.uuid4().hex}"
+    stash.store("alpha", namespace=ns)
+    stash.store("beta", namespace=ns)
+
+    report = stash.purge_namespace(ns, dry_run=True)
+
+    assert report.dry_run is True
+    assert report.artifacts == 2
+    assert len(stash.list(namespace=ns).items) == 2  # unchanged
+    stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_purge_namespace_idempotent(tmp_path: Path, backend: str) -> None:
+    stash = _stash_for_backend(tmp_path, backend)
+    ns = f"idem_{uuid.uuid4().hex}"
+    stash.store("only", namespace=ns)
+    first = stash.purge_namespace(ns)
+    second = stash.purge_namespace(ns)
+
+    assert first.artifacts == 1
+    assert second.artifacts == 0
+    stash.close()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_purge_namespace_rejects_empty(tmp_path: Path, backend: str) -> None:
+    stash = _stash_for_backend(tmp_path, backend)
+    with pytest.raises(ValueError):
+        stash.purge_namespace("")
+    stash.close()

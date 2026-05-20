@@ -178,6 +178,14 @@ class MariaDBStorageBackend:
             )
             return bool(cursor.rowcount)
 
+    def delete_namespace(self, namespace: str) -> int:
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                f"DELETE FROM `{self.table}` WHERE namespace = %s",
+                (namespace,),
+            )
+            return int(cursor.rowcount or 0)
+
     def cleanup_expired(self, *, limit: int = 1000) -> CleanupResult:
         with self.conn.cursor() as cursor:
             cursor.execute(

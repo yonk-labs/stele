@@ -162,6 +162,16 @@ class SQLiteStorageBackend:
             self.conn.execute("DELETE FROM artifacts WHERE artifact_id = ?", (record.artifact_id,))
         return True
 
+    def delete_namespace(self, namespace: str) -> int:
+        with self.conn:
+            self.conn.execute(
+                "DELETE FROM artifact_fts WHERE namespace = ?", (namespace,)
+            )
+            cur = self.conn.execute(
+                "DELETE FROM artifacts WHERE namespace = ?", (namespace,)
+            )
+        return int(cur.rowcount or 0)
+
     def cleanup_expired(self, *, limit: int = 1000) -> CleanupResult:
         now = datetime.now(UTC).isoformat()
         rows = self.conn.execute(

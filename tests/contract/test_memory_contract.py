@@ -366,3 +366,69 @@ def test_list_with_as_of_and_explicit_status_filter_composes(
         MemoryScope(user_id=user), status_filter=["retracted"], as_of=t_between
     )
     assert {m.id for m in retracted_only} == {r.record.id}
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_purge_namespace_drops_memory_in_target_only(
+    tmp_path: Path, backend: str
+) -> None:
+    """Stele.purge_namespace drops every memory row in the target namespace
+    while leaving other namespaces intact. Live and historical rows alike."""
+    s = _stele(tmp_path, backend)
+    ns_a = f"a_{uuid.uuid4().hex}"
+    ns_b = f"b_{uuid.uuid4().hex}"
+
+    s.memory.add(
+        text="alpha", kind="fact",
+        source_refs=["stele://x/a"],
+        scope=MemoryScope(namespace=ns_a),
+    )
+    s.memory.add(
+        text="beta", kind="fact",
+        source_refs=["stele://x/a"],
+        scope=MemoryScope(namespace=ns_a),
+    )
+    keep = s.memory.add(
+        text="gamma", kind="fact",
+        source_refs=["stele://x/a"],
+        scope=MemoryScope(namespace=ns_b),
+    )
+
+    report = s.purge_namespace(ns_a)
+
+    assert report.memories == 2
+    assert s.memory.list(MemoryScope(namespace=ns_a)) == []
+    survivors = s.memory.list(MemoryScope(namespace=ns_b))
+    assert {m.id for m in survivors} == {keep.record.id}
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_purge_namespace_drops_superseded_history(
+    tmp_path: Path, backend: str
+) -> None:
+    """Purge drops historical (superseded) rows too — namespace deletion
+    is a deliberate forget; as_of time-travel does not survive purge."""
+    s = _stele(tmp_path, backend)
+    ns = f"hist_{uuid.uuid4().hex}"
+    scope = MemoryScope(namespace=ns)
+
+    r1 = s.memory.add(
+        text="v1", kind="fact",
+        source_refs=["stele://x/a"], scope=scope,
+    )
+    # Supersede to create historical row
+    s.memory.add(
+        text="v2", kind="fact",
+        source_refs=["stele://x/a"], scope=scope,
+        supersedes=[r1.record.id],
+    )
+
+    # Both rows live (1 active + 1 superseded). Purge drops both.
+    report = s.purge_namespace(ns)
+    assert report.memories == 2
+    assert (
+        s.memory.list(
+            scope, status_filter=["active", "superseded", "retracted", "disputed", "deleted"]
+        )
+        == []
+    )
