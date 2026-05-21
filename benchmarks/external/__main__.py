@@ -31,32 +31,35 @@ def _safe(fn: Any, **kw: Any) -> dict[str, Any]:
 def run_all(locomo_samples: int | None, mhr_queries: int,
             lme_questions: int, *, longbench_per_task: int = 40,
             ragbench_per_subset: int = 60,
-            profile: str = "default-keyword") -> dict[str, Any]:
+            profile: str = "default-keyword",
+            mhr_corpus: int | None = None) -> dict[str, Any]:
     spec = harness.PROFILES[profile]
     cfg = spec["config"]
     k = spec["k"]
+    strategy = spec.get("strategy")
     # locomo-best is LoCoMo-only — it stacks extract+retain on top of the
     # hybrid config and uses a deeper k. Other benchmarks are skipped (run
     # them via --profile hybrid-best in a separate invocation).
     if profile == "locomo-best":
         results = [
             _safe(harness.run_locomo, max_samples=locomo_samples,
-                  k=k, config=cfg,
+                  k=k, config=cfg, strategy=strategy,
                   use_stele_extract=True,
                   retain_message_text=spec.get("retain_message_text", True)),
         ]
     else:
         results = [
             _safe(harness.run_locomo, max_samples=locomo_samples,
-                  k=k, config=cfg),
+                  k=k, config=cfg, strategy=strategy),
             _safe(harness.run_multihoprag, max_queries=mhr_queries,
-                  k=k, config=cfg),
+                  k=k, config=cfg, strategy=strategy,
+                  max_corpus=mhr_corpus),
             _safe(harness.run_longmemeval_s, max_questions=lme_questions,
-                  k=k, config=cfg),
+                  k=k, config=cfg, strategy=strategy),
             _safe(harness.run_longbench, max_per_task=longbench_per_task,
-                  k=k, config=cfg),
+                  k=k, config=cfg, strategy=strategy),
             _safe(harness.run_ragbench, max_per_subset=ragbench_per_subset,
-                  k=k, config=cfg),
+                  k=k, config=cfg, strategy=strategy),
         ]
     for r in results:
         if isinstance(r, dict) and "benchmark" in r and "status" not in r:
@@ -96,6 +99,9 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--locomo-samples", type=int, default=None)
     ap.add_argument("--mhr-queries", type=int, default=200)
+    ap.add_argument("--mhr-corpus", type=int, default=None,
+                    help="Bound MHR corpus ingest (default: all ~6K docs). "
+                         "Useful for slow paths like pg-raggraph.")
     ap.add_argument("--lme-questions", type=int, default=30)
     ap.add_argument("--longbench-per-task", type=int, default=40)
     ap.add_argument("--ragbench-per-subset", type=int, default=60)
@@ -109,6 +115,7 @@ def main() -> None:
         longbench_per_task=a.longbench_per_task,
         ragbench_per_subset=a.ragbench_per_subset,
         profile=a.profile,
+        mhr_corpus=a.mhr_corpus,
     )
     report["profile"] = a.profile
     out_dir = a.output_root / datetime.now(UTC).strftime("%Y-%m-%d")

@@ -14,9 +14,10 @@ can actually be measured on, clearly labeled.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, cast
 
 from benchmarks.external import loaders
+from stele.core.config import StrategyName
 from stele.core.memory_record import MemoryScope
 from stele.core.stash import Stele
 
@@ -106,6 +107,181 @@ PROFILES: dict[str, dict[str, Any]] = {
             "answers correctly given the bridging passage)."
         ),
     },
+    # --- POSTGRES-ONLY MATRIX (showcase 2026-05-21) -----------------------
+    # Each profile holds 7 of 8 levers constant and moves one. Read against
+    # `pg-hybrid` as the midpoint baseline.
+    "pg-keyword": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55432/stele",
+            },
+            "retrieval": {"default_mode": "keyword"},
+        },
+        "k": 30,
+        "notes": (
+            "Postgres tsvector keyword floor. No chunkshop, no graph. "
+            "Establishes the lexical-only postgres baseline for the matrix."
+        ),
+    },
+    "pg-vector": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55432/stele",
+            },
+            "indexing": {
+                "mode": "sync", "provider": "chunkshop",
+                "chunk_words": 220, "chunk_overlap_words": 60,
+            },
+            "retrieval": {"default_mode": "vector"},
+        },
+        "k": 30,
+        "notes": (
+            "Pure dense retrieval: chunkshop fixed_overlap 220/60 + cosine "
+            "similarity. No keyword fusion — isolates the semantic-only "
+            "signal. Expected to outperform keyword on paraphrased queries "
+            "and underperform on exact-string targets (names, dates, ids)."
+        ),
+    },
+    "pg-hybrid": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55432/stele",
+            },
+            "indexing": {
+                "mode": "sync", "provider": "chunkshop",
+                "chunk_words": 220, "chunk_overlap_words": 60,
+                "hybrid_method": "rrf", "hybrid_rrf_k": 60,
+            },
+            "retrieval": {"default_mode": "hybrid"},
+        },
+        "k": 30,
+        "notes": (
+            "Hybrid RRF fusion (k=60) of postgres tsvector + chunkshop "
+            "cosine. The midpoint baseline — all other postgres profiles "
+            "differ from this one by exactly one knob."
+        ),
+    },
+    "pg-hybrid-tight": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55432/stele",
+            },
+            "indexing": {
+                "mode": "sync", "provider": "chunkshop",
+                "chunk_words": 120, "chunk_overlap_words": 30,
+                "hybrid_method": "rrf", "hybrid_rrf_k": 60,
+            },
+            "retrieval": {"default_mode": "hybrid"},
+        },
+        "k": 30,
+        "notes": (
+            "Smaller chunks (120/30). Hypothesis: finer-grained chunks lift "
+            "answer-span recall on short-passage benchmarks (RAGBench, "
+            "LongBench) at the cost of context per hit."
+        ),
+    },
+    "pg-hybrid-wide": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55432/stele",
+            },
+            "indexing": {
+                "mode": "sync", "provider": "chunkshop",
+                "chunk_words": 400, "chunk_overlap_words": 80,
+                "hybrid_method": "rrf", "hybrid_rrf_k": 60,
+            },
+            "retrieval": {"default_mode": "hybrid"},
+        },
+        "k": 30,
+        "notes": (
+            "Wider chunks (400/80). Hypothesis: longer chunks keep "
+            "cross-sentence dependencies intact — should help when the "
+            "answer span needs surrounding context to disambiguate."
+        ),
+    },
+    "pg-hybrid-weighted": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55432/stele",
+            },
+            "indexing": {
+                "mode": "sync", "provider": "chunkshop",
+                "chunk_words": 220, "chunk_overlap_words": 60,
+                "hybrid_method": "weighted_sum",
+                "hybrid_weights": {"keyword": 0.7, "vector": 0.3},
+            },
+            "retrieval": {"default_mode": "hybrid"},
+        },
+        "k": 30,
+        "notes": (
+            "Weighted-sum fusion biased toward lexical (0.7 keyword / 0.3 "
+            "vector) instead of RRF. Hypothesis: benchmarks dominated by "
+            "exact-name retrieval favor a keyword-weighted blend."
+        ),
+    },
+    "pg-graph-smart": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55453/stele",
+            },
+            "graph": {
+                "enabled": True, "namespace": "pg-graph-smart",
+                "query_mode": "smart", "rerank": False,
+            },
+        },
+        "k": 30,
+        "strategy": "graph_search",
+        "notes": (
+            "pg-raggraph default mode (smart). Graph_search strategy "
+            "directly addressed — bypasses adaptive_tier_order. Tests "
+            "the out-of-the-box raggraph multi-hop path."
+        ),
+    },
+    "pg-graph-hybrid": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55453/stele",
+            },
+            "graph": {
+                "enabled": True, "namespace": "pg-graph-hybrid",
+                "query_mode": "hybrid", "rerank": False,
+            },
+        },
+        "k": 30,
+        "strategy": "graph_search",
+        "notes": (
+            "pg-raggraph hybrid query mode. Lev­ers entity-graph traversal "
+            "+ dense fallback inside the Revisor. Documented as the "
+            "tuned-graph path in pg-raggraph 0.3.0a3."
+        ),
+    },
+    "pg-graph-hybrid-rerank": {
+        "config": {
+            "backend": {
+                "type": "postgres",
+                "dsn": "postgresql://yonk:yonk@localhost:55453/stele",
+            },
+            "graph": {
+                "enabled": True, "namespace": "pg-graph-hybrid-rerank",
+                "query_mode": "hybrid", "rerank": True,
+            },
+        },
+        "k": 30,
+        "strategy": "graph_search",
+        "notes": (
+            "pg-raggraph hybrid + cross-encoder rerank. Hypothesis: "
+            "rerank helps when graph hits are noisy (raggraph 0.3.0a3 "
+            "tends to surface many siblings of true bridging entities)."
+        ),
+    },
 }
 
 
@@ -113,10 +289,26 @@ def _recall_text(rr: Any) -> str:
     return str(rr.context) + " " + " ".join(str(c.snippet) for c in rr.citations)
 
 
-def _recall(s: Stele, query: str, scope: MemoryScope, k: int) -> Any:
+def _recall(
+    s: Stele,
+    query: str,
+    scope: MemoryScope,
+    k: int,
+    strategy: str | None = None,
+) -> Any:
     """Recall at a DISCLOSED depth k. Stele's default cap is 5; over
     hundreds/thousands of evidence atoms that is an unfairly shallow
-    retrieval test, so the benchmark measures recall@k with k reported."""
+    retrieval test, so the benchmark measures recall@k with k reported.
+
+    ``strategy`` opts a profile out of adaptive escalation — needed for
+    graph profiles, where ``graph_search`` is not in the default
+    adaptive_tier_order and must be addressed directly.
+    """
+    if strategy:
+        return s.recall(
+            query=query, scope=scope, max_memory_hits=k,
+            strategy=cast(StrategyName, strategy),
+        )
     return s.recall(query=query, scope=scope, max_memory_hits=k)
 
 
@@ -127,6 +319,7 @@ def run_locomo(
     config: dict[str, Any] | None = None,
     use_stele_extract: bool = False,
     retain_message_text: bool = False,
+    strategy: str | None = None,
 ) -> dict[str, Any]:
     """LoCoMo retrieval-recall lane.
 
@@ -179,7 +372,7 @@ def run_locomo(
                         scope=scope,
                     )
         for qa in sample["qa"]:
-            rr = _recall(s, qa["question"], scope, k)
+            rr = _recall(s, qa["question"], scope, k, strategy=strategy)
             ctx = _recall_text(rr)
             gold_ev = set(qa.get("evidence", []))
             ev_ok = any(
@@ -217,8 +410,12 @@ def run_multihoprag(
     k: int = 20,
     config: dict[str, Any] | None = None,
     doc_body_chars: int = 1500,
+    strategy: str | None = None,
+    max_corpus: int | None = None,
 ) -> dict[str, Any]:
     queries, corpus = loaders.load_multihoprag()
+    if max_corpus is not None:
+        corpus = corpus[:max_corpus]
     s = _stele(config)
     scope = MemoryScope(namespace="mhr")
     title_ref: dict[str, str] = {}
@@ -231,7 +428,7 @@ def run_multihoprag(
     answerable = ans_hit = evid_hit = 0
     nulls = nulls_ok = 0
     for q in qs:
-        rr = _recall(s, q["query"], scope, k)
+        rr = _recall(s, q["query"], scope, k, strategy=strategy)
         ctx = _recall_text(rr)
         if q.get("question_type") == "null_query":  # abstention
             nulls += 1
@@ -278,6 +475,7 @@ def run_longbench(
     max_per_task: int = 50,
     k: int = 20,
     config: dict[str, Any] | None = None,
+    strategy: str | None = None,
 ) -> dict[str, Any]:
     """LongBench QA-family retrieval-recall lane.
 
@@ -306,7 +504,7 @@ def run_longbench(
                     source_refs=[f"stele://longbench/{task}/{i}/p{j}"],
                     scope=scope,
                 )
-            rr = _recall(s, rec["input"], scope, k)
+            rr = _recall(s, rec["input"], scope, k, strategy=strategy)
             ctx = _recall_text(rr)
             answerable += 1
             for ans in rec.get("answers") or []:
@@ -337,6 +535,7 @@ def run_ragbench(
     max_per_subset: int = 80,
     k: int = 20,
     config: dict[str, Any] | None = None,
+    strategy: str | None = None,
 ) -> dict[str, Any]:
     """RAGBench retrieval-recall lane.
 
@@ -367,7 +566,7 @@ def run_ragbench(
                     source_refs=[f"stele://ragbench/{subset}/{i}/d{j}"],
                     scope=scope,
                 )
-            rr = _recall(s, str(rec.get("question", "")), scope, k)
+            rr = _recall(s, str(rec.get("question", "")), scope, k, strategy=strategy)
             ctx = _recall_text(rr)
             resp = str(rec.get("response", "") or "")
             if not resp.strip():
@@ -400,6 +599,7 @@ def run_longmemeval_s(
     max_questions: int = 30,
     k: int = 20,
     config: dict[str, Any] | None = None,
+    strategy: str | None = None,
 ) -> dict[str, Any]:
     answerable = ans_hit = 0
     abst = abst_ok = 0
@@ -418,7 +618,7 @@ def run_longmemeval_s(
                     source_refs=["stele://lme/turn"],
                     scope=scope,
                 )
-        rr = _recall(s, rec["question"], scope, k)
+        rr = _recall(s, rec["question"], scope, k, strategy=strategy)
         ctx = _recall_text(rr)
         if str(rec.get("question_id", "")).endswith("_abs"):
             abst += 1
