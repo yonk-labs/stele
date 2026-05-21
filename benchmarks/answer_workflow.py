@@ -32,8 +32,16 @@ from stele import Stele
 from stele.core.artifact import estimate_tokens
 from stele.interception.wrapper import stash_tool_result
 
-Strategy = Literal["summary_only", "summary_then_search", "search_first", "adaptive", "raw_fetch"]
+Strategy = Literal[
+    "summary_only", "summary_then_search", "search_first",
+    "adaptive", "raw_fetch", "iterative",
+]
 JudgeMode = Literal["deterministic", "openai"]
+
+# Iterative loop budget: stop after this many LLM rounds OR when accumulated
+# context exceeds the byte cap, whichever first.
+ITERATIVE_MAX_ROUNDS = 5
+ITERATIVE_CONTEXT_BUDGET_BYTES = 16 * 1024
 
 
 @dataclass(frozen=True)
@@ -107,6 +115,27 @@ class Answerer(Protocol):
         expected_answer: str | None,
     ) -> tuple[str, int]: ...
 
+    def answer_iterative(
+        self,
+        *,
+        question: str,
+        context: str,
+        expected_answer: str | None,
+    ) -> tuple[str, dict[str, Any], int]:
+        """Iterative-strategy answer step.
+
+        Returns ``(action, payload, completion_tokens)``:
+
+        - ``action == "answer"`` — ``payload = {"answer": "<final answer>"}``
+        - ``action == "need_more"`` — ``payload = {"kind": "search"|"fetch",
+          "query": "<query>"}``
+
+        The model decides whether it has enough info to answer or to ask
+        for more context. The loop in ``_run_strategy`` consumes this and
+        either returns or escalates.
+        """
+        ...
+
     def judge(
         self,
         *,
@@ -172,6 +201,26 @@ class DeterministicAnswerer:
             )
             for item in pending
         ]
+
+    def answer_iterative(
+        self,
+        *,
+        question: str,
+        context: str,
+        expected_answer: str | None,
+    ) -> tuple[str, dict[str, Any], int]:
+        """Heuristic iterative step. If the expected answer is in the
+        current context, emit it; otherwise emit a need_more action to
+        let the loop exercise its escalation path deterministically."""
+        del question
+        if expected_answer is None:
+            return ("answer", {
+                "answer": "I do not have enough information to answer."
+            }, 11)
+        if expected_answer.lower() in context.lower():
+            return ("answer", {"answer": expected_answer},
+                    estimate_tokens(expected_answer))
+        return ("need_more", {"kind": "search", "query": expected_answer}, 16)
 
 
 class OpenAICompatAnswerer:
@@ -299,6 +348,64 @@ class OpenAICompatAnswerer:
                     )
                 )
         return verdicts
+
+    def answer_iterative(
+        self,
+        *,
+        question: str,
+        context: str,
+        expected_answer: str | None,
+    ) -> tuple[str, dict[str, Any], int]:
+        """Iterative-step prompt: ask the model to either answer or
+        request more context as structured JSON."""
+        del expected_answer
+        content = self._chat(
+            model=self.answer_model,
+            json_mode=True,
+            max_tokens=512,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are answering a question with the help of a "
+                        "retrieval system. Read the question and the "
+                        "current context. Output ONE JSON object — no "
+                        "prose, no markdown. Either:\n"
+                        "  {\"action\":\"answer\",\"answer\":\"<your final answer>\"}\n"
+                        "if the context is sufficient, OR:\n"
+                        "  {\"action\":\"need_more\",\"kind\":\"search\","
+                        "\"query\":\"<targeted query for the retrieval system>\"}\n"
+                        "if you need more information. Prefer answering "
+                        "when context is sufficient — DO NOT chain more "
+                        "requests once the answer is supportable. If you "
+                        "absolutely cannot answer and search has already "
+                        "been tried, use \"kind\":\"fetch\" instead to "
+                        "request the full document."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Question:\n{question}\n\nContext:\n{context}",
+                },
+            ],
+        )
+        completion_tokens = estimate_tokens(content)
+        try:
+            data = _extract_json(content)
+        except Exception:
+            return ("answer", {"answer": content.strip()}, completion_tokens)
+        action = str(data.get("action", "")).lower()
+        if action == "answer":
+            ans = str(data.get("answer", "")).strip()
+            return ("answer", {"answer": ans or content.strip()}, completion_tokens)
+        if action == "need_more":
+            kind = str(data.get("kind", "search")).lower()
+            if kind not in {"search", "fetch"}:
+                kind = "search"
+            query = str(data.get("query", question)).strip()
+            return ("need_more", {"kind": kind, "query": query}, completion_tokens)
+        # Unknown action — treat as final answer.
+        return ("answer", {"answer": content.strip()}, completion_tokens)
 
     def _chat(
         self,
@@ -466,7 +573,7 @@ def main() -> None:
     parser.add_argument("--judge", choices=["deterministic", "openai"], default="deterministic")
     parser.add_argument(
         "--strategies",
-        default="summary_only,summary_then_search,search_first,adaptive,raw_fetch",
+        default="summary_only,summary_then_search,search_first,adaptive,raw_fetch,iterative",
     )
     parser.add_argument("--scenario-limit", type=int, default=None)
     default_model = "Intel/Qwen3-Coder-Next-int4-AutoRound"
@@ -664,7 +771,113 @@ def _run_strategy(
             llm_round_trips=1,
         )
 
+    if strategy == "iterative":
+        return _run_iterative(
+            stash=stash,
+            scenario=scenario,
+            reference=reference,
+            replacement=replacement,
+            scope=scope,
+            artifact_id=artifact_id,
+            answerer=answerer,
+        )
+
     raise ValueError(f"Unknown strategy: {strategy}")
+
+
+def _run_iterative(
+    *,
+    stash: Stele,
+    scenario: BenchmarkScenario,
+    reference: str,
+    replacement: str,
+    scope: Any,
+    artifact_id: str,
+    answerer: Answerer,
+) -> AnswerAttempt:
+    """LLM-driven iterative recall loop.
+
+    Loop: ask the model with the current context. If it answers, return.
+    If it requests more (``need_more`` with kind=search|fetch), call into
+    stele and append the result. Hard stops at ITERATIVE_MAX_ROUNDS or
+    when accumulated context exceeds ITERATIVE_CONTEXT_BUDGET_BYTES.
+
+    Accounting:
+        - llm_round_trips = number of model calls
+        - stash_search_calls = number of recall (search) escalations
+        - stash_fetch_calls = number of raw_fetch escalations
+    """
+    contexts: list[tuple[str, str]] = [("summary", replacement)]
+    rounds = 0
+    search_calls = 0
+    fetch_calls = 0
+    last_answer = "I do not have enough information to answer."
+
+    def _joined() -> str:
+        return "\n\n".join(f"[{name}]\n{text}" for name, text in contexts)
+
+    while rounds < ITERATIVE_MAX_ROUNDS:
+        rounds += 1
+        ctx = _joined()
+        if len(ctx.encode("utf-8")) > ITERATIVE_CONTEXT_BUDGET_BYTES:
+            # Budget exhausted: force one final answer call with what we
+            # already have, then stop.
+            final_action, final_payload, _tokens = answerer.answer_iterative(
+                question=scenario.query,
+                context=ctx,
+                expected_answer=scenario.expected_answer,
+            )
+            last_answer = (
+                str(final_payload.get("answer", last_answer))
+                if final_action == "answer"
+                else last_answer
+            )
+            break
+        action, payload, _tokens = answerer.answer_iterative(
+            question=scenario.query,
+            context=ctx,
+            expected_answer=scenario.expected_answer,
+        )
+        if action == "answer":
+            last_answer = str(payload.get("answer", "")).strip() or last_answer
+            break
+        # need_more: dispatch to search or fetch.
+        kind = str(payload.get("kind", "search")).lower()
+        query = str(payload.get("query", scenario.query)).strip()
+        if kind == "fetch":
+            result = stash.recall(
+                query=query,
+                scope=scope,
+                strategy="raw_fetch",
+                artifact_id=artifact_id,
+            )
+            fetch_calls += result.stats.fetches
+            if result.context:
+                contexts.append((f"fetch:r{rounds}", result.context))
+        else:
+            result = stash.recall(
+                query=query,
+                scope=scope,
+                strategy="artifact_search",
+                artifact_id=artifact_id,
+                max_artifact_hits=3,
+            )
+            search_calls += result.stats.artifact_searches
+            if result.context:
+                contexts.append((f"search:{query[:40]}:r{rounds}", result.context))
+
+    context = _joined()
+    prompt = f"Question:\n{scenario.query}\n\nContext:\n{context}"
+    return AnswerAttempt(
+        answer=last_answer,
+        prompt_tokens=estimate_tokens(prompt),
+        completion_tokens=estimate_tokens(last_answer),
+        llm_round_trips=rounds,
+        stash_search_calls=search_calls,
+        stash_fetch_calls=fetch_calls,
+        context_bytes=len(context.encode("utf-8")),
+        path=context,
+    )
 
 
 def _flush_judge_batch(
