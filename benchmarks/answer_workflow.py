@@ -32,8 +32,16 @@ from stele import Stele
 from stele.core.artifact import estimate_tokens
 from stele.interception.wrapper import stash_tool_result
 
-Strategy = Literal["summary_only", "summary_then_search", "search_first", "adaptive", "raw_fetch"]
+Strategy = Literal[
+    "summary_only", "summary_then_search", "search_first",
+    "adaptive", "raw_fetch", "iterative",
+]
 JudgeMode = Literal["deterministic", "openai"]
+
+# Iterative loop budget: stop after this many LLM rounds OR when accumulated
+# context exceeds the byte cap, whichever first.
+ITERATIVE_MAX_ROUNDS = 5
+ITERATIVE_CONTEXT_BUDGET_BYTES = 16 * 1024
 
 
 @dataclass(frozen=True)
@@ -107,6 +115,27 @@ class Answerer(Protocol):
         expected_answer: str | None,
     ) -> tuple[str, int]: ...
 
+    def answer_iterative(
+        self,
+        *,
+        question: str,
+        context: str,
+        expected_answer: str | None,
+    ) -> tuple[str, dict[str, Any], int]:
+        """Iterative-strategy answer step.
+
+        Returns ``(action, payload, completion_tokens)``:
+
+        - ``action == "answer"`` — ``payload = {"answer": "<final answer>"}``
+        - ``action == "need_more"`` — ``payload = {"kind": "search"|"fetch",
+          "query": "<query>"}``
+
+        The model decides whether it has enough info to answer or to ask
+        for more context. The loop in ``_run_strategy`` consumes this and
+        either returns or escalates.
+        """
+        ...
+
     def judge(
         self,
         *,
@@ -172,6 +201,26 @@ class DeterministicAnswerer:
             )
             for item in pending
         ]
+
+    def answer_iterative(
+        self,
+        *,
+        question: str,
+        context: str,
+        expected_answer: str | None,
+    ) -> tuple[str, dict[str, Any], int]:
+        """Heuristic iterative step. If the expected answer is in the
+        current context, emit it; otherwise emit a need_more action to
+        let the loop exercise its escalation path deterministically."""
+        del question
+        if expected_answer is None:
+            return ("answer", {
+                "answer": "I do not have enough information to answer."
+            }, 11)
+        if expected_answer.lower() in context.lower():
+            return ("answer", {"answer": expected_answer},
+                    estimate_tokens(expected_answer))
+        return ("need_more", {"kind": "search", "query": expected_answer}, 16)
 
 
 class OpenAICompatAnswerer:
@@ -300,6 +349,64 @@ class OpenAICompatAnswerer:
                 )
         return verdicts
 
+    def answer_iterative(
+        self,
+        *,
+        question: str,
+        context: str,
+        expected_answer: str | None,
+    ) -> tuple[str, dict[str, Any], int]:
+        """Iterative-step prompt: ask the model to either answer or
+        request more context as structured JSON."""
+        del expected_answer
+        content = self._chat(
+            model=self.answer_model,
+            json_mode=True,
+            max_tokens=512,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are answering a question with the help of a "
+                        "retrieval system. Read the question and the "
+                        "current context. Output ONE JSON object — no "
+                        "prose, no markdown. Either:\n"
+                        "  {\"action\":\"answer\",\"answer\":\"<your final answer>\"}\n"
+                        "if the context is sufficient, OR:\n"
+                        "  {\"action\":\"need_more\",\"kind\":\"search\","
+                        "\"query\":\"<targeted query for the retrieval system>\"}\n"
+                        "if you need more information. Prefer answering "
+                        "when context is sufficient — DO NOT chain more "
+                        "requests once the answer is supportable. If you "
+                        "absolutely cannot answer and search has already "
+                        "been tried, use \"kind\":\"fetch\" instead to "
+                        "request the full document."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Question:\n{question}\n\nContext:\n{context}",
+                },
+            ],
+        )
+        completion_tokens = estimate_tokens(content)
+        try:
+            data = _extract_json(content)
+        except Exception:
+            return ("answer", {"answer": content.strip()}, completion_tokens)
+        action = str(data.get("action", "")).lower()
+        if action == "answer":
+            ans = str(data.get("answer", "")).strip()
+            return ("answer", {"answer": ans or content.strip()}, completion_tokens)
+        if action == "need_more":
+            kind = str(data.get("kind", "search")).lower()
+            if kind not in {"search", "fetch"}:
+                kind = "search"
+            query = str(data.get("query", question)).strip()
+            return ("need_more", {"kind": kind, "query": query}, completion_tokens)
+        # Unknown action — treat as final answer.
+        return ("answer", {"answer": content.strip()}, completion_tokens)
+
     def _chat(
         self,
         *,
@@ -308,12 +415,20 @@ class OpenAICompatAnswerer:
         json_mode: bool = False,
         max_tokens: int = 512,
     ) -> str:
-        payload = {
+        # GPT-5 family uses max_completion_tokens + doesn't accept
+        # arbitrary temperature, and burns most of the budget on hidden
+        # reasoning — raise the cap to 32K so the visible JSON output
+        # always fits regardless of how much the model "thinks."
+        is_gpt5 = model.lower().startswith("gpt-5")
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
-            "temperature": 0,
-            "max_tokens": max_tokens,
         }
+        if is_gpt5:
+            payload["max_completion_tokens"] = max(max_tokens, 32768)
+        else:
+            payload["temperature"] = 0
+            payload["max_tokens"] = max_tokens
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
         data = json.dumps(payload).encode("utf-8")
@@ -346,6 +461,9 @@ def run_answer_workflow_benchmark(
     openai_base_url: str = "http://192.168.1.193:8000/v1",
     openai_api_key: str = "",
     judge_batch_size: int = 10,
+    backend: dict[str, Any] | None = None,
+    scenarios_source: str = "synthetic",
+    longbench_per_task: int = 8,
 ) -> dict[str, Any]:
     if judge_mode == "openai":
         answerer: Answerer = OpenAICompatAnswerer(
@@ -357,7 +475,16 @@ def run_answer_workflow_benchmark(
     else:
         answerer = DeterministicAnswerer()
 
-    scenarios = build_scenarios(content_multiplier=10)
+    if scenarios_source == "longbench":
+        from benchmarks.external.longbench_scenarios import build_longbench_scenarios
+        scenarios = build_longbench_scenarios(per_task=longbench_per_task)
+    elif scenarios_source in {"ragbench", "longmemeval", "locomo"}:
+        from benchmarks.external.third_party_scenarios import build_scenarios_for
+        scenarios = build_scenarios_for(scenarios_source)
+    elif scenarios_source == "synthetic":
+        scenarios = build_scenarios(content_multiplier=10)
+    else:
+        raise ValueError(f"Unknown scenarios_source: {scenarios_source!r}")
     if scenario_limit is not None:
         scenarios = scenarios[:scenario_limit]
     run_dir = output_root / datetime.now(UTC).strftime("%Y-%m-%d") / (
@@ -367,7 +494,7 @@ def run_answer_workflow_benchmark(
     jsonl_path = run_dir / "results.jsonl"
     stash = Stele.from_config(
         {
-            "backend": {"type": "memory"},
+            "backend": backend or {"type": "memory"},
             "pii": {"raw_fetch_enabled": True},
             "interception": {
                 "min_chars": 1,
@@ -446,7 +573,7 @@ def main() -> None:
     parser.add_argument("--judge", choices=["deterministic", "openai"], default="deterministic")
     parser.add_argument(
         "--strategies",
-        default="summary_only,summary_then_search,search_first,adaptive,raw_fetch",
+        default="summary_only,summary_then_search,search_first,adaptive,raw_fetch,iterative",
     )
     parser.add_argument("--scenario-limit", type=int, default=None)
     default_model = "Intel/Qwen3-Coder-Next-int4-AutoRound"
@@ -463,7 +590,44 @@ def main() -> None:
         default=int(os.environ.get("YMS_JUDGE_BATCH_SIZE", "10")),
     )
     parser.add_argument("--output-root", type=Path, default=Path("benchmarks/runs"))
+    parser.add_argument(
+        "--backend",
+        choices=["memory", "sqlite", "postgres", "mariadb", "clickhouse"],
+        default="memory",
+        help="Stele storage backend. Postgres etc. require the matching "
+             "DSN env var (STELE_PG_DSN / STELE_MARIADB_DSN / STELE_CLICKHOUSE_DSN).",
+    )
+    parser.add_argument(
+        "--scenarios",
+        choices=["synthetic", "longbench", "ragbench", "longmemeval", "locomo"],
+        default="synthetic",
+        help="Scenario source. 'synthetic' uses benchmarks/longrun.py's "
+             "built-in scenarios (shipped with stele). 'longbench' pulls "
+             "real third-party QA records from THUDM/LongBench so the "
+             "token+accuracy measurement is on data we did not author.",
+    )
+    parser.add_argument(
+        "--longbench-per-task",
+        type=int, default=8,
+        help="Records per LongBench task (only used with --scenarios longbench).",
+    )
     args = parser.parse_args()
+    backend_cfg: dict[str, Any] = {"type": args.backend}
+    if args.backend == "postgres":
+        dsn = os.environ.get("STELE_PG_DSN")
+        if not dsn:
+            parser.error("--backend postgres requires STELE_PG_DSN env var")
+        backend_cfg["dsn"] = dsn
+    elif args.backend == "mariadb":
+        dsn = os.environ.get("STELE_MARIADB_DSN")
+        if not dsn:
+            parser.error("--backend mariadb requires STELE_MARIADB_DSN env var")
+        backend_cfg["dsn"] = dsn
+    elif args.backend == "clickhouse":
+        dsn = os.environ.get("STELE_CLICKHOUSE_DSN")
+        if not dsn:
+            parser.error("--backend clickhouse requires STELE_CLICKHOUSE_DSN env var")
+        backend_cfg["dsn"] = dsn
     strategies = [item.strip() for item in args.strategies.split(",") if item.strip()]
     report = run_answer_workflow_benchmark(
         judge_mode=args.judge,
@@ -475,6 +639,9 @@ def main() -> None:
         openai_base_url=args.openai_base_url,
         openai_api_key=args.openai_api_key,
         judge_batch_size=args.judge_batch_size,
+        backend=backend_cfg,
+        scenarios_source=args.scenarios,
+        longbench_per_task=args.longbench_per_task,
     )
     print(json.dumps(report["summary"], indent=2, sort_keys=True))
     print(report["run_dir"])
@@ -604,7 +771,113 @@ def _run_strategy(
             llm_round_trips=1,
         )
 
+    if strategy == "iterative":
+        return _run_iterative(
+            stash=stash,
+            scenario=scenario,
+            reference=reference,
+            replacement=replacement,
+            scope=scope,
+            artifact_id=artifact_id,
+            answerer=answerer,
+        )
+
     raise ValueError(f"Unknown strategy: {strategy}")
+
+
+def _run_iterative(
+    *,
+    stash: Stele,
+    scenario: BenchmarkScenario,
+    reference: str,
+    replacement: str,
+    scope: Any,
+    artifact_id: str,
+    answerer: Answerer,
+) -> AnswerAttempt:
+    """LLM-driven iterative recall loop.
+
+    Loop: ask the model with the current context. If it answers, return.
+    If it requests more (``need_more`` with kind=search|fetch), call into
+    stele and append the result. Hard stops at ITERATIVE_MAX_ROUNDS or
+    when accumulated context exceeds ITERATIVE_CONTEXT_BUDGET_BYTES.
+
+    Accounting:
+        - llm_round_trips = number of model calls
+        - stash_search_calls = number of recall (search) escalations
+        - stash_fetch_calls = number of raw_fetch escalations
+    """
+    contexts: list[tuple[str, str]] = [("summary", replacement)]
+    rounds = 0
+    search_calls = 0
+    fetch_calls = 0
+    last_answer = "I do not have enough information to answer."
+
+    def _joined() -> str:
+        return "\n\n".join(f"[{name}]\n{text}" for name, text in contexts)
+
+    while rounds < ITERATIVE_MAX_ROUNDS:
+        rounds += 1
+        ctx = _joined()
+        if len(ctx.encode("utf-8")) > ITERATIVE_CONTEXT_BUDGET_BYTES:
+            # Budget exhausted: force one final answer call with what we
+            # already have, then stop.
+            final_action, final_payload, _tokens = answerer.answer_iterative(
+                question=scenario.query,
+                context=ctx,
+                expected_answer=scenario.expected_answer,
+            )
+            last_answer = (
+                str(final_payload.get("answer", last_answer))
+                if final_action == "answer"
+                else last_answer
+            )
+            break
+        action, payload, _tokens = answerer.answer_iterative(
+            question=scenario.query,
+            context=ctx,
+            expected_answer=scenario.expected_answer,
+        )
+        if action == "answer":
+            last_answer = str(payload.get("answer", "")).strip() or last_answer
+            break
+        # need_more: dispatch to search or fetch.
+        kind = str(payload.get("kind", "search")).lower()
+        query = str(payload.get("query", scenario.query)).strip()
+        if kind == "fetch":
+            result = stash.recall(
+                query=query,
+                scope=scope,
+                strategy="raw_fetch",
+                artifact_id=artifact_id,
+            )
+            fetch_calls += result.stats.fetches
+            if result.context:
+                contexts.append((f"fetch:r{rounds}", result.context))
+        else:
+            result = stash.recall(
+                query=query,
+                scope=scope,
+                strategy="artifact_search",
+                artifact_id=artifact_id,
+                max_artifact_hits=3,
+            )
+            search_calls += result.stats.artifact_searches
+            if result.context:
+                contexts.append((f"search:{query[:40]}:r{rounds}", result.context))
+
+    context = _joined()
+    prompt = f"Question:\n{scenario.query}\n\nContext:\n{context}"
+    return AnswerAttempt(
+        answer=last_answer,
+        prompt_tokens=estimate_tokens(prompt),
+        completion_tokens=estimate_tokens(last_answer),
+        llm_round_trips=rounds,
+        stash_search_calls=search_calls,
+        stash_fetch_calls=fetch_calls,
+        context_bytes=len(context.encode("utf-8")),
+        path=context,
+    )
 
 
 def _flush_judge_batch(
