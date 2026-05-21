@@ -354,6 +354,7 @@ def run_answer_workflow_benchmark(
     openai_base_url: str = "http://192.168.1.193:8000/v1",
     openai_api_key: str = "",
     judge_batch_size: int = 10,
+    backend: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if judge_mode == "openai":
         answerer: Answerer = OpenAICompatAnswerer(
@@ -375,7 +376,7 @@ def run_answer_workflow_benchmark(
     jsonl_path = run_dir / "results.jsonl"
     stash = Stele.from_config(
         {
-            "backend": {"type": "memory"},
+            "backend": backend or {"type": "memory"},
             "pii": {"raw_fetch_enabled": True},
             "interception": {
                 "min_chars": 1,
@@ -471,7 +472,30 @@ def main() -> None:
         default=int(os.environ.get("YMS_JUDGE_BATCH_SIZE", "10")),
     )
     parser.add_argument("--output-root", type=Path, default=Path("benchmarks/runs"))
+    parser.add_argument(
+        "--backend",
+        choices=["memory", "sqlite", "postgres", "mariadb", "clickhouse"],
+        default="memory",
+        help="Stele storage backend. Postgres etc. require the matching "
+             "DSN env var (STELE_PG_DSN / STELE_MARIADB_DSN / STELE_CLICKHOUSE_DSN).",
+    )
     args = parser.parse_args()
+    backend_cfg: dict[str, Any] = {"type": args.backend}
+    if args.backend == "postgres":
+        dsn = os.environ.get("STELE_PG_DSN")
+        if not dsn:
+            parser.error("--backend postgres requires STELE_PG_DSN env var")
+        backend_cfg["dsn"] = dsn
+    elif args.backend == "mariadb":
+        dsn = os.environ.get("STELE_MARIADB_DSN")
+        if not dsn:
+            parser.error("--backend mariadb requires STELE_MARIADB_DSN env var")
+        backend_cfg["dsn"] = dsn
+    elif args.backend == "clickhouse":
+        dsn = os.environ.get("STELE_CLICKHOUSE_DSN")
+        if not dsn:
+            parser.error("--backend clickhouse requires STELE_CLICKHOUSE_DSN env var")
+        backend_cfg["dsn"] = dsn
     strategies = [item.strip() for item in args.strategies.split(",") if item.strip()]
     report = run_answer_workflow_benchmark(
         judge_mode=args.judge,
@@ -483,6 +507,7 @@ def main() -> None:
         openai_base_url=args.openai_base_url,
         openai_api_key=args.openai_api_key,
         judge_batch_size=args.judge_batch_size,
+        backend=backend_cfg,
     )
     print(json.dumps(report["summary"], indent=2, sort_keys=True))
     print(report["run_dir"])
