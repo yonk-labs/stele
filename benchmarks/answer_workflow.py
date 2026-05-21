@@ -355,6 +355,8 @@ def run_answer_workflow_benchmark(
     openai_api_key: str = "",
     judge_batch_size: int = 10,
     backend: dict[str, Any] | None = None,
+    scenarios_source: str = "synthetic",
+    longbench_per_task: int = 8,
 ) -> dict[str, Any]:
     if judge_mode == "openai":
         answerer: Answerer = OpenAICompatAnswerer(
@@ -366,7 +368,13 @@ def run_answer_workflow_benchmark(
     else:
         answerer = DeterministicAnswerer()
 
-    scenarios = build_scenarios(content_multiplier=10)
+    if scenarios_source == "longbench":
+        from benchmarks.external.longbench_scenarios import build_longbench_scenarios
+        scenarios = build_longbench_scenarios(per_task=longbench_per_task)
+    elif scenarios_source == "synthetic":
+        scenarios = build_scenarios(content_multiplier=10)
+    else:
+        raise ValueError(f"Unknown scenarios_source: {scenarios_source!r}")
     if scenario_limit is not None:
         scenarios = scenarios[:scenario_limit]
     run_dir = output_root / datetime.now(UTC).strftime("%Y-%m-%d") / (
@@ -479,6 +487,20 @@ def main() -> None:
         help="Stele storage backend. Postgres etc. require the matching "
              "DSN env var (STELE_PG_DSN / STELE_MARIADB_DSN / STELE_CLICKHOUSE_DSN).",
     )
+    parser.add_argument(
+        "--scenarios",
+        choices=["synthetic", "longbench"],
+        default="synthetic",
+        help="Scenario source. 'synthetic' uses benchmarks/longrun.py's "
+             "built-in scenarios (shipped with stele). 'longbench' pulls "
+             "real third-party QA records from THUDM/LongBench so the "
+             "token+accuracy measurement is on data we did not author.",
+    )
+    parser.add_argument(
+        "--longbench-per-task",
+        type=int, default=8,
+        help="Records per LongBench task (only used with --scenarios longbench).",
+    )
     args = parser.parse_args()
     backend_cfg: dict[str, Any] = {"type": args.backend}
     if args.backend == "postgres":
@@ -508,6 +530,8 @@ def main() -> None:
         openai_api_key=args.openai_api_key,
         judge_batch_size=args.judge_batch_size,
         backend=backend_cfg,
+        scenarios_source=args.scenarios,
+        longbench_per_task=args.longbench_per_task,
     )
     print(json.dumps(report["summary"], indent=2, sort_keys=True))
     print(report["run_dir"])
