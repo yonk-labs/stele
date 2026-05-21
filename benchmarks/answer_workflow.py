@@ -371,6 +371,9 @@ def run_answer_workflow_benchmark(
     if scenarios_source == "longbench":
         from benchmarks.external.longbench_scenarios import build_longbench_scenarios
         scenarios = build_longbench_scenarios(per_task=longbench_per_task)
+    elif scenarios_source in {"ragbench", "longmemeval", "locomo"}:
+        from benchmarks.external.third_party_scenarios import build_scenarios_for
+        scenarios = build_scenarios_for(scenarios_source)
     elif scenarios_source == "synthetic":
         scenarios = build_scenarios(content_multiplier=10)
     else:
@@ -489,7 +492,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--scenarios",
-        choices=["synthetic", "longbench"],
+        choices=["synthetic", "longbench", "ragbench", "longmemeval", "locomo"],
         default="synthetic",
         help="Scenario source. 'synthetic' uses benchmarks/longrun.py's "
              "built-in scenarios (shipped with stele). 'longbench' pulls "
