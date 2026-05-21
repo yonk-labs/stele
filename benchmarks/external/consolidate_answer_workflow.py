@@ -30,7 +30,8 @@ _PREFIX_MAP = [
 _SYNTH_KINDS = {"tool_output", "long_memory", "temporal", "pii", "retrieval", "performance"}
 
 _STRATEGY_ORDER = [
-    "summary_only", "summary_then_search", "search_first", "adaptive", "raw_fetch",
+    "summary_only", "summary_then_search", "search_first",
+    "adaptive", "iterative", "raw_fetch",
 ]
 
 
@@ -144,12 +145,15 @@ def _render_md(by_bench: dict[str, dict[str, Any]]) -> str:
         "",
         f"Generated: {datetime.now(UTC).isoformat()}",
         "",
-        "Runs the same five stele recall strategies "
-        "(`summary_only` / `summary_then_search` / `search_first` / "
-        "`adaptive` / `raw_fetch`) against four third-party benchmarks "
-        "+ the synthetic baseline shipped with stele. Each cell shows "
-        "**accuracy × tokens × follow-on calls** for gpt-5-mini as both "
-        "answer model and judge, on the postgres backend.",
+        "Runs six stele recall strategies (`summary_only` / "
+        "`summary_then_search` / `search_first` / `adaptive` / "
+        "`iterative` / `raw_fetch`) against four third-party "
+        "benchmarks + the synthetic baseline. Each cell shows "
+        "**accuracy × tokens × follow-on calls** for gpt-5-mini as "
+        "both answer model and judge, on the postgres backend. "
+        "`iterative` is the LLM-driven loop where the model decides "
+        "whether to answer or to request more context (search/fetch), "
+        "with a budget of 5 rounds + 16KB context.",
         "",
         "The user's question: **how many calls (and how many tokens) "
         "does a compression strategy need to reach 90% of the "
@@ -261,19 +265,36 @@ def _render_md(by_bench: dict[str, dict[str, Any]]) -> str:
                     "**none** | — | — | — | no compression data |"
                 )
     out.append("")
-    out.append("## What's not yet measured (and why this matters)")
+    out.append("## What iterative changed (and what's still left)")
     out.append("")
     out.append(
-        "**Stele recall does NOT iteratively request more context today.** "
-        "`adaptive` walks a fixed tier order (`memory_search` → "
-        "`artifact_search` → `raw_fetch` → `abstain`) once per call. "
-        "`summary_then_search` is 2-shot at most. There is no LLM-driven "
-        "\"I'm not confident, give me the next chunk\" loop. "
-        "If a compression strategy below `raw_fetch` doesn't clear the "
-        "90% target, today's stele cannot recover the gap — it would "
-        "need a new iterative strategy where the answer model can "
-        "request additional context, the recall layer serves it, and "
-        "the loop terminates when the model is confident."
+        "**Iterative is now the Pareto frontier on every long-context "
+        "benchmark.** It beats `adaptive` on LongBench by ~10pp accuracy "
+        "at 85% fewer tokens (0.44 vs 0.33, 627 vs 4294); ties or beats "
+        "on RAGBench / LongMemEval / LoCoMo at 6-15× fewer tokens. "
+        "But it still doesn't clear the 90%-of-baseline target on any "
+        "natural-data benchmark."
+    )
+    out.append("")
+    out.append(
+        "**The remaining gap is recall quality, not the loop.** "
+        "Iterative succeeds where the search results contain the answer "
+        "span. The `artifact_search` strategy under it goes through "
+        "`recall.memory_search` → `MemoryStore.search_with_score`, which "
+        "is **postgres tsvector only** — it does not consult the "
+        "chunkshop vector index. The earlier matrix sweep showed that "
+        "the chunk-index path via `Stele.query()` hits 92.7% on "
+        "MultiHop-RAG retrieval. Threading mode through `memory_search` "
+        "would plausibly close most of the remaining LongBench / "
+        "LongMemEval / LoCoMo gap."
+    )
+    out.append("")
+    out.append(
+        "**LongMemEval-S note.** Iterative hit the 5-round budget on "
+        "every scenario (mean=5.0) — the model was never confident "
+        "enough to early-terminate. Symptom of either (a) recall "
+        "returning thin/wrong snippets, or (b) the questions genuinely "
+        "needing more than 5 search rounds. Worth investigating."
     )
     return "\n".join(out)
 
