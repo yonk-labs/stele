@@ -169,7 +169,7 @@ opt-in.
 
 | Change | From → To | Notes |
 |---|---|---|
-| `lede` (core dep) | `>=0.3,<0.4` → `>=0.4.4,<0.5` | needed for `readable_report`, `hints`, `keep_headings`, `top_terms`; 0.4.4 also fixes spaCy fact-extraction duplication |
+| `lede` (core dep) | `>=0.3,<0.4` → `>=0.4.5,<0.5` | needed for `readable_report`, `hints`, `keep_headings`, `top_terms`; 0.4.4 fixes spaCy fact dedup; 0.4.5 adds the JSON ingest surface (used in slice 2, not here). Slice 1 consumes only the compact `.to_markdown()` human surface |
 | `chunkshop` extra | unchanged this slice | NOT bumped for the summarizer (dropped); chunkshop 0.5.0 bump moves to slice 2 (native search) |
 | new `expansion` extra | — | `lede-spacy>=0.4.2` (+ `[synonyms]` for synonym/similar; vector model installed separately) |
 | mypy overrides | add `lede_spacy.*` | matches existing `lede`/`chunkshop` ignores |
@@ -238,6 +238,12 @@ unaffected — verified by the existing test suite, not assumed.
 - **Pre-staging:** the `lede --mode report` CLI / `readable_report` can
   precompute summaries + facts offline and store them (as artifacts/memory) so
   recall is faster and more accurate at query time. Likely its own slice.
+- **JSON ingest enrichment (lede 0.4.5, slice 2):** store
+  `readable_report(...).to_json()` at chunk ingest, promote
+  `attributes.*.value` → filterable columns, and index/embed `search_text`. This
+  is the strong form of soft-metadata-filtering (document-side structured
+  attributes, not slice-1 query-rewrite) and pairs with chunkshop 0.5.0 FTS. See
+  `docs/superpowers/2026-05-23-lede-0.4.5-features.md`.
 
 ## In-slice fix — summary truncation
 

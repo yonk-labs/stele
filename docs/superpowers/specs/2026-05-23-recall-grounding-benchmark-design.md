@@ -48,6 +48,17 @@ existing loader pattern (cache, honest-failure on missing source — never
 fabricate). SCOTUS gold authored by hand; document the authoring method + date
 in the yaml header (authoring bias is a known caveat).
 
+**Include a deterministic-attribute question subset.** lede 0.4.5's SCOTUS
+guidance is that questions like "which terms mention Justice Jackson?" should be
+answered by *filtering promoted metadata* (term, docket, citation, justice), not
+semantic retrieval alone. Author ~⅓ of the SCOTUS gold as such
+attribute/deterministic questions so the benchmark can expose where a metadata
+path beats both raw-chunks and digest. (See
+`docs/superpowers/2026-05-23-lede-0.4.5-features.md`.) A dedicated
+`metadata_filter` lane built on lede's `attributes`/`promotion_candidates` +
+`search_text` is a **later round** — noted, not in the core matrix; it depends
+on slice-2 ingest enrichment.
+
 ## Prerequisite fix
 
 `benchmarks/external/judge_lane.py:172-189` truncates ingested context to
