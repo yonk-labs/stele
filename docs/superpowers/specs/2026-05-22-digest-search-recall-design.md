@@ -26,16 +26,18 @@ top.
 - **Placement:** a new dedicated strategy `digest_search`, not an extension of
   `adaptive`. One file, one purpose; `adaptive` may add it as a tier later.
 - **Search engine:** stele's existing retrieval (unchanged in this slice).
-- **Summarizer:** implement *both* lede-direct and chunkshop `summarize_hits`;
-  a benchmark picks the default that `"auto"` resolves to.
+- **Summarizer:** `lede.readable_report` (0.4.4) — summary + hint-biased
+  `key_facts` in one call (the bake-off winner). chunkshop `summarize_hits`
+  dropped (it is plain lede summary underneath, no facts). The benchmark sweeps
+  *composition/budget/backend*, not summarizer wrappers.
 - **Expansion + soft-filter:** in scope for this slice, but **opt-in**
   (`expansion_kinds=()` by default — no spaCy models load unless asked).
 - **Invariant:** `recall/` must not import `lede` or `chunkshop`
   (`tests/unit/recall/test_architecture.py`). The summarizer and expander live
   under `summary/` and are injected into the strategy via `_RecallDeps`.
-- **LLM-free:** lede and chunkshop's summarize step are deterministic and make
-  no model calls. Recall stays oracle-free and LLM-free. The only LLM is the
-  downstream consumer reading the summary — outside stele.
+- **LLM-free:** `lede.readable_report` is deterministic and makes no model
+  calls. Recall stays oracle-free and LLM-free. The only LLM is the downstream
+  consumer reading the summary — outside stele.
 
 ## Architecture & data flow
 
@@ -88,15 +90,24 @@ already-scrubbed chunks (no re-scrub), per the existing recall rule.
    model missing for `"similar"` → fall back to `"lemma"` with a logged
    warning. Pure given a fixed model.
 
-2. **`summary/hit_summarizer.py` — `HitSummarizer` Protocol + two impls.**
-   - `LedeHitSummarizer` — concatenates hit texts (heading-prefixed), calls
-     `lede.summarize(text, hints=terms, keep_headings=True, max_length=…)` via
-     the existing `lede_adapter`.
-   - `ChunkshopHitSummarizer` — adapts `SearchHit → chunkshop.Hit`, calls
-     `chunkshop.search_common.summarize_hits(hits, summarize, hints=…,
-     prepend_headings=True)`.
-   - Selected by config (`"lede" | "chunkshop"`); `"auto"` resolves to the
-     benchmark-chosen default constant `_DEFAULT_SUMMARIZER`.
+2. **`summary/hit_summarizer.py` — `HitSummarizer` Protocol + `LedeHitSummarizer`.**
+   `LedeHitSummarizer` concatenates hit texts (heading-prefixed) and calls
+   **`lede.readable_report(text, max_length=budget, max_facts=N,
+   hints=terms, hint_focus=0.7, keep_headings=True, backend="regex")`**, then
+   emits `report.to_markdown()` as `context`. `readable_report` (lede 0.4.4) is
+   the first-class form of the bake-off winner — a hint-biased summary PLUS
+   hint-biased `key_facts` in one deterministic call — so we do NOT hand-roll
+   summarize+key_facts+dedup. The 0.4.4 spaCy dedup fix lands on this `key_facts`
+   path.
+   - `backend` default **`"regex"`** = the 50% winner (summary + hint-biased
+     key_facts). `backend="spacy"` additionally injects `correlate_facts`, which
+     was the *worst* lane in the bake-off (22%) — so spaCy is an opt-in benchmark
+     lane, never the default.
+   - **No chunkshop summarizer.** chunkshop's `summarize_hits` is plain lede
+     summary underneath (no facts), strictly weaker than `readable_report`;
+     dropped. (chunkshop 0.5.0 still arrives in slice 2 for native *search*.)
+   - The same `lede --mode report` CLI enables offline corpus pre-staging
+     (precompute summaries/facts and store) — noted as a follow-up.
 
 ### New, under `recall/` (pure orchestration, NO lede/chunkshop import)
 
@@ -131,24 +142,35 @@ single-purpose and independently testable.
 
 ```python
 class DigestConfig(BaseModel):
-    summarizer: Literal["lede", "chunkshop", "auto"] = "auto"
+    report_backend: Literal["regex", "spacy"] = "regex"  # regex = bake-off winner; spacy adds correlate_facts (worst lane)
     max_chunks: int = 30           # cap on chunks fed to the summarizer
-    max_summary_chars: int = 1500  # lede max_length; "extra rows if lots of data"
+    max_facts: int = 40            # readable_report max_facts
+    # Adaptive budget (replaces fixed max_summary_chars): floor for small
+    # corpora, scaling up with returned size; ceiling caps a huge corpus.
+    summary_floor_chars: int = 2000
+    summary_ceiling_chars: int = 20000
+    summary_chars_per_returned_char: float = 0.1  # body budget as a fraction of returned text size
+    # Size gate: below this many returned tokens, skip summarization and pass raw chunks.
+    min_corpus_tokens_to_summarize: int = 4000
     expansion_kinds: tuple[Literal["lemma", "synonyms", "similar"], ...] = ()  # () = no expansion
-    soft_filter_weight: float = 0.25  # boost magnitude for expanded-term overlap; 0 = pure search order
+    soft_filter_weight: float = 0.25  # boost for expanded-term overlap; benchmark sweeps 0.25–0.75
+    hint_focus: float = 0.7           # moderate; 0.95 over-focused and hurt accuracy
     keep_headings: bool = True
 ```
 
-`"auto"` resolves to a module-level `_DEFAULT_SUMMARIZER` constant the benchmark
-sets. `expansion_kinds=()` by default means no spaCy models load unless asked.
-All defaults preserve current behavior because the strategy is opt-in.
+`expansion_kinds=()` by default means no spaCy models load unless asked. The
+size gate + adaptive budget are the empirical asks: skip summarization when the
+returned set is small (raw is cheap and has no fluff to remove), and scale the
+summary budget with returned size (a 5K doc and a 200K doc must not share a
+fixed ceiling). All defaults preserve current behavior because the strategy is
+opt-in.
 
 ## Dependencies (`pyproject.toml`)
 
 | Change | From → To | Notes |
 |---|---|---|
-| `lede` (core dep) | `>=0.3,<0.4` → `>=0.4.2,<0.5` | needed for `hints`, `keep_headings`, `top_terms` |
-| `chunkshop` extra | `>=0.4.3,<0.5` → `>=0.5.0,<0.6` | needed for `summarize_hits` |
+| `lede` (core dep) | `>=0.3,<0.4` → `>=0.4.4,<0.5` | needed for `readable_report`, `hints`, `keep_headings`, `top_terms`; 0.4.4 also fixes spaCy fact-extraction duplication |
+| `chunkshop` extra | unchanged this slice | NOT bumped for the summarizer (dropped); chunkshop 0.5.0 bump moves to slice 2 (native search) |
 | new `expansion` extra | — | `lede-spacy>=0.4.2` (+ `[synonyms]` for synonym/similar; vector model installed separately) |
 | mypy overrides | add `lede_spacy.*` | matches existing `lede`/`chunkshop` ignores |
 
@@ -190,12 +212,17 @@ unaffected — verified by the existing test suite, not assumed.
 - **Contract:** add `digest_search` cases to
   `tests/contract/test_recall_contract.py`, parametrized across backends
   (postgres default).
-- **Benchmark (the default-picker):** extend the LLM-judged `answer_workflow`
-  benchmark with a `digest_search` lane × {lede, chunkshop} summarizer,
-  compared against the `artifact_search` (raw-chunks) baseline on the same judge
-  + corpus. Metrics: judged answer accuracy, input-token count, latency. The
-  winning summarizer sets `_DEFAULT_SUMMARIZER`. Per the repo rule, accuracy
-  claims require the answer-workflow benchmark, not the showcase.
+- **Benchmark (the grounding study — OPEN FORK: may split into a sibling spec
+  that runs first):** extend the LLM-judged `answer_workflow` benchmark on
+  **larger docs**. Honest baselines: {LLM cold (no context), full-doc,
+  N-chunks @ 10/20/30}. Lanes: `digest_search` with `readable_report`
+  (regex default) plus opt-in spaCy, sweeping `soft_filter_weight` 0.25–0.75 and
+  the size-gate / budget knobs; scenarios d–g (full-doc summary-with-facts as
+  chunk-1, summary-on-top-of-N-chunks, full-doc report + per-chunk summary).
+  **Judge change:** grade "answers the same question" (answer-equivalence), not
+  "contains all the same facts." Metrics: judged accuracy, input tokens,
+  latency. Per the repo rule, accuracy claims require the answer-workflow
+  benchmark, not the showcase.
 
 ## Out of scope (this slice)
 
@@ -212,3 +239,27 @@ unaffected — verified by the existing test suite, not assumed.
   move from query-rewrite into the search leg itself.
 - `top_terms` is Python-only in lede 0.4.x; if Python↔Rust parity of the
   expansion step ever matters, it waits for lede 0.5.
+- **Pre-staging:** the `lede --mode report` CLI / `readable_report` can
+  precompute summaries + facts offline and store them (as artifacts/memory) so
+  recall is faster and more accurate at query time. Likely its own slice.
+
+## In-slice fix — summary truncation
+
+`summary/lede_adapter.py::_trim` hard-chops with `"..."`. `readable_report`
+respects `max_length` for the extractive body, but `keep_headings`/TOC/`pin` are
+**additive** (intentionally exceed `max_length`). A post-hoc chop would sever
+headings/facts and silently hurt accuracy. Fix: let `readable_report`'s budget
+govern selection; never chop the report's structural/pinned content. The
+adaptive budget (config) sets `max_length` per request.
+
+## Update log
+
+- **2026-05-23:** lede bumped 0.4.2 → **0.4.4**; summarizer switched to
+  `readable_report` (first-class winner composition + spaCy dedup fix);
+  chunkshop summarizer **dropped** (lede underneath); fixed `max_summary_chars`
+  replaced by size-gate + adaptive budget; `soft_filter_weight` sweep 0.25–0.75;
+  benchmark redesigned (honest baselines, larger docs, answer-equivalence judge,
+  scenarios d–g) and flagged as a possible sibling spec; truncation fix added.
+  Driven by the 10-strategy bake-off (`summary+facts` = 50% acc / 67% tok
+  reduction winner) and lede 0.4.4. Two open forks remain (chunkshop summarizer
+  → resolved to *drop*; benchmark scope → still open).
