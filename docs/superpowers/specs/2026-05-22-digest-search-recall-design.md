@@ -212,17 +212,13 @@ unaffected — verified by the existing test suite, not assumed.
 - **Contract:** add `digest_search` cases to
   `tests/contract/test_recall_contract.py`, parametrized across backends
   (postgres default).
-- **Benchmark (the grounding study — OPEN FORK: may split into a sibling spec
-  that runs first):** extend the LLM-judged `answer_workflow` benchmark on
-  **larger docs**. Honest baselines: {LLM cold (no context), full-doc,
-  N-chunks @ 10/20/30}. Lanes: `digest_search` with `readable_report`
-  (regex default) plus opt-in spaCy, sweeping `soft_filter_weight` 0.25–0.75 and
-  the size-gate / budget knobs; scenarios d–g (full-doc summary-with-facts as
-  chunk-1, summary-on-top-of-N-chunks, full-doc report + per-chunk summary).
-  **Judge change:** grade "answers the same question" (answer-equivalence), not
-  "contains all the same facts." Metrics: judged accuracy, input tokens,
-  latency. Per the repo rule, accuracy claims require the answer-workflow
-  benchmark, not the showcase.
+- **Benchmark:** owned by a **sibling spec that runs FIRST** — the recall
+  grounding benchmark (honest baselines, larger docs, answer-equivalence judge,
+  scenarios d–g, weight/budget sweeps). `digest_search`'s defaults
+  (`report_backend`, budget floor/ceiling, `min_corpus_tokens_to_summarize`,
+  `soft_filter_weight`, `hint_focus`) are **set by that study's findings**, so
+  the digest_search implementation plan depends on it. Per the repo rule,
+  accuracy claims require the answer-workflow benchmark, not the showcase.
 
 ## Out of scope (this slice)
 
