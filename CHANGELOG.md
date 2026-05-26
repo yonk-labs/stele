@@ -5,7 +5,20 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
-## [Unreleased]
+## [0.2.0] — 2026-05-26
+
+This release ships the Phase 5+ hardening / lifecycle / CLI-MCP wave below and
+integrates the now-feature-complete upstream dependencies. All changes are
+additive — the `Stele` public contract is unchanged.
+
+### Changed — upstream dependency integration
+
+- **Bumped the feature-complete upstream deps**: `lede` 0.3 → **0.4.5**,
+  `chunkshop` 0.4.3 → **0.6.1**, `pg-raggraph` 0.3.0a3 → **0.4.0a1**
+  (+ `lede-spacy` 0.4.5). Upstream defaults are byte-identical; the new
+  search/memory/code and retrieval-ladder surfaces are opt-in. Verified
+  byte-safe: `ruff` clean, `mypy src` clean (126 files), `pytest` 771 passed;
+  graph path verified on 0.4.0a1 (Postgres with `vector` + `pg_trgm`).
 
 ### Added — Phase 5+ hardening + lifecycle (2026-05-20)
 
@@ -64,6 +77,32 @@ the shared `bind_handlers()` engine.
   `stele import-namespace`, `stele store-many`,
   `stele memory add-many`. Bulk-write subcommands read JSONL from
   `--input <file>` or stdin (`-`).
+
+### Added — benchmark surface
+
+- **Per-report version stamping** — showcase, recall, runtime, longrun, and
+  answer-workflow now record the package set that produced them (`stele-core` +
+  `lede`/`chunkshop`/`pg-raggraph`) in a `versions` block (JSON) and a header
+  line (Markdown), via `benchmarks/_versions.py`.
+- **Separate judge endpoint for the answer-workflow benchmark** —
+  `--judge-base-url` / `--judge-api-key` let the judge model run on a different
+  OpenAI-compatible server than the answerer (avoids self-grading bias). The
+  report records the answer/judge model + endpoint in a `config` block.
+  Defaults to the answer endpoint, so single-server runs are unchanged.
+
+### Fixed
+
+- **Stale graph integration tests** — the DSN-gated pg-raggraph revisor tests
+  called `search_current`/`search_as_of` without the now-required
+  `supersession_behavior` kwarg; fixed all four call sites.
+
+### Documentation (0.2.0)
+
+- Corrected the pg-raggraph retrieval-profile audit against the real 0.4.0a1
+  API (`profile=` shapes `result.context` only, orthogonal to `mode`; the
+  decision-independent perf lever is `retrieval_strategy="vector_first"`).
+  Recorded the `digest_search` build-vs-buy collision (chunkshop
+  `summarize_hits` / pg-raggraph `mode="summary"` ship the same idea).
 
 ### Known limitations
 

@@ -8,14 +8,14 @@ build-backend = "hatchling.build"
 # follow-up, not a blocker for first publish.
 [project]
 name = "stele-core"
-version = "0.1.0"
+version = "0.2.0"
 description = "Sovereign, source-backed memory and living knowledge for LLM agents."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "pydantic>=2,<3",
   "pyyaml>=6,<7",
-  "lede>=0.3,<0.4",
+  "lede>=0.4.5,<0.5",
   "mcp>=1.0,<2",
   "jinja2>=3.1,<4",
 ]
@@ -30,22 +30,25 @@ mariadb = [
 clickhouse = [
   "clickhouse-connect>=0.8,<1",
 ]
-# Chunkshop 0.4.x — modular backends, now published to PyPI (0.4.2 is the
-# first 0.4.x on PyPI; 0.4.0/0.4.1 were git-tag-only). [all-backends] ==
-# sqlite,mariadb,clickhouse; Postgres is core (psycopg[binary] is a core
-# chunkshop dep), so there is NO [postgres] extra.
+# Chunkshop 0.6.x — modular backends + search surface (0.5.0 hybrid search +
+# summarize_hits) + connector platform / code understanding (0.6.0). [all-backends]
+# == sqlite,mariadb,clickhouse; Postgres is core (psycopg[binary] is a core
+# chunkshop dep), so there is NO [postgres] extra. Defaults are byte-identical to
+# 0.4.x; the new search/memory surfaces are additive opt-ins.
 chunkshop = [
-  "chunkshop[all-backends]>=0.4.3,<0.5",
+  "chunkshop[all-backends]>=0.6.1,<0.7",
 ]
-# pg-raggraph 0.3.0a3 — the Phase 5 living-knowledge consumer surface
-# (PRG-1..PRG-4: opaque caller metadata + evolution status on results,
-# post-hoc retract()/supersede(), stable chunk_id). Owner-controlled, so the
-# exact alpha is pinned; PRG-1..4 verified in the 0.3.0a3 source, not prose.
+# pg-raggraph 0.4.0a1 — the Phase 5 living-knowledge consumer surface.
+# Adds the per-call retrieval ladder (query(profile=...) + retrieval_strategy
+# weighted/pre_filter/vector_first), no-LLM mode="summary"/summary_base_mode,
+# JSONB metadata-index machinery, and the graph-hydration latency fix on top of
+# the 0.3.0a3 PRG-1..4 surface. Defaults are byte-identical; the new knobs are
+# opt-in. Owner-controlled, so the exact alpha is pinned.
 # Independent of [postgres]: the graph projection reuses the Postgres
 # artifact-backend DSN (no os.environ), but the dependency set is separate.
 # pg-raggraph brings its own psycopg[binary]/psycopg-pool/pgvector.
 postgres-graph = [
-  "pg-raggraph==0.3.0a3",
+  "pg-raggraph==0.4.0a1",
 ]
 judge = [
   "openai>=1.0,<2",

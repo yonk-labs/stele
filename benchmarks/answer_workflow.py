@@ -27,6 +27,7 @@ from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, Field
 
+from benchmarks._versions import version_info, versions_md_line
 from benchmarks.longrun import BenchmarkScenario, build_scenarios
 from stele import Stele
 from stele.core.artifact import estimate_tokens
@@ -233,11 +234,18 @@ class OpenAICompatAnswerer:
         judge_model: str,
         base_url: str,
         api_key: str,
+        judge_base_url: str | None = None,
+        judge_api_key: str | None = None,
     ) -> None:
         self.answer_model = answer_model
         self.judge_model = judge_model
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
+        # Judge calls can target a different server than the answerer so the
+        # judge isn't grading its own model's output. Defaults to the answer
+        # endpoint when unset (single-server runs are byte-identical to before).
+        self.judge_base_url = (judge_base_url or base_url).rstrip("/")
+        self.judge_api_key = judge_api_key if judge_api_key is not None else api_key
 
     def answer(
         self,
@@ -274,6 +282,8 @@ class OpenAICompatAnswerer:
         content = self._chat(
             model=self.judge_model,
             json_mode=True,
+            base_url=self.judge_base_url,
+            api_key=self.judge_api_key,
             messages=[
                 {
                     "role": "system",
@@ -311,6 +321,8 @@ class OpenAICompatAnswerer:
             model=self.judge_model,
             json_mode=True,
             max_tokens=4096,
+            base_url=self.judge_base_url,
+            api_key=self.judge_api_key,
             messages=[
                 {
                     "role": "system",
@@ -414,6 +426,8 @@ class OpenAICompatAnswerer:
         messages: list[dict[str, str]],
         json_mode: bool = False,
         max_tokens: int = 512,
+        base_url: str | None = None,
+        api_key: str | None = None,
     ) -> str:
         # GPT-5 family uses max_completion_tokens + doesn't accept
         # arbitrary temperature, and burns most of the budget on hidden
@@ -432,11 +446,13 @@ class OpenAICompatAnswerer:
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
         data = json.dumps(payload).encode("utf-8")
+        url = base_url if base_url is not None else self.base_url
+        key = api_key if api_key is not None else self.api_key
         headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
         request = Request(
-            f"{self.base_url}/chat/completions",
+            f"{url}/chat/completions",
             data=data,
             headers=headers,
             method="POST",
@@ -460,6 +476,8 @@ def run_answer_workflow_benchmark(
     judge_model: str = "gpt-4o-mini",
     openai_base_url: str = "http://192.168.1.193:8000/v1",
     openai_api_key: str = "",
+    judge_base_url: str | None = None,
+    judge_api_key: str | None = None,
     judge_batch_size: int = 10,
     backend: dict[str, Any] | None = None,
     scenarios_source: str = "synthetic",
@@ -471,6 +489,8 @@ def run_answer_workflow_benchmark(
             judge_model=judge_model,
             base_url=openai_base_url,
             api_key=openai_api_key,
+            judge_base_url=judge_base_url,
+            judge_api_key=judge_api_key,
         )
     else:
         answerer = DeterministicAnswerer()
@@ -560,6 +580,16 @@ def run_answer_workflow_benchmark(
         stash.close()
 
     report = _summarize(results=results, scenarios=scenarios, strategies=strategies)
+    report["config"] = {
+        "judge_mode": judge_mode,
+        "scenarios_source": scenarios_source,
+        "answer_model": answer_model if judge_mode == "openai" else "deterministic",
+        "answer_base_url": openai_base_url if judge_mode == "openai" else None,
+        "judge_model": judge_model if judge_mode == "openai" else "deterministic",
+        "judge_base_url": (
+            (judge_base_url or openai_base_url) if judge_mode == "openai" else None
+        ),
+    }
     (run_dir / "AnswerWorkflow.json").write_text(
         json.dumps(report, indent=2, sort_keys=True),
         encoding="utf-8",
@@ -584,6 +614,19 @@ def main() -> None:
         default=os.environ.get("OPENAI_BASE_URL", "http://192.168.1.193:8000/v1"),
     )
     parser.add_argument("--openai-api-key", default=os.environ.get("OPENAI_API_KEY", "local"))
+    parser.add_argument(
+        "--judge-base-url",
+        default=os.environ.get("YMS_JUDGE_BASE_URL"),
+        help="Separate OpenAI-compatible endpoint for the judge model. When set, "
+             "the judge runs on this server while answers are generated on "
+             "--openai-base-url (keeps the judge off the answerer's own model). "
+             "Defaults to --openai-base-url.",
+    )
+    parser.add_argument(
+        "--judge-api-key",
+        default=os.environ.get("YMS_JUDGE_API_KEY"),
+        help="API key for --judge-base-url. Defaults to --openai-api-key.",
+    )
     parser.add_argument(
         "--judge-batch-size",
         type=int,
@@ -638,6 +681,8 @@ def main() -> None:
         judge_model=args.judge_model,
         openai_base_url=args.openai_base_url,
         openai_api_key=args.openai_api_key,
+        judge_base_url=args.judge_base_url,
+        judge_api_key=args.judge_api_key,
         judge_batch_size=args.judge_batch_size,
         backend=backend_cfg,
         scenarios_source=args.scenarios,
@@ -994,6 +1039,7 @@ def _summarize(
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "benchmark": "answer_workflow",
+        "versions": version_info(),
         "summary": summary,
         "by_strategy": strategy_rows,
         "results": [asdict(result) for result in results],
@@ -1007,6 +1053,19 @@ def _markdown(report: dict[str, Any]) -> str:
         "Measures answer correctness, estimated tokens, LLM round trips, search calls, "
         "and fetch calls by retrieval strategy.",
         "",
+        f"**Package versions**: {versions_md_line()}",
+        "",
+    ]
+    cfg = report.get("config")
+    if isinstance(cfg, dict):
+        lines.append(
+            f"**Answer model**: `{cfg.get('answer_model')}` @ `{cfg.get('answer_base_url')}`  "
+        )
+        lines.append(
+            f"**Judge model**: `{cfg.get('judge_model')}` @ `{cfg.get('judge_base_url')}`  "
+        )
+        lines.append("")
+    lines += [
         "| Strategy | Runs | Accuracy | Mean Tokens | Round Trips | Search Calls | Fetch Calls |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]

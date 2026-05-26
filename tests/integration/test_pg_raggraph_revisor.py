@@ -30,6 +30,7 @@ def test_ingest_then_search_recovers_stele_ref() -> None:
         namespace="rev_it1",
         limit=5,
         retracted_behavior="surface_both",
+        supersession_behavior="surface_both",
         version_filter=None,
     )
     assert any(h.stele_ref == ref for h in hits)
@@ -53,6 +54,7 @@ def test_retract_hide_is_absolute_and_naive_rejected() -> None:
         namespace="rev_it2",
         limit=5,
         retracted_behavior="hide",
+        supersession_behavior="surface_both",
         version_filter=None,
     )
     assert not [h for h in hide if h.stele_ref == ref]
@@ -61,6 +63,7 @@ def test_retract_hide_is_absolute_and_naive_rejected() -> None:
         namespace="rev_it2",
         limit=5,
         retracted_behavior="flag",
+        supersession_behavior="surface_both",
         version_filter=None,
     )
     assert any(h.stele_ref == ref and h.retracted for h in flag)
@@ -78,6 +81,7 @@ def test_search_as_of_requires_tz_aware() -> None:
             limit=5,
             as_of=datetime(2020, 1, 1),
             retracted_behavior="hide",
+            supersession_behavior="surface_both",
             version_filter=None,
         )
     r.close()

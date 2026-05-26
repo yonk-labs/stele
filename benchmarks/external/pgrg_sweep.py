@@ -37,7 +37,7 @@ import json
 import math
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -529,7 +529,7 @@ def _persist(cell: dict[str, Any]) -> None:
     if OUT.exists():
         data = json.loads(OUT.read_text())
     data.setdefault("cells", []).append(cell)
-    data["updated"] = datetime.now(timezone.utc).isoformat()
+    data["updated"] = datetime.now(UTC).isoformat()
     OUT.write_text(json.dumps(data, indent=2))
 
 
@@ -564,7 +564,7 @@ async def run_sweep(ingest_keys: list[str], samples: int, k: int,
         "deterministic": True,
         "scorer": "benchmarks.external.harness._answer_hit (identical to bakeoff)",
         "llm_judge": JUDGE_MODEL if judge else None,
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
     }
     for ik in ingest_keys:
         ns_map = {c.name: _ns(ik, c.name) for c in cases}
@@ -601,7 +601,7 @@ async def run_stage(ingest_keys: list[str], samples: int, *,
         for case in cases:
             res = await stage_one(ik, case)
             _persist({"phase": "stage", "dataset": dataset, **res,
-                      "ts": datetime.now(timezone.utc).isoformat()})
+                      "ts": datetime.now(UTC).isoformat()})
             print(f"[stage {ik}] {case.name}: {res['status']} "
                   f"ents={res.get('entities','-')} "
                   f"rels={res.get('relationships','-')} "

@@ -29,6 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from benchmarks._versions import version_info, versions_md_line
 from stele import Stele
 from stele.interception.wrapper import stash_tool_result
 
@@ -174,6 +175,7 @@ class ShowcaseReport:
     timestamp: str
     version: str
     backends_tested: list[str]
+    versions: dict[str, str] = field(default_factory=version_info)
     results: list[WorkloadResult] = field(default_factory=list)
     concurrency_rows_per_sec: float = 0.0
     summary: dict[str, Any] = field(default_factory=dict)
@@ -389,6 +391,7 @@ def write_showcase_report(report: ShowcaseReport, output_root: Path) -> tuple[Pa
             {
                 "timestamp": report.timestamp,
                 "version": report.version,
+                "versions": report.versions,
                 "backends_tested": report.backends_tested,
                 "concurrency_rows_per_sec": report.concurrency_rows_per_sec,
                 "summary": report.summary,
@@ -414,8 +417,9 @@ def _render_markdown(report: ShowcaseReport) -> str:
             "`benchmarks.showcase`."
         ),
         "",
-        f"**Version**: `{report.version}`  ",
+        f"**Report schema**: `{report.version}`  ",
         f"**Run at**: `{report.timestamp}`  ",
+        f"**Package versions**: {versions_md_line()}  ",
         f"**Backends tested**: {', '.join(report.backends_tested)}",
         "",
         "## Summary",

@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
+from benchmarks._versions import version_info, versions_md_line
 from stele import PIIBlockedError, Stele
 from stele.core.memory_record import MemoryQuery, MemoryScope
 from stele.core.reference import parse_reference
@@ -781,6 +782,7 @@ def _summarize(
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "benchmark": "longrun",
+        "versions": version_info(),
         "summary": summary,
         "by_kind": {kind: _aggregate(group) for kind, group in sorted(by_kind.items())},
         "by_backend": {
@@ -815,6 +817,8 @@ def _markdown(report: dict[str, Any]) -> str:
         "",
         f"**Supersession mode:** {supersession_mode} "
         "(set `STELE_SUPERSESSION_ENABLED=0` to run the no-supersession baseline)",
+        "",
+        f"**Package versions**: {versions_md_line()}",
         "",
         "| Metric | Value |",
         "| --- | ---: |",

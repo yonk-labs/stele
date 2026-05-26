@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from benchmarks._versions import version_info, versions_md_line
 from stele import Stele
 
 
@@ -148,6 +149,7 @@ def run_recall_benchmark() -> dict[str, object]:
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "benchmark": "recall",
+        "versions": version_info(),
         "summary": summary,
         "results": [asdict(result) for result in results],
     }
@@ -177,6 +179,8 @@ def _markdown(report: dict[str, object]) -> str:
         "",
         "This report measures whether retrieval returns the answer-bearing span. "
         "It does not claim model answer quality beyond this deterministic fixture.",
+        "",
+        f"**Package versions**: {versions_md_line()}",
         "",
         "| Metric | Value |",
         "| --- | ---: |",
