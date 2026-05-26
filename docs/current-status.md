@@ -1,6 +1,22 @@
 # Current Status
 
-Date: 2026-05-17
+Date: 2026-05-26 · Version: **0.2.0**
+
+## 0.2.0 (2026-05-26)
+
+Released stele 0.2.0. Integrated the feature-complete upstream deps —
+`lede` 0.4.5, `chunkshop` 0.6.1, `pg-raggraph` 0.4.0a1 (+ `lede-spacy` 0.4.5);
+all additive, the `Stele` public contract is unchanged. Verified byte-safe
+(`ruff` clean, `mypy src` clean, `pytest` 771 passed) and the graph path
+confirmed on pg-raggraph 0.4.0a1 (needs Postgres with `vector` + `pg_trgm`;
+`deploy/images/postgres-raggraph/init.sql` provisions both). Benchmarks now
+stamp the package versions that produced them, and the answer-workflow
+benchmark gained a separate judge endpoint. See [`CHANGELOG.md`](../CHANGELOG.md).
+
+Open follow-ups: the `digest_search` build-vs-buy decision (gated on the
+grounding-benchmark spec at review), pre-existing mypy-2.x debt in test/benchmark
+fixtures, and an upstream note for pg-raggraph's advisory-lock leak on a failed
+schema bootstrap.
 
 ## Summary
 
