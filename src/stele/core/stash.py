@@ -942,12 +942,27 @@ class Stele:
     def recall(self) -> Recall:  # forward ref imported below
         if not hasattr(self, "_recall"):
             from stele.recall.facade import Recall
+            from stele.summary.digest import DigestPacker
+
+            recall_config = self.config.recall
+            # When chunk indexing is enabled (hybrid search exists) and the
+            # caller hasn't pinned a default, default to the `digest` packing
+            # (lede summary + facts + top chunks) — the highest-accuracy
+            # hybrid-search packing. Index-off deployments keep their default.
+            if (
+                self.config.indexing.mode != "skip"
+                and "default_strategy" not in recall_config.model_fields_set
+            ):
+                recall_config = recall_config.model_copy(
+                    update={"default_strategy": "digest"}
+                )
 
             self._recall = Recall(
                 stele=self,
                 memory=self.memory,
                 scrubber=self.pii_scrubber,
-                config=self.config.recall,
+                config=recall_config,
+                digest_packer=DigestPacker(),
             )
         return self._recall
 

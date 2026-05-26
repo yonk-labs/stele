@@ -10,7 +10,8 @@ from stele.core.exceptions import CapabilityError
 from stele.recall.abstain import AbstainStrategy
 from stele.recall.adaptive import AdaptiveStrategy
 from stele.recall.artifact_search import ArtifactSearchStrategy
-from stele.recall.base import Strategy, _RecallDeps
+from stele.recall.base import DigestPacker, Strategy, _RecallDeps
+from stele.recall.digest import DigestStrategy
 from stele.recall.graph_search import GraphSearchStrategy
 from stele.recall.memory_search import MemorySearchStrategy
 from stele.recall.models import (
@@ -39,8 +40,15 @@ class Recall:
         memory: Memory,
         scrubber: RegexPIIScrubber | DisabledPIIScrubber,
         config: RecallConfig,
+        digest_packer: DigestPacker | None = None,
     ) -> None:
-        self._deps = _RecallDeps(stele=stele, memory=memory, scrubber=scrubber, config=config)
+        self._deps = _RecallDeps(
+            stele=stele,
+            memory=memory,
+            scrubber=scrubber,
+            config=config,
+            digest_packer=digest_packer,
+        )
         self._registry: dict[StrategyName, Strategy] = {
             "summary_only": SummaryOnlyStrategy(),
             "memory_search": MemorySearchStrategy(),
@@ -49,6 +57,7 @@ class Recall:
             "adaptive": AdaptiveStrategy(),
             "raw_fetch": RawFetchStrategy(),
             "abstain": AbstainStrategy(),
+            "digest": DigestStrategy(),
         }
 
     def __call__(

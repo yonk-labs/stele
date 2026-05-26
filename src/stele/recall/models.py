@@ -19,6 +19,7 @@ StrategyName = Literal[
     "adaptive",
     "raw_fetch",
     "abstain",
+    "digest",
 ]
 
 CitationKind = Literal["memory", "artifact", "chunk"]

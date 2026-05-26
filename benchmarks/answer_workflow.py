@@ -35,7 +35,7 @@ from stele.interception.wrapper import stash_tool_result
 
 Strategy = Literal[
     "summary_only", "summary_then_search", "search_first",
-    "adaptive", "raw_fetch", "iterative",
+    "adaptive", "raw_fetch", "iterative", "digest",
 ]
 JudgeMode = Literal["deterministic", "openai"]
 
@@ -603,7 +603,7 @@ def main() -> None:
     parser.add_argument("--judge", choices=["deterministic", "openai"], default="deterministic")
     parser.add_argument(
         "--strategies",
-        default="summary_only,summary_then_search,search_first,adaptive,raw_fetch,iterative",
+        default="summary_only,summary_then_search,search_first,adaptive,raw_fetch,iterative,digest",
     )
     parser.add_argument("--scenario-limit", type=int, default=None)
     default_model = "Intel/Qwen3-Coder-Next-int4-AutoRound"
@@ -813,6 +813,31 @@ def _run_strategy(
             contexts=[("summary", replacement), ("raw", result.context)],
             search_calls=0,
             fetch_calls=result.stats.fetches,
+            llm_round_trips=1,
+        )
+
+    if strategy == "digest":
+        # The proven-best hybrid-search packing: a lede summary + fact
+        # extraction over the retrieved hits, plus the top-5 raw chunks
+        # (the shape of the pg-raggraph `balanced` profile / chunkshop
+        # summarize_hits). Benchmark-only lane composing Stele.search +
+        # lede.readable_report; not (yet) a production recall strategy.
+        import lede
+
+        hits = stash.search(reference, scenario.query, limit=10, mode="hybrid")
+        if hits:
+            joined = "\n\n".join(hit.text for hit in hits)
+            report = lede.readable_report(joined, hints=[scenario.query])
+            top5 = "\n\n---\n\n".join(hit.text for hit in hits[:5])
+            digest = f"{report.to_markdown()}\n\n## Retrieved Chunks\n\n{top5}"
+        else:
+            digest = ""
+        return _answer_with_context(
+            answerer,
+            scenario=scenario,
+            contexts=[("digest", digest)],
+            search_calls=1,
+            fetch_calls=0,
             llm_round_trips=1,
         )
 
