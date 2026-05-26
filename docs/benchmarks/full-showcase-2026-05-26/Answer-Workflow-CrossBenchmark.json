@@ -1,0 +1,545 @@
+{
+  "generated": "2026-05-26T23:36:35.445477+00:00",
+  "by_benchmark": {
+    "LongBench": {
+      "benchmark": "LongBench",
+      "baseline_accuracy": 0.562,
+      "baseline_mean_tokens": 12843.3,
+      "target_90pct_of_baseline": 0.506,
+      "per_strategy": {
+        "summary_only": {
+          "n": 32,
+          "accuracy": 0.406,
+          "mean_tokens": 434.1,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 0.0
+        },
+        "summary_then_search": {
+          "n": 32,
+          "accuracy": 0.438,
+          "mean_tokens": 559.6,
+          "mean_round_trips": 1.91,
+          "mean_search": 0.91,
+          "mean_fetch": 0.0
+        },
+        "search_first": {
+          "n": 32,
+          "accuracy": 0.531,
+          "mean_tokens": 151.0,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "adaptive": {
+          "n": 32,
+          "accuracy": 0.5,
+          "mean_tokens": 4415.0,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.25
+        },
+        "iterative": {
+          "n": 32,
+          "accuracy": 0.312,
+          "mean_tokens": 755.6,
+          "mean_round_trips": 4.66,
+          "mean_search": 4.56,
+          "mean_fetch": 0.0
+        },
+        "digest": {
+          "n": 32,
+          "accuracy": 0.531,
+          "mean_tokens": 1626.3,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "raw_fetch": {
+          "n": 32,
+          "accuracy": 0.562,
+          "mean_tokens": 12843.3,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 1.0
+        }
+      },
+      "gaps": [
+        {
+          "strategy": "summary_only",
+          "accuracy": 0.406,
+          "gap_to_90pct_baseline_pp": 0.1,
+          "tokens_pct_of_baseline": 3.4,
+          "calls": 1.0
+        },
+        {
+          "strategy": "summary_then_search",
+          "accuracy": 0.438,
+          "gap_to_90pct_baseline_pp": 0.068,
+          "tokens_pct_of_baseline": 4.4,
+          "calls": 2.82
+        },
+        {
+          "strategy": "search_first",
+          "accuracy": 0.531,
+          "gap_to_90pct_baseline_pp": -0.025,
+          "tokens_pct_of_baseline": 1.2,
+          "calls": 2.0
+        },
+        {
+          "strategy": "adaptive",
+          "accuracy": 0.5,
+          "gap_to_90pct_baseline_pp": 0.006,
+          "tokens_pct_of_baseline": 34.4,
+          "calls": 2.25
+        },
+        {
+          "strategy": "iterative",
+          "accuracy": 0.312,
+          "gap_to_90pct_baseline_pp": 0.194,
+          "tokens_pct_of_baseline": 5.9,
+          "calls": 9.219999999999999
+        },
+        {
+          "strategy": "digest",
+          "accuracy": 0.531,
+          "gap_to_90pct_baseline_pp": -0.025,
+          "tokens_pct_of_baseline": 12.7,
+          "calls": 2.0
+        }
+      ]
+    },
+    "RAGBench": {
+      "benchmark": "RAGBench",
+      "baseline_accuracy": 0.778,
+      "baseline_mean_tokens": 1591.2,
+      "target_90pct_of_baseline": 0.7,
+      "per_strategy": {
+        "summary_only": {
+          "n": 36,
+          "accuracy": 0.722,
+          "mean_tokens": 488.2,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 0.0
+        },
+        "summary_then_search": {
+          "n": 36,
+          "accuracy": 0.75,
+          "mean_tokens": 558.9,
+          "mean_round_trips": 1.97,
+          "mean_search": 0.97,
+          "mean_fetch": 0.0
+        },
+        "search_first": {
+          "n": 36,
+          "accuracy": 0.333,
+          "mean_tokens": 132.4,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "adaptive": {
+          "n": 36,
+          "accuracy": 0.75,
+          "mean_tokens": 1235.2,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.56
+        },
+        "iterative": {
+          "n": 36,
+          "accuracy": 0.556,
+          "mean_tokens": 443.4,
+          "mean_round_trips": 2.22,
+          "mean_search": 1.53,
+          "mean_fetch": 0.0
+        },
+        "digest": {
+          "n": 36,
+          "accuracy": 0.833,
+          "mean_tokens": 1547.9,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "raw_fetch": {
+          "n": 36,
+          "accuracy": 0.778,
+          "mean_tokens": 1591.2,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 1.0
+        }
+      },
+      "gaps": [
+        {
+          "strategy": "summary_only",
+          "accuracy": 0.722,
+          "gap_to_90pct_baseline_pp": -0.022,
+          "tokens_pct_of_baseline": 30.7,
+          "calls": 1.0
+        },
+        {
+          "strategy": "summary_then_search",
+          "accuracy": 0.75,
+          "gap_to_90pct_baseline_pp": -0.05,
+          "tokens_pct_of_baseline": 35.1,
+          "calls": 2.94
+        },
+        {
+          "strategy": "search_first",
+          "accuracy": 0.333,
+          "gap_to_90pct_baseline_pp": 0.367,
+          "tokens_pct_of_baseline": 8.3,
+          "calls": 2.0
+        },
+        {
+          "strategy": "adaptive",
+          "accuracy": 0.75,
+          "gap_to_90pct_baseline_pp": -0.05,
+          "tokens_pct_of_baseline": 77.6,
+          "calls": 2.56
+        },
+        {
+          "strategy": "iterative",
+          "accuracy": 0.556,
+          "gap_to_90pct_baseline_pp": 0.144,
+          "tokens_pct_of_baseline": 27.9,
+          "calls": 3.75
+        },
+        {
+          "strategy": "digest",
+          "accuracy": 0.833,
+          "gap_to_90pct_baseline_pp": -0.133,
+          "tokens_pct_of_baseline": 97.3,
+          "calls": 2.0
+        }
+      ]
+    },
+    "LongMemEval-S": {
+      "benchmark": "LongMemEval-S",
+      "baseline_accuracy": 0.5,
+      "baseline_mean_tokens": 15404.8,
+      "target_90pct_of_baseline": 0.45,
+      "per_strategy": {
+        "summary_only": {
+          "n": 12,
+          "accuracy": 0.75,
+          "mean_tokens": 378.2,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 0.0
+        },
+        "summary_then_search": {
+          "n": 12,
+          "accuracy": 0.75,
+          "mean_tokens": 412.6,
+          "mean_round_trips": 2.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "search_first": {
+          "n": 12,
+          "accuracy": 0.667,
+          "mean_tokens": 59.6,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "adaptive": {
+          "n": 12,
+          "accuracy": 0.75,
+          "mean_tokens": 11693.7,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.75
+        },
+        "iterative": {
+          "n": 12,
+          "accuracy": 0.667,
+          "mean_tokens": 4255.4,
+          "mean_round_trips": 4.33,
+          "mean_search": 3.75,
+          "mean_fetch": 0.25
+        },
+        "digest": {
+          "n": 12,
+          "accuracy": 0.75,
+          "mean_tokens": 1460.5,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "raw_fetch": {
+          "n": 12,
+          "accuracy": 0.5,
+          "mean_tokens": 15404.8,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 1.0
+        }
+      },
+      "gaps": [
+        {
+          "strategy": "summary_only",
+          "accuracy": 0.75,
+          "gap_to_90pct_baseline_pp": -0.3,
+          "tokens_pct_of_baseline": 2.5,
+          "calls": 1.0
+        },
+        {
+          "strategy": "summary_then_search",
+          "accuracy": 0.75,
+          "gap_to_90pct_baseline_pp": -0.3,
+          "tokens_pct_of_baseline": 2.7,
+          "calls": 3.0
+        },
+        {
+          "strategy": "search_first",
+          "accuracy": 0.667,
+          "gap_to_90pct_baseline_pp": -0.217,
+          "tokens_pct_of_baseline": 0.4,
+          "calls": 2.0
+        },
+        {
+          "strategy": "adaptive",
+          "accuracy": 0.75,
+          "gap_to_90pct_baseline_pp": -0.3,
+          "tokens_pct_of_baseline": 75.9,
+          "calls": 2.75
+        },
+        {
+          "strategy": "iterative",
+          "accuracy": 0.667,
+          "gap_to_90pct_baseline_pp": -0.217,
+          "tokens_pct_of_baseline": 27.6,
+          "calls": 8.33
+        },
+        {
+          "strategy": "digest",
+          "accuracy": 0.75,
+          "gap_to_90pct_baseline_pp": -0.3,
+          "tokens_pct_of_baseline": 9.5,
+          "calls": 2.0
+        }
+      ]
+    },
+    "LoCoMo": {
+      "benchmark": "LoCoMo",
+      "baseline_accuracy": 0.556,
+      "baseline_mean_tokens": 10488.1,
+      "target_90pct_of_baseline": 0.5,
+      "per_strategy": {
+        "summary_only": {
+          "n": 18,
+          "accuracy": 0.278,
+          "mean_tokens": 450.7,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 0.0
+        },
+        "summary_then_search": {
+          "n": 18,
+          "accuracy": 0.278,
+          "mean_tokens": 541.3,
+          "mean_round_trips": 2.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "search_first": {
+          "n": 18,
+          "accuracy": 0.278,
+          "mean_tokens": 120.5,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "adaptive": {
+          "n": 18,
+          "accuracy": 0.444,
+          "mean_tokens": 4421.9,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.39
+        },
+        "iterative": {
+          "n": 18,
+          "accuracy": 0.278,
+          "mean_tokens": 520.2,
+          "mean_round_trips": 3.5,
+          "mean_search": 3.11,
+          "mean_fetch": 0.0
+        },
+        "digest": {
+          "n": 18,
+          "accuracy": 0.5,
+          "mean_tokens": 1287.5,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "raw_fetch": {
+          "n": 18,
+          "accuracy": 0.556,
+          "mean_tokens": 10488.1,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 1.0
+        }
+      },
+      "gaps": [
+        {
+          "strategy": "summary_only",
+          "accuracy": 0.278,
+          "gap_to_90pct_baseline_pp": 0.222,
+          "tokens_pct_of_baseline": 4.3,
+          "calls": 1.0
+        },
+        {
+          "strategy": "summary_then_search",
+          "accuracy": 0.278,
+          "gap_to_90pct_baseline_pp": 0.222,
+          "tokens_pct_of_baseline": 5.2,
+          "calls": 3.0
+        },
+        {
+          "strategy": "search_first",
+          "accuracy": 0.278,
+          "gap_to_90pct_baseline_pp": 0.222,
+          "tokens_pct_of_baseline": 1.1,
+          "calls": 2.0
+        },
+        {
+          "strategy": "adaptive",
+          "accuracy": 0.444,
+          "gap_to_90pct_baseline_pp": 0.056,
+          "tokens_pct_of_baseline": 42.2,
+          "calls": 2.39
+        },
+        {
+          "strategy": "iterative",
+          "accuracy": 0.278,
+          "gap_to_90pct_baseline_pp": 0.222,
+          "tokens_pct_of_baseline": 5.0,
+          "calls": 6.609999999999999
+        },
+        {
+          "strategy": "digest",
+          "accuracy": 0.5,
+          "gap_to_90pct_baseline_pp": 0.0,
+          "tokens_pct_of_baseline": 12.3,
+          "calls": 2.0
+        }
+      ]
+    },
+    "Synthetic": {
+      "benchmark": "Synthetic",
+      "baseline_accuracy": 0.771,
+      "baseline_mean_tokens": 8973.7,
+      "target_90pct_of_baseline": 0.694,
+      "per_strategy": {
+        "summary_only": {
+          "n": 35,
+          "accuracy": 0.714,
+          "mean_tokens": 327.1,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 0.0
+        },
+        "summary_then_search": {
+          "n": 35,
+          "accuracy": 0.771,
+          "mean_tokens": 382.9,
+          "mean_round_trips": 1.37,
+          "mean_search": 0.37,
+          "mean_fetch": 0.0
+        },
+        "search_first": {
+          "n": 35,
+          "accuracy": 0.829,
+          "mean_tokens": 154.3,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "adaptive": {
+          "n": 35,
+          "accuracy": 0.771,
+          "mean_tokens": 684.0,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.03
+        },
+        "iterative": {
+          "n": 35,
+          "accuracy": 0.657,
+          "mean_tokens": 803.0,
+          "mean_round_trips": 1.23,
+          "mean_search": 0.2,
+          "mean_fetch": 0.06
+        },
+        "digest": {
+          "n": 35,
+          "accuracy": 0.743,
+          "mean_tokens": 2000.4,
+          "mean_round_trips": 1.0,
+          "mean_search": 1.0,
+          "mean_fetch": 0.0
+        },
+        "raw_fetch": {
+          "n": 35,
+          "accuracy": 0.771,
+          "mean_tokens": 8973.7,
+          "mean_round_trips": 1.0,
+          "mean_search": 0.0,
+          "mean_fetch": 1.0
+        }
+      },
+      "gaps": [
+        {
+          "strategy": "summary_only",
+          "accuracy": 0.714,
+          "gap_to_90pct_baseline_pp": -0.02,
+          "tokens_pct_of_baseline": 3.6,
+          "calls": 1.0
+        },
+        {
+          "strategy": "summary_then_search",
+          "accuracy": 0.771,
+          "gap_to_90pct_baseline_pp": -0.077,
+          "tokens_pct_of_baseline": 4.3,
+          "calls": 1.7400000000000002
+        },
+        {
+          "strategy": "search_first",
+          "accuracy": 0.829,
+          "gap_to_90pct_baseline_pp": -0.135,
+          "tokens_pct_of_baseline": 1.7,
+          "calls": 2.0
+        },
+        {
+          "strategy": "adaptive",
+          "accuracy": 0.771,
+          "gap_to_90pct_baseline_pp": -0.077,
+          "tokens_pct_of_baseline": 7.6,
+          "calls": 2.03
+        },
+        {
+          "strategy": "iterative",
+          "accuracy": 0.657,
+          "gap_to_90pct_baseline_pp": 0.037,
+          "tokens_pct_of_baseline": 8.9,
+          "calls": 1.49
+        },
+        {
+          "strategy": "digest",
+          "accuracy": 0.743,
+          "gap_to_90pct_baseline_pp": -0.049,
+          "tokens_pct_of_baseline": 22.3,
+          "calls": 2.0
+        }
+      ]
+    }
+  }
+}

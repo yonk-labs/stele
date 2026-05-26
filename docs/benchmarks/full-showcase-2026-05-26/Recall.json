@@ -1,0 +1,60 @@
+{
+  "benchmark": "recall",
+  "generated_at": "2026-05-26T22:12:50.555860+00:00",
+  "results": [
+    {
+      "answer_accuracy": 1.0,
+      "direct_context_answer_accuracy": 1.0,
+      "name": "ops_root_cause",
+      "recall_at_1": 0.0,
+      "reciprocal_rank": 0.5,
+      "top_hit_chars": 503
+    },
+    {
+      "answer_accuracy": 1.0,
+      "direct_context_answer_accuracy": 1.0,
+      "name": "customer_commitment",
+      "recall_at_1": 1.0,
+      "reciprocal_rank": 1.0,
+      "top_hit_chars": 503
+    },
+    {
+      "answer_accuracy": 1.0,
+      "direct_context_answer_accuracy": 1.0,
+      "name": "pii_policy",
+      "recall_at_1": 1.0,
+      "reciprocal_rank": 1.0,
+      "top_hit_chars": 503
+    },
+    {
+      "answer_accuracy": 1.0,
+      "direct_context_answer_accuracy": 1.0,
+      "name": "backend_choice",
+      "recall_at_1": 1.0,
+      "reciprocal_rank": 1.0,
+      "top_hit_chars": 503
+    },
+    {
+      "answer_accuracy": 1.0,
+      "direct_context_answer_accuracy": 1.0,
+      "name": "clickhouse_semantics",
+      "recall_at_1": 1.0,
+      "reciprocal_rank": 1.0,
+      "top_hit_chars": 503
+    }
+  ],
+  "summary": {
+    "case_count": 5,
+    "direct_context_answer_accuracy": 1.0,
+    "meets_90pct_accuracy_target": true,
+    "mrr": 0.9,
+    "recall_at_1": 0.8,
+    "retrieval_answer_accuracy": 1.0
+  },
+  "versions": {
+    "chunkshop": "0.6.1",
+    "lede": "0.4.5",
+    "pg-raggraph": "0.4.0a1",
+    "stele-core": "0.2.1"
+  }
+}
