@@ -1,25 +1,69 @@
 # Audit — pg-raggraph retrieval-profile migration (stele)
 
 Date: 2026-05-24
+Updated: 2026-05-26 — **verdict revised against the released API.** The profile
+API landed in `pg-raggraph==0.4.0a1`, but reading the real source invalidated
+this audit's original migration premise. The correction is below; the original
+staged plan (kept further down for history) should NOT be executed as written.
 Scope: audit stele's pg-raggraph usage against the new `retrieval_profile`
 ladder; decide what to change now vs. stage; document per-namespace defaults.
 
-## Verdict
+## Verdict (revised 2026-05-26)
 
-**No code change now.** The new profile API is not in stele's pinned
-`pg-raggraph==0.3.0a3`, and stele does not use the anti-patterns the migration
-targets (`top_k`, `mode="hybrid"` literals in product code, manual context
-concatenation). The migration is staged behind a pin bump and documented below.
+**Still no mechanical migration — but for a new reason.** The `profile=` API now
+exists (`GraphRAG.query(..., profile: str | int | float | None)` in 0.4.0a1),
+so the "API absent" blocker is gone. However, the released semantics are not
+what this audit assumed:
+
+- **`profile` shapes `result.context` only.** All ladder rungs use the same
+  `top_k=25`; they differ solely in `context_strategy` — how the retrieved set
+  is *packed into the LLM-facing `result.context` string* (`cheap`=
+  `doc_summary_facts@3`, `balanced`=`doc_and_chunk_summary_toc_facts_plus_top5`,
+  `accurate`=`full_selected_docs@10`, `stacked`=`per_doc5_chunksum_top5`,
+  `raw`=`classic_chunks`). Verified in `pg_raggraph/profiles.py` +
+  `__init__.py::query` (profile feeds `pack_query_context`, sets
+  `result.context`).
+- **`profile` is orthogonal to `mode`/`rerank`**, not a replacement. `mode`
+  still selects the retrieval substrate (smart/naive/local/global/hybrid/
+  summary); `rerank` still independent.
+- **stele's revisor consumes `res.chunks`, never `res.context`** (see
+  `pg_raggraph_revisor.py::_to_hit` over `res.chunks`). So threading `profile=`
+  through as the original plan proposed would have **no effect on stele's
+  output** — it would only change a `.context` field stele discards.
+
+**Conclusion:** adopting `profile` is meaningful for stele ONLY if stele starts
+consuming pg-raggraph's packed context/summary instead of building its own from
+`res.chunks`. That is exactly the `digest_search` build-vs-buy decision, which
+the grounding benchmark is meant to settle. Do not wire `profile` blindly.
+
+### What IS decision-independent and worth doing (still needs the benchmark for tuning)
+
+- **`retrieval_strategy="vector_first"`** — unlike `profile`, this changes the
+  *chunk substrate* stele actually consumes (60–66× faster on broad/no-predicate
+  queries on single-namespace corpora; recall caveat on selective predicates,
+  with a `pgrg.vector_first.recall_shortfall` metric). stele's graph namespaces
+  are single-corpus and queries are broad-recall → good fit. This is the
+  correctly-targeted analog of this audit's original intent.
+- **Graph-hydration latency fix + index/namespace-profile migrations** —
+  inherited automatically on the pin bump; no stele code. Action: ensure the
+  deploy path runs pg-raggraph's migrations.
+
+Both still want the grounding benchmark to confirm before flipping a default.
 
 ## Evidence
 
-- Pinned/installed: `pg-raggraph==0.3.0a3` (`pyproject.toml` extra
-  `postgres-graph`).
-- Installed `GraphRAG.query` signature (verified at audit time):
-  `query(self, question, mode, namespace, as_of, version_filter,
-  evolution_aware, rerank)` — **no `profile` parameter.** Passing `profile=`
-  would raise; PGRGConfig also rejects unknown kwargs (see the revisor docstring
-  / `core/config.py` notes).
+- Pin at audit time: `pg-raggraph==0.3.0a3`. **Bumped 2026-05-26 to
+  `==0.4.0a1`** in `pyproject.toml` extra `postgres-graph` (not yet on PyPI; the
+  local repo is the release candidate).
+- `GraphRAG.query` signature at original audit time (0.3.0a3):
+  `query(question, mode, namespace, as_of, version_filter, evolution_aware,
+  rerank)` — no `profile`.
+- `GraphRAG.query` signature in 0.4.0a1 (verified in source): adds keyword-only
+  `retracted_behavior`, `supersession_behavior`, `memory_tier`,
+  `retrieval_strategy`, `summary_base_mode`, `profile`, `metadata_filters`,
+  `trace_emit`. `profile: str | int | float | None = None` →
+  `config.retrieval_profile` (default `"balanced"`). New `mode="summary"`
+  returns a deterministic no-LLM lede hint-biased summary in `result.summary`.
 - stele's only retrieval calls are in
   `src/stele/revisor/pg_raggraph_revisor.py`:
   - `search_current` and `search_as_of` →
@@ -60,7 +104,14 @@ deploy path (`deploy/docker-compose.full.yml` graph profile, `tests/e2e`) runs
 pg-raggraph's migrations so the index + namespace-profile tables exist. No stele
 schema change required.
 
-## Staged migration plan (executes when pg-raggraph releases the profile API)
+## Staged migration plan — HISTORICAL, DO NOT EXECUTE AS WRITTEN
+
+> ⚠️ Superseded 2026-05-26. This plan assumed `profile` improves the chunk
+> results stele consumes. It does not — see the revised Verdict above (`profile`
+> only shapes `result.context`, which stele discards). Kept for history. The
+> correct decision-independent change is `retrieval_strategy="vector_first"`,
+> not `profile=`. Adopting `profile`/`mode="summary"` is part of the
+> `digest_search` build-vs-buy decision, gated on the grounding benchmark.
 
 Trigger: a pg-raggraph release whose `GraphRAG.query`/`ask` accept `profile=`,
 and the `postgres-graph` pin is bumped to it.
