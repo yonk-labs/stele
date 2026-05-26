@@ -1,6 +1,13 @@
 # Current Status
 
-Date: 2026-05-26 · Version: **0.2.0**
+Date: 2026-05-26 · Version: **0.2.1**
+
+## 0.2.1 (2026-05-26)
+
+Added the `digest` recall strategy (lede summary + facts + top-N chunks) and
+made it the default recall strategy when chunk indexing is enabled
+(`indexing.mode != "skip"`); index-off deployments and explicit
+`recall.default_strategy` settings are unchanged. See [`CHANGELOG.md`](../CHANGELOG.md).
 
 ## 0.2.0 (2026-05-26)
 

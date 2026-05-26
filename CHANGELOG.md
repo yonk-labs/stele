@@ -5,7 +5,7 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
-## [Unreleased]
+## [0.2.1] — 2026-05-26
 
 ### Added
 
