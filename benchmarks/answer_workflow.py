@@ -27,6 +27,7 @@ from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, Field
 
+from benchmarks._versions import version_info, versions_md_line
 from benchmarks.longrun import BenchmarkScenario, build_scenarios
 from stele import Stele
 from stele.core.artifact import estimate_tokens
@@ -994,6 +995,7 @@ def _summarize(
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "benchmark": "answer_workflow",
+        "versions": version_info(),
         "summary": summary,
         "by_strategy": strategy_rows,
         "results": [asdict(result) for result in results],
@@ -1006,6 +1008,8 @@ def _markdown(report: dict[str, Any]) -> str:
         "",
         "Measures answer correctness, estimated tokens, LLM round trips, search calls, "
         "and fetch calls by retrieval strategy.",
+        "",
+        f"**Package versions**: {versions_md_line()}",
         "",
         "| Strategy | Runs | Accuracy | Mean Tokens | Round Trips | Search Calls | Fetch Calls |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",

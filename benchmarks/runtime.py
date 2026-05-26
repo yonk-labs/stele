@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from benchmarks._versions import version_info, versions_md_line
 from benchmarks.corpus import sample_corpus
 from stele.core.artifact import estimate_tokens
 from stele.core.stash import Stele
@@ -73,6 +74,7 @@ def run_benchmark(n: int = 100) -> dict[str, Any]:
 
     return {
         "timestamp": datetime.now(UTC).isoformat(),
+        "versions": version_info(),
         "corpus_docs": len(corpus),
         "raw_transcript_tokens": raw_tokens,
         "avg_packed_context_tokens": round(avg_packed, 1),
@@ -90,9 +92,10 @@ def run_benchmark(n: int = 100) -> dict[str, Any]:
 def _render_md(r: dict[str, Any]) -> str:
     lines = ["# Runtime-Memory Benchmark (T-RAM-011)", "",
              f"Generated: {r['timestamp']}  ·  corpus: {r['corpus_docs']} docs",
+             f"Package versions: {versions_md_line()}",
              "", "| Metric | Value |", "| --- | --- |"]
     for k, v in r.items():
-        if k in ("timestamp", "corpus_docs"):
+        if k in ("timestamp", "corpus_docs", "versions"):
             continue
         lines.append(f"| {k} | {v} |")
     lines += ["", "Fixture: `benchmarks.corpus.sample_corpus` (deterministic).",
