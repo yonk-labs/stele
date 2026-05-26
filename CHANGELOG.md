@@ -5,6 +5,27 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [Unreleased]
+
+### Added
+
+- **`digest` recall strategy** — packs retrieved hits as a query-biased lede
+  summary + extracted facts + the top-N raw chunks (the highest-accuracy
+  hybrid-search packing; same shape as pg-raggraph's `balanced` profile /
+  chunkshop `summarize_hits`). The lede packer lives under `summary/` and is
+  injected via `_RecallDeps`, so `recall/` stays free of lede imports
+  (architecture invariant preserved).
+
+### Changed
+
+- **Indexing-gated default recall strategy.** When `indexing.mode != "skip"`
+  (chunk indexing / hybrid search is available) and the caller hasn't pinned
+  `recall.default_strategy`, the default is now **`digest`** instead of
+  `adaptive`. Deployments with indexing skipped (the zero-config default) are
+  unchanged, and an explicit `recall.default_strategy` always wins. Rationale:
+  on real third-party corpora (LongBench, LoCoMo) the digest packing matches or
+  beats full-context accuracy at ~8× fewer tokens.
+
 ## [0.2.0] — 2026-05-26
 
 This release ships the Phase 5+ hardening / lifecycle / CLI-MCP wave below and
