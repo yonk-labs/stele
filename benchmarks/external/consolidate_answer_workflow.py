@@ -31,7 +31,7 @@ _SYNTH_KINDS = {"tool_output", "long_memory", "temporal", "pii", "retrieval", "p
 
 _STRATEGY_ORDER = [
     "summary_only", "summary_then_search", "search_first",
-    "adaptive", "iterative", "raw_fetch",
+    "adaptive", "iterative", "digest", "raw_fetch",
 ]
 
 
