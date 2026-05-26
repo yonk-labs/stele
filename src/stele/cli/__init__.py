@@ -6,11 +6,13 @@ import argparse
 import sys
 
 from stele.cli.commands import artifacts as artifacts_cmd
+from stele.cli.commands import bulk as bulk_cmd
 from stele.cli.commands import doctor as doctor_cmd
 from stele.cli.commands import extract as extract_cmd
 from stele.cli.commands import fetch as fetch_cmd
 from stele.cli.commands import init as init_cmd
 from stele.cli.commands import install as install_cmd
+from stele.cli.commands import lifecycle as lifecycle_cmd
 from stele.cli.commands import mcp as mcp_cmd
 from stele.cli.commands import memory as memory_cmd
 from stele.cli.commands import query as query_cmd
@@ -77,6 +79,12 @@ def _build_parser() -> argparse.ArgumentParser:
     extract_cmd.add_subparser(sub)
     recall_cmd.add_subparser(sub)
     stash_cmd.add_subparser(sub)
+
+    # ----- lifecycle + bulk-write ------------------------------------------
+    lifecycle_cmd.add_purge_subparser(sub)
+    lifecycle_cmd.add_export_subparser(sub)
+    lifecycle_cmd.add_import_subparser(sub)
+    bulk_cmd.add_store_many_subparser(sub)
 
     return parser
 

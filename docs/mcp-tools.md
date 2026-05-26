@@ -377,6 +377,87 @@ Route a tool's raw output through stele's interception. If the output exceeds th
 
 ---
 
+## Lifecycle + bulk-write tools (added 2026-05-20)
+
+The following five tools were added on top of the original 18-tool surface as part of the 2026-05-20 hardening wave. Same `bind_handlers()` engine; same JSON shapes via CLI.
+
+### `stele_purge_namespace`
+
+GDPR-style purge of a namespace across artifact storage + memory rows + chunk index + revisor projection.
+
+```json
+{
+  "namespace": "tenant-a",
+  "confirm": true,
+  "dry_run": false
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `namespace` | string | yes | Namespace to purge. Other namespaces are never touched. |
+| `confirm` | bool | required for live purge | Tool refuses unless `true`; pair with the agent's tool-call confirmation UX. |
+| `dry_run` | bool | no | When `true`, returns the same `PurgeReport` shape with counts that *would* be deleted. No mutation. |
+
+Returns `{result: {namespace, dry_run, artifacts, memories, chunks, graph_evidence}}`.
+
+### `stele_export_namespace`
+
+Write a portable v2 JSONL bundle (artifacts + memory rows with their supersession chain) to `path`. Path must be within the host's allowed filesystem scope.
+
+```json
+{"namespace": "tenant-a", "path": "/data/exports/tenant-a.jsonl"}
+```
+
+Returns `{result: {exported_count, path}}`. Chunks and revisor projections are NOT bundled — they rebuild on import.
+
+### `stele_import_namespace`
+
+Restore a v2 JSONL bundle previously written by `stele_export_namespace`.
+
+```json
+{"path": "/data/exports/tenant-a.jsonl"}
+```
+
+Returns `{result: {imported_count}}`. Artifacts re-route through the indexer (chunks rebuild). Memory rows insert byte-identical with `status`/`supersedes`/`effective_until` preserved.
+
+### `stele_store_many`
+
+Bulk-write N artifacts in one transaction. ~10× postgres speedup at N=1000 vs per-row.
+
+```json
+{
+  "items": [
+    {"content": "alpha", "namespace": "bulk"},
+    {"content": "beta", "namespace": "bulk", "session_id": "s1"},
+    {"content": "gamma", "namespace": "bulk", "metadata": {"tag": "x"}}
+  ]
+}
+```
+
+Each item mirrors the per-row `stele_store` kwargs (`content`, `namespace`, `session_id`, `content_type`, `metadata`, `lifecycle`, `ttl_seconds`). Returns `{results: [StoredResult, ...]}` in input order.
+
+### `stele_memory_add_many`
+
+Bulk-write N memory rows in one transaction.
+
+```json
+{
+  "items": [
+    {
+      "text": "user prefers Helix",
+      "kind": "preference",
+      "source_refs": ["stele://default/abc"],
+      "scope": {"namespace": "default", "user_id": "u1"}
+    }
+  ]
+}
+```
+
+Each item mirrors the per-row `stele_memory_add` kwargs with `scope` as a nested object. Per-row supersession works inside a batch via the `supersedes` field. Returns `{results: [MemoryAddResult, ...]}`.
+
+---
+
 ## Drift from spec
 
 The spec at `docs/superpowers/specs/2026-05-20-stele-multiplatform-packaging-design.md` §4.1 lists 18 tool *names* that match the implementation, but the schemas described there are simpler than the real handlers. The differences are deliberate, not accidental:

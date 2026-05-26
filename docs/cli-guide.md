@@ -84,6 +84,38 @@ mcp:
 
 `stele init` exits non-zero if `.stele/config.yaml` already exists, unless `--force` is passed.
 
+### Backend-specific notes
+
+#### Postgres
+
+A few things that are clear from the code but not obvious until you run into them:
+
+- **The `[postgres]` extra is required.** `stele init --backend postgres` writes the config file fine, but the backend itself raises `OptionalDependencyError` on first use without `psycopg`. Install with `pip install 'stele-core[postgres]'`. `stele doctor` pre-checks this and prints the pip command for any missing extra.
+- **Schema evolution is operator-managed.** stele uses `CREATE TABLE IF NOT EXISTS` plus `ADD COLUMN IF NOT EXISTS` patches on every connection rather than a numbered migration system. New stele versions may add columns idempotently; they will not drop or rename. On a long-lived shared Postgres, treat schema changes between releases as forward-compatible-only and back up before upgrading.
+- **`retrieval.default_mode: hybrid` requires the chunk index.** The Postgres artifact retrieval backend itself only supports `keyword` (vector lives in the optional chunkshop chunk index). Setting `retrieval.default_mode: hybrid` without `indexing.provider: chunkshop` + the `[chunkshop]` extra silently degrades to keyword. If you want true hybrid search on Postgres:
+  ```yaml
+  indexing:
+    mode: sync          # or async
+    provider: chunkshop
+  retrieval:
+    default_mode: hybrid
+  ```
+  And `pip install 'stele-core[chunkshop]'`.
+- **Tables land in `public.` by default.** If you're sharing a Postgres database with other apps, isolate stele with a dedicated schema by appending `options=-c search_path=stele` to the DSN:
+  ```
+  postgresql://user:pw@host:5432/db?options=-c%20search_path%3Dstele
+  ```
+  You'll need to `CREATE SCHEMA stele` first; stele auto-creates tables, not schemas.
+
+#### MariaDB / ClickHouse
+
+- Require their respective extras: `pip install 'stele-core[mariadb]'` or `'stele-core[clickhouse]'`.
+- Both support artifact storage; **memory rows are not yet implemented** on either backend — calls to `stele memory add` etc. raise `CapabilityError`. SQLite or Postgres are the supported memory backends today.
+
+#### Memory (in-process)
+
+- Zero deps, zero persistence. Good for tests and ephemeral CI; useless for any long-lived agent.
+
 ## `stele install` / `stele uninstall`
 
 Install the stele skill + (optionally) a hook + an `mcp.json` entry for one or more agent platforms. Renders content from a single Jinja template per content type and writes to per-platform locations.
@@ -352,6 +384,65 @@ rm -rf .stele/             # wipes local data
 stele init
 stele install --platform claude-code
 ```
+
+## Lifecycle + bulk-write subcommands
+
+The 2026-05-20 hardening wave added five new surfaces; all are now exposed on both the CLI (here) and as MCP tools (see [`mcp-tools.md`](mcp-tools.md#lifecycle--bulk-write-tools-added-2026-05-20)).
+
+### `stele purge-namespace`
+
+```bash
+stele purge-namespace <namespace> --dry-run            # preview counts; no mutation
+stele purge-namespace <namespace> --yes                # destructive: drops artifacts + memory + chunks + revisor evidence
+```
+
+Refuses to mutate without `--yes` (or `--dry-run`). Returns a `PurgeReport` with per-surface counts. Idempotent.
+
+### `stele export-namespace`
+
+```bash
+stele export-namespace <namespace> --output bundle.jsonl
+stele export-namespace <namespace> --output bundle.jsonl --limit 50000
+```
+
+Emits a v2 JSONL bundle: one line per record, each tagged `kind: artifact | memory`. Supersession chain on memory rows is preserved.
+
+### `stele import-namespace`
+
+```bash
+stele import-namespace bundle.jsonl
+```
+
+Restores a v2 bundle. Artifacts re-route through the indexer so chunks rebuild on import; memory rows insert byte-identical (`status`, `supersedes`, `effective_until` preserved).
+
+### `stele store-many` / `stele memory add-many`
+
+Bulk-write API. Both read JSONL from `--input <file>` or stdin (`-`); each line is a JSON object matching the per-row request shape.
+
+```bash
+# stele store-many — one StoreRequest per line
+cat <<EOF > rows.jsonl
+{"content": "alpha", "namespace": "bulk"}
+{"content": "beta", "namespace": "bulk", "session_id": "s1"}
+EOF
+stele store-many --input rows.jsonl
+
+# stele memory add-many — one AddRequest per line
+cat <<EOF > memos.jsonl
+{"text": "user prefers Helix", "kind": "preference", "source_refs": ["stele://x/a"], "scope": {"namespace": "default", "user_id": "u1"}}
+EOF
+stele memory add-many --input memos.jsonl
+```
+
+~10× postgres speedup at N=1000 over per-row `store` / `memory add` loops. Microbench: `stele-bulk-write-bench` (or `python -m benchmarks.bulk_write`).
+
+### Library-only — for now
+
+One Phase-5 control is still Python-only:
+
+| Method | What |
+|---|---|
+| `recall(..., supersession_behavior="hide" \| "prefer_new" \| "surface_both")` | Per-call override on `graph_search` (mirrors the per-call `retracted_behavior` shape). |
 
 ## See also
 

@@ -60,6 +60,15 @@ def add_subparser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     p_retract.add_argument("--reason", required=True)
     p_retract.set_defaults(func=run_retract)
 
+    p_add_many = mem.add_parser(
+        "add-many",
+        help="Bulk-add N memory rows from a JSONL file (one AddRequest per line)",
+    )
+    # Local import keeps the bulk module optional under partial test setups.
+    from stele.cli.commands.bulk import add_memory_add_many_subparser
+
+    add_memory_add_many_subparser(p_add_many)
+
 
 def run_add(args: argparse.Namespace) -> int:
     kwargs: dict[str, Any] = {

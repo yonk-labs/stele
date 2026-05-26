@@ -4,14 +4,15 @@ Date: 2026-05-26 · Version: **0.2.0**
 
 ## 0.2.0 (2026-05-26)
 
-Released stele 0.2.0. Integrated the feature-complete upstream deps —
-`lede` 0.4.5, `chunkshop` 0.6.1, `pg-raggraph` 0.4.0a1 (+ `lede-spacy` 0.4.5);
-all additive, the `Stele` public contract is unchanged. Verified byte-safe
-(`ruff` clean, `mypy src` clean, `pytest` 771 passed) and the graph path
-confirmed on pg-raggraph 0.4.0a1 (needs Postgres with `vector` + `pg_trgm`;
-`deploy/images/postgres-raggraph/init.sql` provisions both). Benchmarks now
-stamp the package versions that produced them, and the answer-workflow
-benchmark gained a separate judge endpoint. See [`CHANGELOG.md`](../CHANGELOG.md).
+Released stele 0.2.0 — the Phase 5+ / lifecycle / CLI-MCP wave plus upstream
+dependency integration: `lede` 0.4.5, `chunkshop` 0.6.1, `pg-raggraph` 0.4.0a1
+(+ `lede-spacy` 0.4.5). All additive; the `Stele` public contract is unchanged.
+Verified byte-safe (`ruff` clean, `mypy src` clean, `pytest` 771 passed) and the
+graph path confirmed on pg-raggraph 0.4.0a1 (needs Postgres with `vector` +
+`pg_trgm`; `deploy/images/postgres-raggraph/init.sql` provisions both).
+Benchmarks now stamp the package versions that produced them, and the
+answer-workflow benchmark gained a separate judge endpoint. See
+[`CHANGELOG.md`](../CHANGELOG.md).
 
 Open follow-ups: the `digest_search` build-vs-buy decision (gated on the
 grounding-benchmark spec at review), pre-existing mypy-2.x debt in test/benchmark
@@ -20,13 +21,16 @@ schema bootstrap.
 
 ## Summary
 
-Phases 1–5 of the sovereign-memory rebuild **plus the E2E test harness
-(INFRA-A)** are complete and on `main`. Stele now has: an artifact-storage
+Phases 1–7 of the sovereign-memory rebuild plus the E2E test harness
+(INFRA-A) are complete and on `main`. Stele now has: an artifact-storage
 foundation, a real memory layer with supersession and `as_of`, deterministic
 extraction, policy-driven recall, Chunkshop vector/hybrid indexing across five
-backends, and **living knowledge** — a `pg-raggraph`-backed `Revisor`
+backends, **living knowledge** — a `pg-raggraph`-backed `Revisor`
 projection with post-hoc supersede/retract, time-travel, and
-version-filtered graph search, every hit citing its `stele://` evidence.
+version-filtered graph search — and Runtime Working Memory (WorkGraph core
++ Adapter SDK, Phases 6–7). Plus today's hardening wave: per-call recall
+controls, namespace lifecycle primitives (purge / export / import), and a
+batched-write public API delivering ~10× postgres throughput.
 
 Authoritative sequencing lives in
 [`docs/superpowers/2026-05-17-order-of-operations.md`](superpowers/2026-05-17-order-of-operations.md).
@@ -100,6 +104,36 @@ Source of truth for each slice:
   `docs/superpowers/specs/2026-05-17-phase5-SC-to-test-map.md`. See
   [living-knowledge-setup.md](living-knowledge-setup.md).
 
+### Phases 6–7 — Runtime Working Memory (2026-05-18, PR #1)
+
+- `WorkGraph` core models — `WorkGraph` / `TaskNode` / `TaskEdge` /
+  `TaskTraceEvent`, `WorkGraphStore` (memory + SQLite), Mermaid / Markdown
+  / JSON renderers. Deterministic, source-backed, no pg-raggraph dependency.
+- Adapter SDK + Runtime Capture (T-RAM-005..008): artifact → WorkGraph
+  capture, context packer, adapter health contract, scheduling. First
+  framework adapter proves the loop.
+
+### Phase 5+ hardening & lifecycle (2026-05-20)
+
+Seven small PRs ship on top of the core sovereign-memory stack. All
+additive; no breaking signature changes.
+
+| PR | Closes | What |
+| --- | --- | --- |
+| #12 | #6 | Per-call `supersession_behavior` kwarg on `Stele.recall.graph_search` (mirrors `retracted_behavior` per-call shape). Multi-tenant servers no longer need an `asyncio.Lock` around `config.graph.supersession_behavior`. |
+| #13 | #7 | Vector recall-shortfall WARNING on logger `stele.retrieval` when chunkshop `vector_search` returns fewer hits than `limit`. Surfaces the silent-failure mode where the HNSW seed misses predicate-matching candidates. |
+| #16 | #8a | `Stele.purge_namespace(namespace, *, dry_run) → PurgeReport` — GDPR-style lifecycle primitive. Artifact + memory deletion across the five backends + the in-process backend; mariadb / clickhouse memory stubs raise `CapabilityError` (capability honesty). |
+| #18 | #8b | Extends `purge_namespace` to drop chunk-index entries and revisor-projected evidence (`PgRaggraphRevisor.purge_namespace` calls upstream `GraphRAG.delete()`). `PurgeReport` gains `chunks` + `graph_evidence` counts. |
+| #19 | #8c | `Stele.export_namespace(namespace, path)` + `Stele.import_namespace(path)` — v2 mixed-record JSONL bundle (`kind: artifact | memory`). Round-trips artifact content + memory rows + supersession chain byte-identical. Chunks/revisor projections rebuild from artifacts. |
+| #17 | #14 | `Stele.store_many(items: list[StoreRequest]) → list[StoredResult]` and `Memory.add_many(items: list[AddRequest]) → list[MemoryAddResult]`. Bulk-write API: postgres `executemany` in one transaction delivers **~10× speedup at N=1000** vs per-row baseline. Microbenchmark `benchmarks/bulk_write.py` (`stele-bulk-write-bench` console script). |
+| #20 | #15 | `stele doctor` pre-checks the optional extras matched to the configured backend (postgres → psycopg, mariadb → pymysql, clickhouse → clickhouse_connect, graph → pg_raggraph, chunkshop → chunkshop) and prints actionable `pip install` lines. Quickstart §2 documents the stdio + CWD-relative-config runtime model. cli-guide gains a Postgres-backend-notes subsection (schema evolution, `hybrid → keyword` silent-degrade conditions, `search_path` DSN tip). |
+
+**Gap deliberately tracked, not silently left:** the new lifecycle and
+bulk-write surfaces (`purge_namespace`, `export_namespace`,
+`import_namespace`, `store_many`, `add_many`) are **library-only** today
+— not yet exposed via the `stele` CLI or the `stele-mcp` server.
+Follow-up issues track CLI + MCP exposure.
+
 ### Packaging — Multi-platform MCP + slash-skill (2026-05-20, branch `feat/multiplatform-packaging`)
 
 - `stele-mcp` stdio server with the full 18-tool surface (`store`/`fetch`/`search`/`query`/`list`/`delete` + `memory_*` × 7 + `extract_*` × 3 + `recall` + `stash_tool_result`). Sanitized egress + structured `McpError` codes.
@@ -116,11 +150,11 @@ Source of truth for each slice:
 
 | Phase | Scope |
 | --- | --- |
-| 6 | Runtime Working Memory — WorkGraph core (T-RAM-001..004): WorkGraph/TaskNode/TaskEdge/TaskTraceEvent models, `WorkGraphStore` (memory + SQLite), Mermaid/Markdown/JSON renderers. Deterministic, source-backed, no pg-raggraph. |
-| 7 | Adapter SDK + Runtime Capture (T-RAM-005..008): artifact→WorkGraph capture, context packer, adapter health contract, scheduling; first framework adapter proves the loop. |
 | 8 | Source Catalog + Universal Search ⊕ T-RAM-009 (evidence-backed Topic/Session/Profile views). |
 | 9 | Plugin SDK productization (extract committed protocols once ≥3 external use cases). |
 | — | Gated cross-cutting: T-RAM-011 (runtime context-compression benchmark — blocks any public compression claim); T-RAM-010 (optional LLM proposal pipeline, post-deterministic, behind validators). |
+| — | CLI + MCP exposure of the library-only lifecycle and bulk-write surfaces (`purge_namespace`, `export_namespace`, `import_namespace`, `store_many`, `add_many`). Tracked as separate issues. |
+| — | Open study tickets: #10 (two-tier provisional/consolidated memory; design conversation), #11 (per-call `memory_tier` kwarg, paired with #10), #9 (runtime metadata-index management; low priority, needs an admin/UI consumer). |
 
 See [`docs/superpowers/2026-05-17-order-of-operations.md`](superpowers/2026-05-17-order-of-operations.md)
 for the dependency graph and the full path, and
