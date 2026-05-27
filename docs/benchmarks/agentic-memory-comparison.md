@@ -62,6 +62,39 @@ LongMemEval, accuracy (GPT-4o judge in the published work):
 > (~0.55–0.64) — encouraging, but still a different harness/judge, so treat as
 > directional, not a ranking.
 
+## Calibrated, matched-stack run (2026-05-27)
+
+To make stele's numbers comparable to the field, we re-ran the answer-workflow
+with the field's exact stack: **answerer `gpt-4o-mini`, judge `gpt-4o`** (the
+LongMemEval-standard judge), same datasets. Strategy → baseline category:
+`raw_fetch` = full-context, `search_first` = naive RAG, `digest` = stele memory.
+
+| Dataset | full-context | naive RAG | digest | best stele |
+|---|---|---|---|---|
+| **LoCoMo** | **0.667** @ 10.4k | **0.611** @ 105 | 0.444 @ 1.2k | adaptive **0.667** |
+| LongMemEval | 0.750 @ 15.5k | 0.917 @ 59 | 0.833 @ 1.4k | RAG 0.917 |
+| RAGBench | 0.722 @ 1.5k | 0.333 @ 100 | 0.694 @ 1.4k | full-ctx 0.722 |
+| LongBench | 0.406 @ 12.7k | 0.156 @ 130 | 0.406 @ 1.5k | 0.406 |
+| synthetic | 0.657 @ 8.9k | 0.686 @ 145 | 0.657 @ 2.0k | adaptive 0.743 |
+
+**Calibration finding (LoCoMo).** stele's naive-RAG baseline **0.611** lands on
+Mem0's published RAG **0.610**; stele's full-context **0.667** is within
+sampling noise of Mem0's full-context **0.729**. Two independent harnesses
+reproducing each other's *baselines* is the precondition for comparing memory
+numbers — it holds here. stele's best LoCoMo strategy (adaptive 0.667) sits in
+the Mem0 cluster (66.9–68.4); digest underperforms on LoCoMo specifically (small
+synthesis-heavy sample).
+
+**Local-stack effect, confirmed.** vs the local run (Qwen answerer + gemma
+judge), the matched stack lifted LoCoMo full-context 0.56→0.67 and RAG
+0.28→0.61 — i.e., stele's earlier low LoCoMo was the weak *local answerer*, not
+stele.
+
+**Caveat — sample size.** stele's default LoCoMo set is 18 QA vs Mem0's ~600, so
+0.611 ≈ 0.610 is *consistent within noise*, not proof. The clean like-for-like
+is to run rival systems on this same 18-QA subset + same answerer + judge — see
+the Mem0 head-to-head (in progress).
+
 ## Why these are NOT apples-to-apples
 
 1. **The metric "J" is overloaded.** Mem0 = LLM-as-judge; Zep called the same

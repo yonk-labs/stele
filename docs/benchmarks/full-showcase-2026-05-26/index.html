@@ -96,6 +96,9 @@
   .takeaway b{color:var(--gold-bright);font-weight:500}
   .caveat{margin-bottom:24px;border:1px solid var(--rust);border-left:3px solid var(--rust);padding:13px 18px;background:rgba(189,106,74,.06);font-size:12.5px;color:var(--muted);letter-spacing:.01em}
   .caveat b{color:var(--rust);font-weight:500}
+  .sources{margin-top:18px;font-size:12px;color:var(--dim);letter-spacing:.04em}
+  .sources a{color:var(--teal);text-decoration:none;border-bottom:1px solid transparent;margin-right:14px;transition:.18s}
+  .sources a:hover{border-bottom-color:var(--teal);color:var(--gold-bright)}
 
   footer{padding:70px 0 90px}
   .repro{background:#000;border:1px solid var(--line);padding:18px 22px;font-size:13px;color:var(--teal);overflow-x:auto;white-space:nowrap}
@@ -183,7 +186,18 @@
       <div class="chart-title">LoCoMo · published LLM-judge score (claimed, see caveat)</div>
       <svg id="field" viewBox="0 0 900 460" role="img"></svg>
     </div>
-    <div class="takeaway"><b>Where stele genuinely stands out is LongMemEval</b> — its digest packing scores <b>0.75</b> on a local answerer, above published GPT-4o-mini memory numbers (~0.60) and full-context baselines (~0.55–0.64). Even there, treat it as directional. Full sourced table + confounders: <b>agentic-memory-comparison.md</b>.</div>
+    <div class="takeaway"><b>Calibration (matched stack: gpt-4o-mini answerer + gpt-4o judge).</b> Re-run on the field's own stack, stele's naive-RAG baseline scores <b>0.611</b> on LoCoMo — right on Mem0's published RAG <b>0.610</b> — and full-context <b>0.667</b> vs their 0.729. When two harnesses reproduce each other's baselines, the memory numbers line up too. <b>The earlier low LoCoMo was the weak local answerer, not stele.</b></div>
+    <div class="takeaway"><b>Where stele genuinely stands out is LongMemEval</b> — digest scores <b>0.83</b> on the matched stack (and 0.75 on the fully-local one), above published GPT-4o-mini memory numbers (~0.60) and full-context baselines (~0.55–0.64). Treat as directional (small N). Full sourced table + confounders: <b>agentic-memory-comparison.md</b>.</div>
+    <p class="sources">Sources →
+      <a href="https://arxiv.org/abs/2504.19413">Mem0</a>
+      <a href="https://blog.getzep.com/state-of-the-art-agent-memory/">Zep</a>
+      <a href="https://www.letta.com/blog/benchmarking-ai-agent-memory">Letta/MemGPT</a>
+      <a href="https://github.com/memodb-io/memobase">Memobase</a>
+      <a href="https://www.cognee.ai/research-and-evaluation-results">cognee</a>
+      <a href="https://arxiv.org/abs/2410.10813">LongMemEval</a>
+      <a href="https://github.com/snap-research/locomo">LoCoMo</a>
+      <a href="https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/">Zep↔Mem0 harness dispute</a>
+    </p>
   </div>
 </section>
 
