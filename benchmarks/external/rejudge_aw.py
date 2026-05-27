@@ -6,6 +6,7 @@ identical answers. Used to have gpt-5.5 judge the answers gpt-4o originally
 judged. Writes <root>/REJUDGE-<judge>.json + prints per-(answerer,strategy)
 accuracy under both judges.
 """
+# ruff: noqa: E501  -- the jscore prompt is verbatim from Mem0; keep lines byte-faithful.
 from __future__ import annotations
 
 import argparse
@@ -39,6 +40,58 @@ _STRICT_BENCH_SYSTEM = (
 )
 
 
+# Mem0's published LoCoMo "J-score" judge (verbatim, no-evidence variant).
+# Source: github.com/mem0ai/memory-benchmarks benchmarks/locomo/prompts.py.
+# Lenient by design (partial credit, paraphrase, +/-14-day dates) and judges
+# generated-vs-gold ONLY (no retrieval context). Lets us score on the same
+# ruler Mem0/the field report.
+_JSCORE_SYSTEM = ("You are evaluating conversational AI memory recall. "
+                  "Return JSON only with the format requested.")
+_JSCORE_TEMPLATE = """Label the generated answer as CORRECT or WRONG.
+
+## Rules
+
+1. **PARTIAL CREDIT**: If the generated answer includes AT LEAST ONE correct item from the gold answer's list, mark CORRECT. Getting 1 out of 2, 2 out of 4, etc. is always acceptable. Only mark WRONG if NONE of the gold answer items appear.
+
+2. **PARAPHRASES COUNT**: Same concept in different words is CORRECT. Judge semantic meaning, not exact wording. Emotions/sentiments in the same positive/negative family count as paraphrases.
+
+3. **EXTRA DETAIL IS FINE**: A longer answer that includes the gold answer's key facts plus additional information is CORRECT. Never penalize for being more detailed or specific.
+
+4. **DATE TOLERANCE**: Dates within 14 days of each other are CORRECT. Durations within 50% are CORRECT. Relative dates match specific dates in the same window. Converting "last year" to the actual year is CORRECT.
+
+5. **SEMANTIC OVERLAP**: Judge whether the generated answer addresses the same topic and captures the core idea of the gold answer. Different wording/phrasing/detail should not result in WRONG if the underlying concept matches.
+
+6. **SAME REFERENT**: If the generated answer references the same named entity/person/concept as the gold answer, mark CORRECT even with a different description or extra details.
+
+7. **FOCUS ON KNOWLEDGE, NOT WORDING**: Assess whether the system recalled the right fact. Only mark WRONG when the answer demonstrates a genuinely different or incorrect understanding.
+
+## ONLY mark WRONG if:
+- The generated answer contains ZERO correct items from the gold answer
+- The answer addresses a completely different topic
+
+## Question
+Question: {question}
+Gold answer: {answer}
+Generated answer: {response}
+
+Return JSON with "reasoning" (one sentence) and "label" (CORRECT or WRONG). Do NOT include both labels."""
+
+
+def _jscore_correct(judge: OpenAICompatAnswerer, *, question: str, expected: str,
+                    answer: str) -> bool:
+    """Mem0 J-score judge: generated-vs-gold only (no context). label==CORRECT."""
+    user = _JSCORE_TEMPLATE.format(question=question, answer=expected or "(none)", response=answer)
+    content = judge._chat(  # noqa: SLF001
+        model=judge.judge_model, json_mode=True,
+        messages=[{"role": "system", "content": _JSCORE_SYSTEM},
+                  {"role": "user", "content": user}],
+    )
+    s = content.strip()
+    if s.startswith("```"):
+        s = s.split("```")[1].removeprefix("json").strip()
+    return str(json.loads(s).get("label", "")).upper() == "CORRECT"
+
+
 def _strict_correct(judge: OpenAICompatAnswerer, *, question: str, expected: str,
                     answer: str, context: str) -> bool:
     """Strict-bench judge: abstention/refusal => FALSE. Returns the `match` bool."""
@@ -63,7 +116,8 @@ def main() -> None:
     ap.add_argument("--judge-model", default="gpt-5.5")
     ap.add_argument("--judge-base-url", default="https://api.openai.com/v1")
     ap.add_argument("--strategies", default="")  # empty = all
-    ap.add_argument("--prompt", default="default", choices=["default", "strict-bench"])
+    ap.add_argument("--prompt", default="default",
+                    choices=["default", "strict-bench", "jscore"])
     args = ap.parse_args()
     import os
 
@@ -90,7 +144,10 @@ def main() -> None:
             if not r.get("context"):
                 continue
             try:
-                if args.prompt == "strict-bench":
+                if args.prompt == "jscore":
+                    newc = _jscore_correct(judge, question=r["question"],
+                                           expected=r["expected"], answer=r["answer"])
+                elif args.prompt == "strict-bench":
                     newc = _strict_correct(judge, question=r["question"], expected=r["expected"],
                                            answer=r["answer"], context=r["context"])
                 else:

@@ -1,0 +1,26 @@
+{
+  "gemma": {
+    "n": 100,
+    "jscore": 0.28,
+    "miss": 0,
+    "orig_default": 0.59
+  },
+  "gpt-4o": {
+    "n": 100,
+    "jscore": 0.18,
+    "miss": 0,
+    "orig_default": 0.66
+  },
+  "gpt-5": {
+    "n": 100,
+    "jscore": 0.25,
+    "miss": 0,
+    "orig_default": 0.66
+  },
+  "qwen": {
+    "n": 100,
+    "jscore": 0.34,
+    "miss": 0,
+    "orig_default": 0.65
+  }
+}
