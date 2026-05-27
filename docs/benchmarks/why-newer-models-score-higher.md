@@ -1,3 +1,13 @@
+> **⚠ CORRECTION (2026-05-27).** The "summary is a comprehension crutch — helps
+> weak models, hurts strong ones" framing below did **not** replicate in the
+> 6-answerer model matrix and is **retracted**. At n=18 it was single-run noise:
+> on LoCoMo, digest − raw-chunks was −0.11 for weak qwen (hurt) and +0.17 for
+> strong gpt-4o (helped) — the opposite of the claim, all within ±0.15 run
+> noise. See `model-matrix-findings.md`. The *structural* points (gpt-4's 8k
+> context can't hold full context; verbatim vs lossy-summary information ceiling)
+> still stand; the *per-model-strength pattern* does not. Read the below as a
+> hypothesis the data rejected, kept for the record.
+
 # Why newer models score higher on the *same* retrieved context
 
 stele's retrieval is deterministic: for a given query it returns the same
