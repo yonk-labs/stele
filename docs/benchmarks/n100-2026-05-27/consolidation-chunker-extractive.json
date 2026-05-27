@@ -1,0 +1,194 @@
+{
+  "system": "chunkshop_consolidation_extractive",
+  "benchmark": "locomo",
+  "n": 30,
+  "n_convs": 3,
+  "answer_model": "gpt-4o-mini",
+  "judge_model": "gpt-4o",
+  "accuracy": 0.5333,
+  "mean_prompt_tokens": 15824.2,
+  "mean_context_chars": 71013.3,
+  "consolidate_seconds": 10.6,
+  "results": [
+    {
+      "q": "When did Caroline go to the LGBTQ support group?",
+      "correct": false,
+      "prompt_tokens": 14291,
+      "context_chars": 65060
+    },
+    {
+      "q": "When did Melanie paint a sunrise?",
+      "correct": true,
+      "prompt_tokens": 14288,
+      "context_chars": 65060
+    },
+    {
+      "q": "What fields would Caroline be likely to pursue in her educaton?",
+      "correct": true,
+      "prompt_tokens": 14294,
+      "context_chars": 65060
+    },
+    {
+      "q": "What did Caroline research?",
+      "correct": true,
+      "prompt_tokens": 14286,
+      "context_chars": 65060
+    },
+    {
+      "q": "What is Caroline's identity?",
+      "correct": true,
+      "prompt_tokens": 14287,
+      "context_chars": 65060
+    },
+    {
+      "q": "When did Melanie run a charity race?",
+      "correct": false,
+      "prompt_tokens": 14289,
+      "context_chars": 65060
+    },
+    {
+      "q": "When is Melanie planning on going camping?",
+      "correct": false,
+      "prompt_tokens": 14289,
+      "context_chars": 65060
+    },
+    {
+      "q": "What is Caroline's relationship status?",
+      "correct": true,
+      "prompt_tokens": 14288,
+      "context_chars": 65060
+    },
+    {
+      "q": "When did Caroline give a speech at a school?",
+      "correct": true,
+      "prompt_tokens": 14291,
+      "context_chars": 65060
+    },
+    {
+      "q": "When did Caroline meet up with her friends, family, and mentors?",
+      "correct": true,
+      "prompt_tokens": 14295,
+      "context_chars": 65060
+    },
+    {
+      "q": "When Jon has lost his job as a banker?",
+      "correct": false,
+      "prompt_tokens": 11221,
+      "context_chars": 48595
+    },
+    {
+      "q": "When Gina has lost her job at Door Dash?",
+      "correct": false,
+      "prompt_tokens": 11221,
+      "context_chars": 48595
+    },
+    {
+      "q": "How do Jon and Gina both like to destress?",
+      "correct": true,
+      "prompt_tokens": 11222,
+      "context_chars": 48595
+    },
+    {
+      "q": "What do Jon and Gina both have in common?",
+      "correct": false,
+      "prompt_tokens": 11221,
+      "context_chars": 48595
+    },
+    {
+      "q": "Why did Jon decide to start his dance studio?",
+      "correct": true,
+      "prompt_tokens": 11221,
+      "context_chars": 48595
+    },
+    {
+      "q": "What Jon thinks the ideal dance studio should look like?",
+      "correct": false,
+      "prompt_tokens": 11222,
+      "context_chars": 48595
+    },
+    {
+      "q": "When is Jon's group performing at a festival?",
+      "correct": false,
+      "prompt_tokens": 11221,
+      "context_chars": 48595
+    },
+    {
+      "q": "When did Gina launch an ad campaign for her store?",
+      "correct": false,
+      "prompt_tokens": 11222,
+      "context_chars": 48595
+    },
+    {
+      "q": "When was Jon in Paris?",
+      "correct": false,
+      "prompt_tokens": 11217,
+      "context_chars": 48595
+    },
+    {
+      "q": "Which city have both Jean and John visited?",
+      "correct": false,
+      "prompt_tokens": 11220,
+      "context_chars": 48595
+    },
+    {
+      "q": "Who did Maria have dinner with on May 3, 2023?",
+      "correct": true,
+      "prompt_tokens": 21967,
+      "context_chars": 99385
+    },
+    {
+      "q": "When did Maria donate her car?",
+      "correct": false,
+      "prompt_tokens": 21959,
+      "context_chars": 99385
+    },
+    {
+      "q": "What martial arts has John done?",
+      "correct": false,
+      "prompt_tokens": 21959,
+      "context_chars": 99385
+    },
+    {
+      "q": "What type of volunteering have John and Maria both done?",
+      "correct": true,
+      "prompt_tokens": 21963,
+      "context_chars": 99385
+    },
+    {
+      "q": "When did John join the online support group?",
+      "correct": true,
+      "prompt_tokens": 21961,
+      "context_chars": 99385
+    },
+    {
+      "q": "When did Maria go to the beach?",
+      "correct": true,
+      "prompt_tokens": 21960,
+      "context_chars": 99385
+    },
+    {
+      "q": "Where has Maria made friends?",
+      "correct": false,
+      "prompt_tokens": 21958,
+      "context_chars": 99385
+    },
+    {
+      "q": "What items des John mention having as a child?",
+      "correct": true,
+      "prompt_tokens": 21962,
+      "context_chars": 99385
+    },
+    {
+      "q": "What might John's financial status be?",
+      "correct": true,
+      "prompt_tokens": 21959,
+      "context_chars": 99385
+    },
+    {
+      "q": "Who gave Maria's family money when she was younger and her family was going through tough times?",
+      "correct": true,
+      "prompt_tokens": 21971,
+      "context_chars": 99385
+    }
+  ]
+}

@@ -22,6 +22,40 @@ _SHORT = {
     "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit": "gemma",
 }
 
+_STRICT_BENCH_SYSTEM = (
+    "You are a benchmark scorer. Score the candidate answer against the "
+    "benchmark's gold answer. Two independent judgments:\n\n"
+    "1) match — Mark TRUE only if the candidate explicitly contains the "
+    "gold answer (a clear paraphrase or alias is OK). Mark FALSE if the "
+    "candidate is missing the gold, contradicts it, gives a different fact, "
+    "refuses ('I do not have enough information'), or hedges past commitment. "
+    "Do NOT use your own knowledge to decide whether the gold answer is "
+    "'really' correct in the world. The gold IS the answer for this benchmark.\n\n"
+    "2) context_sufficient — INDEPENDENT of `match`. Mark TRUE only if a "
+    "careful reader could derive the gold answer from the provided context "
+    "alone, with no outside knowledge. If context is empty, mark FALSE.\n\n"
+    "Return JSON only with keys: match (bool), context_sufficient (bool), "
+    "confidence (0..1 on `match`), rationale (one short sentence)."
+)
+
+
+def _strict_correct(judge: OpenAICompatAnswerer, *, question: str, expected: str,
+                    answer: str, context: str) -> bool:
+    """Strict-bench judge: abstention/refusal => FALSE. Returns the `match` bool."""
+    user_msg = (
+        f"Question:\n{question}\n\nGold answer:\n{expected or '(none)'}\n\n"
+        f"Candidate answer:\n{answer}\n\nContext the candidate had:\n{context or '(none)'}"
+    )
+    content = judge._chat(  # noqa: SLF001 — intentional plumbing reuse
+        model=judge.judge_model, json_mode=True,
+        messages=[{"role": "system", "content": _STRICT_BENCH_SYSTEM},
+                  {"role": "user", "content": user_msg}],
+    )
+    s = content.strip()
+    if s.startswith("```"):
+        s = s.split("```")[1].removeprefix("json").strip()
+    return bool(json.loads(s).get("match", False))
+
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -29,6 +63,7 @@ def main() -> None:
     ap.add_argument("--judge-model", default="gpt-5.5")
     ap.add_argument("--judge-base-url", default="https://api.openai.com/v1")
     ap.add_argument("--strategies", default="")  # empty = all
+    ap.add_argument("--prompt", default="default", choices=["default", "strict-bench"])
     args = ap.parse_args()
     import os
 
@@ -55,9 +90,13 @@ def main() -> None:
             if not r.get("context"):
                 continue
             try:
-                v = judge.judge(question=r["question"], expected_answer=r["expected"],
-                                answer=r["answer"], context=r["context"])
-                newc = bool(v.correct)
+                if args.prompt == "strict-bench":
+                    newc = _strict_correct(judge, question=r["question"], expected=r["expected"],
+                                           answer=r["answer"], context=r["context"])
+                else:
+                    v = judge.judge(question=r["question"], expected_answer=r["expected"],
+                                    answer=r["answer"], context=r["context"])
+                    newc = bool(v.correct)
             except Exception as e:
                 newc = False
                 r["rejudge_error"] = str(e)[:100]
@@ -72,18 +111,19 @@ def main() -> None:
     summary = {
         f"{ans}|{st}": {
             "n": v[0],
-            f"{args.judge_model}_acc": round(v[1] / v[0], 4),
-            "gpt-4o_acc": round(v[2] / v[0], 4),
+            "rejudged_acc": round(v[1] / v[0], 4),
+            "orig_acc": round(v[2] / v[0], 4),
         }
         for (ans, st), v in sorted(agg.items()) if v[0]
     }
-    out = args.root / f"REJUDGE-{args.judge_model}.json"
-    payload = {"judge": args.judge_model, "summary": summary, "rows": rows_out}
+    out = args.root / f"REJUDGE-{args.judge_model}-{args.prompt}.json"
+    payload = {"judge": args.judge_model, "prompt": args.prompt,
+               "summary": summary, "rows": rows_out}
     out.write_text(json.dumps(payload, indent=2))
     print(f"wrote {out}")
-    jm = args.judge_model
     for k, v in summary.items():
-        print(f"  {k:28s} n={v['n']:3d}  {jm}={v[f'{jm}_acc']:.3f}  gpt-4o={v['gpt-4o_acc']:.3f}")
+        print(f"  {k:28s} n={v['n']:3d}  rejudged({args.judge_model}/{args.prompt})="
+              f"{v['rejudged_acc']:.3f}  orig={v['orig_acc']:.3f}")
 
 
 if __name__ == "__main__":

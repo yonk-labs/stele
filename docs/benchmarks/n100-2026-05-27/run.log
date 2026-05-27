@@ -1,0 +1,207 @@
+[09:58:22Z] STELE qwen / locomo n=100
+{
+  "best_accuracy": 0.6,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 94.96,
+  "overall_accuracy": 0.5267,
+  "scenario_count": 100,
+  "strategy_count": 3,
+  "total_runs": 300
+}
+benchmarks/runs/hiN-20260527T095822Z/2026-05-27/answer-workflow-20260527T095822Z
+[10:17:48Z]   OK
+[10:17:48Z] STELE gemma / locomo n=100
+{
+  "best_accuracy": 0.54,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 89.76,
+  "overall_accuracy": 0.5,
+  "scenario_count": 100,
+  "strategy_count": 3,
+  "total_runs": 300
+}
+benchmarks/runs/hiN-20260527T095822Z/2026-05-27/answer-workflow-20260527T101748Z
+[10:31:12Z]   OK
+[10:31:12Z] STELE gpt-4o / locomo n=100
+{
+  "best_accuracy": 0.45,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 89.63,
+  "overall_accuracy": 0.4133,
+  "scenario_count": 100,
+  "strategy_count": 3,
+  "total_runs": 300
+}
+benchmarks/runs/hiN-20260527T095822Z/2026-05-27/answer-workflow-20260527T103112Z
+[10:44:20Z]   OK
+[10:44:20Z] STELE gpt-5 / locomo n=100
+{
+  "best_accuracy": 0.64,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 89.46,
+  "overall_accuracy": 0.57,
+  "scenario_count": 100,
+  "strategy_count": 3,
+  "total_runs": 300
+}
+benchmarks/runs/hiN-20260527T095822Z/2026-05-27/answer-workflow-20260527T104420Z
+[11:30:39Z]   OK
+[11:30:39Z] MEM0 qwen / locomo n=100
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+Failed to embed memory text: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+Failed to embed memory text: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+Failed to embed memory text: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+Failed to embed memory text: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+Failed to embed memory text: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+Failed to embed memory text: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+Failed to embed memory text: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+Failed to embed memory text: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+    chunk 2/7
+Traceback (most recent call last):
+  File "/tmp/mem0_runner.py", line 117, in <module>
+    main()
+    ~~~~^^
+  File "/tmp/mem0_runner.py", line 80, in main
+    m.add(ch, user_id=sess); print(f"    chunk {ci+1}/{len(chunks)}", flush=True)
+    ~~~~~^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/memory/main.py", line 659, in add
+    vector_store_result = self._add_to_vector_store(messages, processed_metadata, effective_filters, infer, prompt=prompt)
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/memory/main.py", line 708, in _add_to_vector_store
+    query_embedding = self.embedding_model.embed(parsed_messages, "search")
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/embeddings/openai.py", line 55, in embed
+    return self.client.embeddings.create(**kwargs).data[0].embedding
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/resources/embeddings.py", line 136, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/embeddings",
+        ^^^^^^^^^^^^^^
+    ...<9 lines>...
+        cast_to=CreateEmbeddingResponse,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+[11:33:19Z]   FAIL
+[11:33:19Z] MEM0 gemma / locomo n=100
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Traceback (most recent call last):
+  File "/tmp/mem0_runner.py", line 117, in <module>
+    main()
+    ~~~~^^
+  File "/tmp/mem0_runner.py", line 80, in main
+    m.add(ch, user_id=sess); print(f"    chunk {ci+1}/{len(chunks)}", flush=True)
+    ~~~~~^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/memory/main.py", line 659, in add
+    vector_store_result = self._add_to_vector_store(messages, processed_metadata, effective_filters, infer, prompt=prompt)
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/memory/main.py", line 708, in _add_to_vector_store
+    query_embedding = self.embedding_model.embed(parsed_messages, "search")
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/embeddings/openai.py", line 55, in embed
+    return self.client.embeddings.create(**kwargs).data[0].embedding
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/resources/embeddings.py", line 136, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/embeddings",
+        ^^^^^^^^^^^^^^
+    ...<9 lines>...
+        cast_to=CreateEmbeddingResponse,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+[11:33:22Z]   FAIL
+[11:33:22Z] MEM0 gpt-4o / locomo n=100
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Traceback (most recent call last):
+  File "/tmp/mem0_runner.py", line 117, in <module>
+    main()
+    ~~~~^^
+  File "/tmp/mem0_runner.py", line 80, in main
+    m.add(ch, user_id=sess); print(f"    chunk {ci+1}/{len(chunks)}", flush=True)
+    ~~~~~^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/memory/main.py", line 659, in add
+    vector_store_result = self._add_to_vector_store(messages, processed_metadata, effective_filters, infer, prompt=prompt)
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/memory/main.py", line 708, in _add_to_vector_store
+    query_embedding = self.embedding_model.embed(parsed_messages, "search")
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/embeddings/openai.py", line 55, in embed
+    return self.client.embeddings.create(**kwargs).data[0].embedding
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/resources/embeddings.py", line 136, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/embeddings",
+        ^^^^^^^^^^^^^^
+    ...<9 lines>...
+        cast_to=CreateEmbeddingResponse,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+[11:33:25Z]   FAIL
+[11:33:25Z] MEM0 gpt-5 / locomo n=100
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Traceback (most recent call last):
+  File "/tmp/mem0_runner.py", line 117, in <module>
+    main()
+    ~~~~^^
+  File "/tmp/mem0_runner.py", line 80, in main
+    m.add(ch, user_id=sess); print(f"    chunk {ci+1}/{len(chunks)}", flush=True)
+    ~~~~~^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/memory/main.py", line 659, in add
+    vector_store_result = self._add_to_vector_store(messages, processed_metadata, effective_filters, infer, prompt=prompt)
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/memory/main.py", line 708, in _add_to_vector_store
+    query_embedding = self.embedding_model.embed(parsed_messages, "search")
+  File "/tmp/mem0venv/lib/python3.13/site-packages/mem0/embeddings/openai.py", line 55, in embed
+    return self.client.embeddings.create(**kwargs).data[0].embedding
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/resources/embeddings.py", line 136, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/embeddings",
+        ^^^^^^^^^^^^^^
+    ...<9 lines>...
+        cast_to=CreateEmbeddingResponse,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
+[11:33:28Z]   FAIL
+[11:33:28Z] HIN_DONE

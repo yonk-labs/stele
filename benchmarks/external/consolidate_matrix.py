@@ -84,7 +84,7 @@ def render(root: Path) -> str:
     # 1. Headline: summary (digest) vs raw chunks (search_first) vs full, per answerer
     for ds in datasets:
         L += [f"## {ds}: does the summary help or hurt, per answerer?", "",
-              "| answerer | search_first (raw) | digest (summary) | raw_fetch (full) | digest − raw |",  # noqa: E501
+              "| answerer | search_first (raw) | digest (summary) | raw_fetch (full) | digest − search_first |",  # noqa: E501
               "| --- | ---: | ---: | ---: | ---: |"]
         for a in answerers:
             sf = stele.get((a, ds, "search_first"), {}).get("acc")
@@ -115,7 +115,8 @@ def render(root: Path) -> str:
     L += ["## Mem0 vs stele (LoCoMo, same answerer + gpt-4o judge)", "",
           "| answerer | Mem0 | stele search_first | stele digest | stele raw_fetch | Mem0 mean_tok | Mem0 search_ms | Mem0 ingest_s |",  # noqa: E501
           "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"]
-    for a in answerers:
+    mem0_answerers = answerers + [a for (a, _ds) in mem0 if a not in answerers]
+    for a in mem0_answerers:
         m = mem0.get((a, "locomo"))
         if not m:
             continue

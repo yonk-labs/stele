@@ -1,3 +1,13 @@
+> **⚠ ACCURACY CAVEAT (added 2026-05-27).** The LLM-judged *answer accuracy*
+> numbers below are **inflated**: the judge credited "I do not have enough
+> information" abstentions as *correct* (under gpt-4o, ~98% of `search_first`'s
+> "correct" answers were abstentions). Strict re-judging (abstention = wrong)
+> puts real LoCoMo accuracy at ~0.00–0.44, not 0.4–0.6, and confirms
+> raw_fetch > digest > search_first. **Treat the accuracy/strategy rankings here
+> as judge-inflated; see `../judge-reliability-findings.md` for the corrected
+> numbers.** The token-reduction, latency, PII, and long-term-recall metrics are
+> unaffected (they don't depend on the answer judge).
+
 # Stele — Full End-to-End Showcase
 
 Generated: `2026-05-26T23:36:35.475545+00:00`  
