@@ -35,7 +35,8 @@ from stele.interception.wrapper import stash_tool_result
 
 Strategy = Literal[
     "summary_only", "summary_then_search", "search_first",
-    "adaptive", "raw_fetch", "iterative", "digest",
+    "adaptive", "raw_fetch", "iterative", "digest", "digest10", "digest_xh",
+    "digest_fcs", "digest_csf", "digest_cfs",
 ]
 JudgeMode = Literal["deterministic", "openai"]
 
@@ -816,26 +817,50 @@ def _run_strategy(
             llm_round_trips=1,
         )
 
-    if strategy == "digest":
-        # The proven-best hybrid-search packing: a lede summary + fact
-        # extraction over the retrieved hits, plus the top-5 raw chunks
-        # (the shape of the pg-raggraph `balanced` profile / chunkshop
-        # summarize_hits). Benchmark-only lane composing Stele.search +
-        # lede.readable_report; not (yet) a production recall strategy.
+    if strategy.startswith("digest"):
+        # Hybrid-search packing: lede summary (S) + extracted facts (F) +
+        # top-N raw chunks (C). Strategy-name suffixes tune it:
+        #   digest        canonical: order S,F,C, top-5, normal hints
+        #   digest10      top-10 raw chunks (wider verbatim coverage)
+        #   digest_xh     expanded query hints + harder hint focus
+        #   digest_<SFC>  reorder the blocks (e.g. digest_fcs = facts,chunks,summary)
         import lede
 
-        hits = stash.search(reference, scenario.query, limit=10, mode="hybrid")
+        suffix = strategy[len("digest"):].lstrip("_")
+        top_n = 10 if "10" in suffix else 5
+        limit = 20 if "10" in suffix else 10
+        expand = "xh" in suffix
+        order = "SFC"
+        code = "".join(c for c in suffix.upper() if c in "SFC")
+        if sorted(code) == sorted("SFC"):
+            order = code
+        hints: list[str] = [scenario.query]
+        hint_focus = 0.7
+        if expand:
+            hint_focus = 0.85
+            try:
+                from lede_spacy import expand_hints
+                hints = list(expand_hints([scenario.query], kinds=("lemma", "synonyms"), top_k=8))
+            except Exception:
+                hints = [scenario.query]
+        hits = stash.search(reference, scenario.query, limit=limit, mode="hybrid")
         if hits:
             joined = "\n\n".join(hit.text for hit in hits)
-            report = lede.readable_report(joined, hints=[scenario.query])
-            top5 = "\n\n---\n\n".join(hit.text for hit in hits[:5])
-            digest = f"{report.to_markdown()}\n\n## Retrieved Chunks\n\n{top5}"
+            report = lede.readable_report(joined, hints=hints, hint_focus=hint_focus)
+            top = "\n\n---\n\n".join(hit.text for hit in hits[:top_n])
+            facts = getattr(report, "key_facts", ()) or ()
+            blocks = {
+                "S": "## Summary\n\n" + str(report.summary or ""),
+                "F": "## Facts and Important Details\n\n" + "\n".join(f"- {f}" for f in facts),
+                "C": "## Retrieved Chunks\n\n" + top,
+            }
+            digest = "\n\n".join(blocks[c] for c in order)
         else:
             digest = ""
         return _answer_with_context(
             answerer,
             scenario=scenario,
-            contexts=[("digest", digest)],
+            contexts=[(strategy, digest)],
             search_calls=1,
             fetch_calls=0,
             llm_round_trips=1,
