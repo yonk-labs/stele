@@ -77,6 +77,9 @@ class WorkflowResult:
     latency_ms: float
     answer: str
     rationale: str
+    question: str = ""
+    expected: str = ""
+    context: str = ""
 
 
 class JudgeVerdict(BaseModel):
@@ -483,6 +486,8 @@ def run_answer_workflow_benchmark(
     backend: dict[str, Any] | None = None,
     scenarios_source: str = "synthetic",
     longbench_per_task: int = 8,
+    locomo_max_samples: int | None = None,
+    locomo_qas_per_sample: int = 12,
 ) -> dict[str, Any]:
     if judge_mode == "openai":
         answerer: Answerer = OpenAICompatAnswerer(
@@ -501,7 +506,10 @@ def run_answer_workflow_benchmark(
         scenarios = build_longbench_scenarios(per_task=longbench_per_task)
     elif scenarios_source in {"ragbench", "longmemeval", "locomo"}:
         from benchmarks.external.third_party_scenarios import build_scenarios_for
-        scenarios = build_scenarios_for(scenarios_source)
+        extra: dict[str, int] = {}
+        if scenarios_source == "locomo" and locomo_max_samples is not None:
+            extra = {"max_samples": locomo_max_samples, "qas_per_sample": locomo_qas_per_sample}
+        scenarios = build_scenarios_for(scenarios_source, **extra)
     elif scenarios_source == "synthetic":
         scenarios = build_scenarios(content_multiplier=10)
     else:
@@ -655,6 +663,14 @@ def main() -> None:
         type=int, default=8,
         help="Records per LongBench task (only used with --scenarios longbench).",
     )
+    parser.add_argument(
+        "--locomo-max-samples", type=int, default=None,
+        help="LoCoMo conversations to sample (default 3; up to 10). Raises N.",
+    )
+    parser.add_argument(
+        "--locomo-qas-per-sample", type=int, default=12,
+        help="QA per LoCoMo conversation (with --locomo-max-samples).",
+    )
     args = parser.parse_args()
     backend_cfg: dict[str, Any] = {"type": args.backend}
     if args.backend == "postgres":
@@ -688,6 +704,8 @@ def main() -> None:
         backend=backend_cfg,
         scenarios_source=args.scenarios,
         longbench_per_task=args.longbench_per_task,
+        locomo_max_samples=args.locomo_max_samples,
+        locomo_qas_per_sample=args.locomo_qas_per_sample,
     )
     print(json.dumps(report["summary"], indent=2, sort_keys=True))
     print(report["run_dir"])
@@ -1015,6 +1033,9 @@ def _flush_judge_batch(
                 latency_ms=item.latency_ms,
                 answer=attempt.answer,
                 rationale=verdict.rationale,
+                question=item.scenario.query,
+                expected=item.scenario.expected_answer or "",
+                context=attempt.path,
             )
             results.append(result)
             handle.write(json.dumps(asdict(result), sort_keys=True))
