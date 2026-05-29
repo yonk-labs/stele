@@ -63,6 +63,7 @@ from stele.indexing.queue import NoOpIndexer, SyncChunkIndexer
 from stele.indexing.task_backend.base import IndexTask
 from stele.indexing.task_backend.in_process import InProcessTaskBackend
 from stele.pii.scrubber import build_pii_scrubber
+from stele.retrieval._filters import FilterableRow, record_matches_filters
 from stele.retrieval.base import RetrievalBackend
 from stele.retrieval.clickhouse import ClickHouseRetrievalBackend
 from stele.retrieval.hybrid import hybrid_search
@@ -326,14 +327,28 @@ class Stele:
 
     @staticmethod
     def _scope_namespace(
-        hits: list[SearchHit], namespace: str, session_id: str | None
+        hits: list[SearchHit],
+        namespace: str,
+        session_id: str | None,
+        filters: dict[str, Any] | None = None,
     ) -> list[SearchHit]:
+        # Vector/hybrid hits carry a flat metadata dict (namespace, session_id,
+        # created_at, plus artifact + chunk metadata). Apply created_at/metadata
+        # filters here via the shared predicate — the filter half of
+        # filter-then-rank for the vector path. SPO fact fields (subject/
+        # predicate/object) are filterable too since they're in the same dict.
         out: list[SearchHit] = []
         for h in hits:
             if h.metadata.get("namespace") != namespace:
                 continue
             if session_id is not None and h.metadata.get("session_id") != session_id:
                 continue
+            if filters:
+                shim = FilterableRow.from_sql(
+                    h.metadata.get("session_id"), h.metadata.get("created_at"), h.metadata
+                )
+                if not record_matches_filters(shim, filters):
+                    continue
             out.append(h)
         return out
 
@@ -585,21 +600,27 @@ class Stele:
         if session_id is not None:
             merged_filters["session_id"] = session_id
         effective_mode = mode or self.config.retrieval.default_mode
+        # Non-session filters need a larger candidate pool before post-filtering.
+        extra_filter = any(k != "session_id" for k in merged_filters)
+        scope_limit = limit * 16 if extra_filter else limit
         if effective_mode == "vector":
-            hits = self._vector_hits(query, limit=limit, reference=None)
-            hits = self._scope_namespace(hits, namespace, session_id)[:limit]
+            hits = self._vector_hits(query, limit=scope_limit, reference=None)
+            hits = self._scope_namespace(hits, namespace, session_id, merged_filters)[:limit]
             return self._prepare_hits(hits, raw=raw_allowed)
         if effective_mode == "hybrid" and self._chunk_store is not None:
-            hits = self._hybrid_hits(query, limit=limit, reference=None)
-            hits = self._scope_namespace(hits, namespace, session_id)[:limit]
+            hits = self._hybrid_hits(query, limit=scope_limit, reference=None)
+            hits = self._scope_namespace(hits, namespace, session_id, merged_filters)[:limit]
             return self._prepare_hits(hits, raw=raw_allowed)
         if self.chunk_index is not None and mode in {None, "keyword", "hybrid"}:
             chunk_hits = self.chunk_index.query_namespace(
                 namespace,
                 query,
-                limit=limit,
+                limit=scope_limit,
                 session_id=session_id,
             )
+            chunk_hits = self._scope_namespace(
+                chunk_hits, namespace, session_id, merged_filters
+            )[:limit]
             if chunk_hits:
                 return self._prepare_hits(chunk_hits, raw=raw_allowed)
         hits = self.retrieval.query_namespace(

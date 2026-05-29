@@ -176,8 +176,12 @@ class ChunkshopChunkStore:
             artifact.artifact_id, chunks, embeddings, [[] for _ in chunks]
         )
         artifact_meta: dict[str, Any] = {
+            # artifact custom metadata first so reserved keys below take
+            # precedence; created_at enables time-range filtering on vector hits.
+            **(artifact.metadata or {}),
             "namespace": artifact.namespace,
             "session_id": artifact.session_id,
+            "created_at": artifact.created_at.isoformat(),
         }
         for chunk in chunks:
             cid = stele_chunk_id(artifact.artifact_id, chunk.seq_num)

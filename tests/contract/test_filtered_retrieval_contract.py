@@ -88,6 +88,29 @@ def test_metadata_eq_filter(backend: str, tmp_path: Path) -> None:
     stash.close()
 
 
+def test_vector_path_honors_metadata_filter(tmp_path: Path) -> None:
+    # mode=vector goes through the chunk store + _scope_namespace, a different
+    # filter site than the keyword backends. Verify it filters too.
+    stash = Stele.from_config({
+        "backend": {"type": "sqlite", "path": str(tmp_path / "s.db")},
+        "indexing": {"mode": "sync", "provider": "chunkshop"},
+        "retrieval": {"default_mode": "vector"},
+    })
+    ns = f"vflt_{uuid.uuid4().hex[:8]}"
+    stash.store("fixed the authentication login bug in the user service",
+                namespace=ns, metadata={"date": "2026-03-02"})
+    stash.store("fixed the authentication token refresh bug and tests",
+                namespace=ns, metadata={"date": "2026-05-20"})
+    filtered = stash.query(ns, "authentication bug", limit=5, mode="vector", filters={
+        "metadata.date__gte": "2026-05-18", "metadata.date__lte": "2026-05-24",
+    })
+    assert filtered, "vector filtered query returned nothing"
+    assert all(h.metadata.get("date") == "2026-05-20" for h in filtered), (
+        f"vector filter leaked: {[h.metadata.get('date') for h in filtered]}"
+    )
+    stash.close()
+
+
 @pytest.mark.parametrize("backend", _backends())
 def test_created_at_range_filter(backend: str, tmp_path: Path) -> None:
     # created_at is stamped "now"; an open-ended past window keeps everything,
