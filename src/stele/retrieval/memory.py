@@ -7,6 +7,7 @@ from stele.core.capabilities import RetrievalCapabilities
 from stele.core.exceptions import CapabilityError
 from stele.core.reference import Reference
 from stele.core.types import RetrievalMode
+from stele.retrieval._filters import record_matches_filters
 from stele.retrieval.rank import keyword_score, snippet_around
 from stele.storage.memory import MemoryStorageBackend
 
@@ -58,6 +59,10 @@ class MemoryRetrievalBackend:
         hits: list[SearchHit] = []
         page = self.storage.list(namespace=namespace, session_id=session_id, limit=10_000)
         for record in page.items:
+            # Time-range + metadata filters (created_after/before, metadata.<key>).
+            # session_id is already applied via storage.list above.
+            if not record_matches_filters(record, filters):
+                continue
             score = keyword_score(query, record.content_as_text())
             if score <= 0:
                 continue
@@ -69,7 +74,7 @@ class MemoryRetrievalBackend:
                     text=snippet_around(record.content_as_text(), query),
                     score=score,
                     retrieval_mode="keyword",
-                    metadata={"namespace": record.namespace},
+                    metadata={"namespace": record.namespace, **record.metadata},
                 )
             )
         return sorted(hits, key=lambda hit: hit.score, reverse=True)[:limit]

@@ -48,12 +48,26 @@ class TemporalFilter:
     matched: str  # the phrase that was stripped (telemetry/debugging)
 
     def as_filters(self) -> dict[str, dt.datetime]:
-        """Map to the ``query(filters=...)`` contract keys."""
+        """Map to the ``query(filters=...)`` contract keys (filter on created_at)."""
         out: dict[str, dt.datetime] = {}
         if self.after is not None:
             out["created_after"] = self.after
         if self.before is not None:
             out["created_before"] = self.before
+        return out
+
+    def as_metadata_filters(self, field: str) -> dict[str, str]:
+        """Map the window onto a metadata date field (ISO ``YYYY-MM-DD``).
+
+        Use when the relevant timestamp lives in ``metadata[field]`` rather than
+        the artifact's ``created_at`` — e.g. a session/event date. ISO strings
+        compare correctly lexicographically, sidestepping tz normalisation.
+        """
+        out: dict[str, str] = {}
+        if self.after is not None:
+            out[f"metadata.{field}__gte"] = self.after.date().isoformat()
+        if self.before is not None:
+            out[f"metadata.{field}__lte"] = self.before.date().isoformat()
         return out
 
 

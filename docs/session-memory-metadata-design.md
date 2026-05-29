@@ -152,3 +152,40 @@ else:
 (see the gap above). The clean wiring order: (1) widen `filters`, (2) gate
 routing behind `retrieval.temporal_routing`, (3) empty-filtered-result → retry
 unfiltered + flag, so a bad parse can't silently hide the answer.
+
+## Implemented + demonstrated (2026-05-29)
+
+The filter half is now real on the memory backend, end-to-end through
+`stash.query()`, with a measured benefit.
+
+- `src/stele/retrieval/_filters.py` — `record_matches_filters(record, filters)`:
+  the reference semantics for `session_id`, `created_after`/`created_before`
+  (tz-normalised), and `metadata.<key>` eq / `__in` / `__gte` / `__lte`.
+- `src/stele/retrieval/memory.py` — `query_namespace` applies the predicate and
+  now surfaces the artifact's `metadata` on each `SearchHit` (was namespace-only).
+- `TemporalFilter.as_metadata_filters(field)` — map the parsed window onto a
+  metadata date field (ISO strings, lexicographic, no tz pain).
+
+**Why not LoCoMo:** confirmed empirically — only 58/1540 LoCoMo questions trigger
+`parse_temporal`, and those are speaker-relative ("painted recently"), not
+asker-relative recency windows. Temporal routing targets session-memory recall,
+a query shape LoCoMo does not contain. Measuring it there would be theater.
+
+**The right instrument** (`benchmarks/external/session_memory_demo.py`): 10 dated
+work-sessions with vocabulary-overlapping in-window/out-of-window pairs, 4
+recency queries ("what auth bug did I fix last week"). Through the real facade:
+
+| path | metric |
+|---|---|
+| baseline `query(ns, raw_query)` (rank-alone) | **0/4** correct |
+| routed `query(ns, cleaned, filters=window)` (filter-then-rank) | **4/4** correct |
+
+Rank-alone picks the vocabulary-matching *distractor* every time because the
+recency phrase can't be ranked; the date filter restricts to the window and the
+right session wins. This is the benefit, isolated and measured.
+
+**Remaining for production parity** (not blocking the demo): wire the same
+predicate into the sqlite/postgres/mariadb/clickhouse retrieval backends and the
+vector/chunk-store path (so `mode='vector'|'hybrid'` honors filters too), gate
+auto-routing behind `retrieval.temporal_routing`, and add the empty-result
+fallback. The memory backend proves the mechanism and the win.
