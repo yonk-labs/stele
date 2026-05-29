@@ -44,6 +44,13 @@ class InterceptionConfig(BaseModel):
 
 class RetrievalConfig(BaseModel):
     default_mode: RetrievalMode = "keyword"
+    # Opt-in: route natural-language temporal queries ("last week") through
+    # parse_temporal into a created_at/metadata date filter (filter-then-rank).
+    # Off by default — changes retrieval semantics and needs a clock.
+    temporal_routing: bool = False
+    # When set, the parsed window targets metadata[<field>] (ISO date strings);
+    # when None, it targets the artifact's created_at.
+    temporal_date_field: str | None = None
 
 
 class IndexingConfig(BaseModel):

@@ -111,6 +111,46 @@ def test_vector_path_honors_metadata_filter(tmp_path: Path) -> None:
     stash.close()
 
 
+def _routing_stash() -> Stele:
+    return Stele.from_config({
+        "backend": {"type": "memory"},
+        "retrieval": {"temporal_routing": True, "temporal_date_field": "date"},
+    })
+
+
+def test_temporal_routing_gate_auto_filters() -> None:
+    s = _routing_stash()
+    ns = f"rt_{uuid.uuid4().hex[:8]}"
+    s.store("fixed the authentication login bug", namespace=ns, metadata={"date": "2026-03-02"})
+    s.store("fixed the authentication token bug", namespace=ns, metadata={"date": "2026-05-20"})
+    now = dt.datetime(2026, 5, 29, 12, 0)
+    # No explicit filters — routing parses "last week" and filters automatically.
+    hits = s.query(ns, "what authentication bug did I fix last week", now=now, limit=5)
+    assert hits and all(h.metadata.get("date") == "2026-05-20" for h in hits)
+    s.close()
+
+
+def test_temporal_routing_empty_window_falls_back() -> None:
+    s = _routing_stash()
+    ns = f"rtfb_{uuid.uuid4().hex[:8]}"
+    s.store("fixed the authentication bug", namespace=ns, metadata={"date": "2026-05-20"})
+    now = dt.datetime(2026, 5, 29, 12, 0)
+    # "5 years ago" window has no data -> must retry unfiltered, not return [].
+    hits = s.query(ns, "authentication bug 5 years ago", now=now, limit=5)
+    assert hits, "empty-window query should fall back to unfiltered, not return nothing"
+    s.close()
+
+
+def test_temporal_routing_off_by_default() -> None:
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    ns = f"rtoff_{uuid.uuid4().hex[:8]}"
+    s.store("fixed the authentication bug last week", namespace=ns, metadata={"date": "2026-05-20"})
+    # routing off -> "last week" is just query text, no auto-filter, returns the hit.
+    hits = s.query(ns, "authentication bug last week", limit=5)
+    assert hits
+    s.close()
+
+
 @pytest.mark.parametrize("backend", _backends())
 def test_created_at_range_filter(backend: str, tmp_path: Path) -> None:
     # created_at is stamped "now"; an open-ended past window keeps everything,

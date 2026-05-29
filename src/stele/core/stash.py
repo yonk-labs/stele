@@ -594,11 +594,53 @@ class Stele:
         session_id: str | None = None,
         filters: dict[str, Any] | None = None,
         raw: bool = False,
+        now: datetime | None = None,
     ) -> list[SearchHit]:
         raw_allowed = self._validate_raw_output(raw)
         merged_filters = dict(filters or {})
         if session_id is not None:
             merged_filters["session_id"] = session_id
+
+        # Opt-in temporal routing: parse a NL recency window out of the query,
+        # strip the phrase (sharpens the embed), add the date filter. `now`
+        # defaults to wall-clock; pass it explicitly for replay-safe runs.
+        window_keys: list[str] = []
+        if self.config.retrieval.temporal_routing:
+            from stele.retrieval.temporal import parse_temporal
+
+            cleaned, tf = parse_temporal(query, now or utc_now())
+            if tf is not None:
+                field = self.config.retrieval.temporal_date_field
+                window = tf.as_metadata_filters(field) if field else tf.as_filters()
+                for key, value in window.items():
+                    if key not in merged_filters:  # never override caller filters
+                        merged_filters[key] = value
+                        window_keys.append(key)
+                query = cleaned
+
+        hits = self._dispatch_query(
+            namespace, query, mode, merged_filters, session_id, limit, raw_allowed
+        )
+        # Empty under the parsed window → retry without it so a bad/over-tight
+        # parse can't silently hide the answer.
+        if not hits and window_keys:
+            for key in window_keys:
+                merged_filters.pop(key, None)
+            hits = self._dispatch_query(
+                namespace, query, mode, merged_filters, session_id, limit, raw_allowed
+            )
+        return hits
+
+    def _dispatch_query(
+        self,
+        namespace: str,
+        query: str,
+        mode: RetrievalMode | str | None,
+        merged_filters: dict[str, Any],
+        session_id: str | None,
+        limit: int,
+        raw_allowed: bool,
+    ) -> list[SearchHit]:
         effective_mode = mode or self.config.retrieval.default_mode
         # Non-session filters need a larger candidate pool before post-filtering.
         extra_filter = any(k != "session_id" for k in merged_filters)
