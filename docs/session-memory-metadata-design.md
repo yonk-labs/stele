@@ -189,3 +189,45 @@ predicate into the sqlite/postgres/mariadb/clickhouse retrieval backends and the
 vector/chunk-store path (so `mode='vector'|'hybrid'` honors filters too), gate
 auto-routing behind `retrieval.temporal_routing`, and add the empty-result
 fallback. The memory backend proves the mechanism and the win.
+
+## Beyond time — the general pattern
+
+Time is the most visceral case, not the only one. The underlying principle:
+**embeddings encode meaning/similarity, not identity, order, or exact
+membership.** Any retrieval constraint the user means as "exactly this / in this
+range / one of these" — rather than "semantically near this" — belongs in
+`filters`, not the vector query. The same `metadata.<key>` operators
+(`eq` / `__in` / `__gte` / `__lte`) already cover all of it:
+
+| dimension | examples | why filter, not vector |
+|---|---|---|
+| **scope / identity** | repo, branch, cwd, user, tenant, session | "the auth-refactor branch" is exact, not fuzzy |
+| **provenance** | tool/source (shell·editor·web·test), model/agent | "from the test run, not my notes" |
+| **status / enum** | error-flag, lifecycle, severity, PII-flag, chunk `kind` | "only sessions that errored" |
+| **exact identifiers** | version (`v2.1.3` vs `v2.1.4`), commit SHA, ticket id, error code, file path, symbol | embeddings smear these exactly like dates |
+| **numeric ranges** | cost, token_count, latency, line numbers | "calls over 10k tokens" is a range, not a neighbour |
+
+### The parser asymmetry
+
+Time needed `parse_temporal` because the constraint lives in the user's *words*,
+relative to *now* ("last week") — the agent can't know that without parsing.
+**Scope/identity/status filters arrive as ambient context the agent already
+holds** (cwd, repo, branch, current user) — so they need no parser at all, just
+`filters={"metadata.git_branch": current_branch}`. The NL-routing investment was
+warranted only for the dimension expressed in language rather than environment.
+
+### Practical upshot for stele session memory
+
+Most of the win is *free* once the `filters` extension lands: the agent passes
+its known scope (repo/branch/user) on every `query()`, and recall is
+automatically scoped without any NL parsing. `parse_temporal` is the one
+exception worth the parser. A future `query()` call from a coding agent looks
+like:
+
+```python
+stele.query(ns, cleaned_query, filters={
+    **temporal_filter,                    # parsed from "last week" (NL)
+    "metadata.git_repo": repo,            # ambient — agent knows it
+    "metadata.git_branch": branch,        # ambient
+})
+```
