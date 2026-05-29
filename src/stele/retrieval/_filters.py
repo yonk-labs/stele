@@ -20,13 +20,53 @@ reference semantics and the implementation for in-memory retrieval.
 from __future__ import annotations
 
 import datetime as dt
+import json
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 
 class _Record(Protocol):
+    # Read-only members so both frozen dataclasses (FilterableRow) and Pydantic
+    # models (ArtifactRecord) satisfy the protocol.
+    @property
+    def session_id(self) -> str | None: ...
+    @property
+    def created_at(self) -> dt.datetime: ...
+    @property
+    def metadata(self) -> dict[str, Any]: ...
+
+
+@dataclass(frozen=True)
+class FilterableRow:
+    """Minimal shim so SQL backends can reuse ``record_matches_filters`` by
+    SELECTing ``session_id``, ``created_at``, ``metadata`` alongside the hit —
+    no extra per-candidate fetch, one tested predicate across all backends."""
+
     session_id: str | None
     created_at: dt.datetime
     metadata: dict[str, Any]
+
+    @classmethod
+    def from_sql(
+        cls,
+        session_id: str | None,
+        created_at: str | dt.datetime | None,
+        metadata: str | dict[str, Any] | None,
+    ) -> FilterableRow:
+        if isinstance(created_at, str):
+            ts = dt.datetime.fromisoformat(created_at)
+        elif isinstance(created_at, dt.datetime):
+            ts = created_at
+        else:
+            ts = dt.datetime.min
+        meta: dict[str, Any]
+        if isinstance(metadata, str):
+            meta = json.loads(metadata) if metadata else {}
+        elif isinstance(metadata, dict):
+            meta = metadata
+        else:
+            meta = {}
+        return cls(session_id=session_id, created_at=ts, metadata=meta)
 
 
 def _as_naive(value: dt.datetime) -> dt.datetime:
