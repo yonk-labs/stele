@@ -117,3 +117,38 @@ consolidation benchmark showed more retrieval/consolidator tuning yields
 diminishing returns, while the one thing nothing in the stack can currently do —
 "filter my history by when/where/which-repo, then rank by topic" — is a small,
 well-bounded addition with an empirical justification.
+
+## Routing layer: `parse_temporal` (implemented 2026-05-29)
+
+The opt-in front door that turns a natural-language temporal request into the
+filter above. Shipped as `src/stele/retrieval/temporal.py` — a pure,
+deterministic, **LLM-free** parser (regex grammar + stdlib date math), so it
+adds microseconds, not a round-trip.
+
+```python
+from stele.retrieval.temporal import parse_temporal
+cleaned, tf = parse_temporal("what was I building last week", now)
+if tf is not None:                       # temporal intent detected
+    hits = stele.query(ns, cleaned, filters=tf.as_filters())  # filter-then-rank
+else:
+    hits = stele.query(ns, query)        # passthrough, zero behaviour change
+```
+
+- **Detect + resolve** relative to a caller-supplied `now` (required —
+  relative dates are explicit and replay-safe, never wall-clock-dependent).
+  Grammar covers: last/past N units, N units ago, last/this week|month|year,
+  last/this/bare weekday, yesterday/today, since …, recently/lately.
+- **Strip the temporal phrase before embedding.** "what was I building last
+  week" → embed "what was I building", filter on the week. The date words are
+  noise for the vector (the date-can't-embed weakness, now on the query side),
+  so removing them sharpens the semantic match — a second win beyond the filter.
+- **Returns `(query, None)` for non-temporal queries** — no overhead, no
+  behaviour change.
+- 18-case unit table in `tests/unit/retrieval/test_temporal.py` (fixed
+  reference clock, fully deterministic, no API).
+
+**Still opt-in and pending the `filters` extension.** `parse_temporal` produces
+`created_after`/`created_before`, but backends honor only `session_id` today
+(see the gap above). The clean wiring order: (1) widen `filters`, (2) gate
+routing behind `retrieval.temporal_routing`, (3) empty-filtered-result → retry
+unfiltered + flag, so a bad parse can't silently hide the answer.
