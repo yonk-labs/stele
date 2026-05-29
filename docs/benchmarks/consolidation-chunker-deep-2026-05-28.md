@@ -287,3 +287,39 @@ structural: distillation strips the date anchors temporal questions need, and
 retrieval can't rank dates/numbers to compensate. Full context (raw_fetch
 0.58) remains the accuracy ceiling; digest (~0.36-0.43) the
 accuracy-per-token sweet spot; consolidation the minimum-token option.
+
+## Addendum 3 (2026-05-29) — winning temporal: attach the session date
+
+LoCoMo temporal gold answers are frequently phrased relative-to-session ("the
+week before 9 June 2023", "the sunday before 25 May 2023") and the dialogue
+only carries relative dates. Root cause of the temporal ceiling: chunking
+separates the relative expression ("last Friday") from its session-date anchor.
+Fix: carry the date WITH each fact. Added `date_mode` to the extractive
+consolidator (extractive + qwen + retrieve-25, jscore):
+
+| date_mode | mechanism | jscore | default judge |
+|---|---|---:|---:|
+| none | baseline | 0.37 | 0.61 |
+| anchor | prefix `(around 8 May 2023)` per fact | 0.36 | 0.67 |
+| resolve | compute + append `[date: 5 May 2023]` | 0.37 | 0.69 |
+| **both** | anchor + resolve | **0.39** | 0.66 |
+| both (gpt-4o-mini answerer) | — | 0.22 | **0.80** |
+
+**Half-win, and the judge gap proves it.** Default judge leapt (0.61→0.69) but
+jscore moved only +0.02 (0.37→0.39). Anchoring made the model STOP abstaining
+and ATTEMPT temporal answers (default-judge credits attempts) — but it resolves
+to the wrong date too often: wrong session ("23 June" when gold is "7 May") or
+wrong offset direction ("27 May" vs "the Sunday before 25 May"). jscore's
+±14-day tolerance credits near-misses, not wrong-session picks.
+
+The gpt-4o-mini row is the cautionary headline: **0.80 default judge, 0.22
+jscore — a +0.58 abstention/near-miss-credit gap, the largest in the study.**
+Date scaffolding makes a weak answerer attempt everything and look spectacular
+on the default judge while being wrong most of the time.
+
+**Conclusion.** Attaching the source date is necessary and unblocks the
+question type, but the new bottleneck is RETRIEVAL PRECISION — surfacing the
+*right* fact's session — not date arithmetic. `both`-qwen 0.39 is a new
+consolidation high but marginal. The architecturally correct fix is not more
+date-in-text hacking; it's date/identity as a FILTERABLE FIELD + filter-then-
+rank retrieval — see `docs/session-memory-metadata-design.md`.

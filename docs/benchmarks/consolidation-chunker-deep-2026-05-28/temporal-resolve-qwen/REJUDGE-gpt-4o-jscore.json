@@ -1,0 +1,713 @@
+{
+  "judge": "gpt-4o",
+  "prompt": "jscore",
+  "summary": {
+    "qwen|consolidation": {
+      "n": 100,
+      "rejudged_acc": 0.37,
+      "orig_acc": 0.69
+    }
+  },
+  "rows": [
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Caroline go to the LGBTQ support group?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Melanie paint a sunrise?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What fields would Caroline be likely to pursue in her educaton?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What did Caroline research?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What is Caroline's identity?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Melanie run a charity race?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When is Melanie planning on going camping?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What is Caroline's relationship status?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Caroline give a speech at a school?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Caroline meet up with her friends, family, and mentors?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When Jon has lost his job as a banker?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When Gina has lost her job at Door Dash?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "How do Jon and Gina both like to destress?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What do Jon and Gina both have in common?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Why did Jon decide to start his dance studio?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What Jon thinks the ideal dance studio should look like?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When is Jon's group performing at a festival?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Gina launch an ad campaign for her store?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When was Jon in Paris?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which city have both Jean and John visited?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Who did Maria have dinner with on May 3, 2023?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Maria donate her car?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What martial arts has John done?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What type of volunteering have John and Maria both done?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did John join the online support group?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Maria go to the beach?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Where has Maria made friends?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What items des John mention having as a child?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What might John's financial status be?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Who gave Maria's family money when she was younger and her family was going thro",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Is it likely that Nate has friends besides Joanna?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What kind of interests do Joanna and Nate share?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Joanna first watch \"Eternal Sunshine of the Spotless Mind?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Nate win his first video game tournament?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What pets wouldn't cause any discomfort to Joanna?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What are Joanna's hobbies?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "How long has Nate had his first two turtles?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Joanna finish her first screenplay?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Nate get his first two turtles?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What major achievement did Joanna accomplish in January 2022?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "what are John's goals with regards to his basketball career?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What are John's goals for his career that are not related to his basketball skil",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What items does John collect?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Would Tim enjoy reading books by C. S. Lewis or John Greene?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What books has Tim read?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Based on Tim's collections, what is a shop that he would enjoy visiting in New Y",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "In which month's game did John achieve a career-high score in points?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which geographical locations has Tim been to?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which outdoor gear company likely signed up John for an endorsement deal?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which endorsement deals has John been offered?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which year did Audrey adopt the first three of her dogs?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Andrew start his new job as a financial analyst?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What kind of indoor activities has Andrew pursued with his girlfriend?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What kind of places have Andrew and his girlfriend checked out around the city?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Audrey make muffins for herself?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Audrey see a hummingbird?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Audrey adopt Pixie?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "How many years passed between Audrey adopting Pixie and her other three dogs?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Did Andrew have a pet dog during March 2023?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What kind of classes or groups has Audrey joined to take better care of her dogs",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What are John's suspected health problems?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which recreational activity was James pursuing on March 16, 2022?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which places or events have John and James planned to meet at?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Do both James and John have pets?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did John resume playing drums in his adulthood?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What are John and James' favorite games?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Does James live in Connecticut?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "In which state is the shelter from which James adopted the puppy?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "How many pets does James have?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What are the names of James's dogs?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What kind of project was Jolene working on in the beginning of January 2023?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which of Deborah`s family and friends have passed away?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Deborah`s mother pass away?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Jolene`s mother pass away?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Jolene's mom gift her a pendant?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "In what country did Jolene's mother buy her the pendant?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What symbolic gifts do Deborah and Jolene have from their mothers?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which country were Jolene and her mother visiting in 2010?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What helped Deborah find peace when grieving deaths of her loved ones?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Deborah's father pass away?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What kind of car does Evan drive?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What kinds of things did Evan have broken?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Where has Evan been on roadtrips with his family?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "How many Prius has Evan owned?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which hobby did Sam take up in May 2023?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which country was Evan visiting in May 2023?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "How many roadtrips did Evan take in May 2023?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What new hobbies did Sam consider trying?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What hobby did Evan start practicing a few years ago that he enjoys?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Evan go to Jasper with his family?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Calvin first travel to Tokyo?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What items did Calvin buy in March 2023?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Dave see Aerosmith perform live?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which bands has Dave enjoyed listening to?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which country do Calvin and Dave want to meet in?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "What are Dave's dreams?",
+      "orig_correct": false,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Which types of cars does Dave like the most?",
+      "orig_correct": true,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "Does Dave's shop employ a lot of people?",
+      "orig_correct": true,
+      "new_correct": false
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did Dave start his car maintenance shop?",
+      "orig_correct": false,
+      "new_correct": true
+    },
+    {
+      "answerer": "qwen",
+      "strategy": "consolidation",
+      "q": "When did a mishap occur with Calvin's musical gear and favorite mic?",
+      "orig_correct": true,
+      "new_correct": false
+    }
+  ]
+}
