@@ -1,0 +1,14 @@
+wrote benchmarks/runs/hiN-20260527T095822Z/REJUDGE-gpt-4o-strict-bench.json
+  gemma|digest                 n=100  gpt-4o=0.450  gpt-4o=0.450
+  gemma|raw_fetch              n=100  gpt-4o=0.510  gpt-4o=0.510
+  gemma|search_first           n=100  gpt-4o=0.540  gpt-4o=0.540
+  gpt-4o|digest                n=100  gpt-4o=0.410  gpt-4o=0.410
+  gpt-4o|raw_fetch             n=100  gpt-4o=0.380  gpt-4o=0.380
+  gpt-4o|search_first          n=100  gpt-4o=0.450  gpt-4o=0.450
+  gpt-5|digest                 n=100  gpt-4o=0.550  gpt-4o=0.550
+  gpt-5|raw_fetch              n=100  gpt-4o=0.640  gpt-4o=0.640
+  gpt-5|search_first           n=100  gpt-4o=0.520  gpt-4o=0.520
+  qwen|digest                  n=100  gpt-4o=0.520  gpt-4o=0.520
+  qwen|raw_fetch               n=100  gpt-4o=0.600  gpt-4o=0.600
+  qwen|search_first            n=100  gpt-4o=0.460  gpt-4o=0.460
+STRICT_DONE

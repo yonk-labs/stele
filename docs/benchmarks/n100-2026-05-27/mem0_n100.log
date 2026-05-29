@@ -1,0 +1,737 @@
+[11:37:39Z] MEM0 qwen / locomo n=100
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-42 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-43 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-44 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-47 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-48 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-49 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-50 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2796c 569tok srch=415ms
+  OK  When did Melanie paint a sunrise? | ctx=2506c 560tok srch=147ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=2896c 609tok srch=296ms
+  OK  What did Caroline research? | ctx=2977c 613tok srch=239ms
+  OK  What is Caroline's identity? | ctx=2962c 628tok srch=174ms
+  NO  When did Melanie run a charity race? | ctx=2517c 560tok srch=141ms
+  OK  When is Melanie planning on going camping? | ctx=2470c 554tok srch=151ms
+  OK  What is Caroline's relationship status? | ctx=2735c 582tok srch=326ms
+  NO  When did Caroline give a speech at a school? | ctx=2830c 593tok srch=177ms
+  OK  When did Caroline meet up with her friends, family | ctx=2929c 614tok srch=150ms
+  NO  When Jon has lost his job as a banker? | ctx=2468c 574tok srch=206ms
+  NO  When Gina has lost her job at Door Dash? | ctx=2588c 573tok srch=124ms
+  OK  How do Jon and Gina both like to destress? | ctx=2533c 526tok srch=155ms
+  NO  What do Jon and Gina both have in common? | ctx=2524c 527tok srch=184ms
+  OK  Why did Jon decide to start his dance studio? | ctx=2448c 531tok srch=160ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2483c 542tok srch=450ms
+  OK  When is Jon's group performing at a festival? | ctx=2464c 553tok srch=168ms
+  OK  When did Gina launch an ad campaign for her store? | ctx=2607c 578tok srch=118ms
+  OK  When was Jon in Paris? | ctx=2507c 579tok srch=1009ms
+  NO  Which city have both Jean and John visited? | ctx=2469c 547tok srch=123ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2571c 525tok srch=184ms
+  OK  When did Maria donate her car? | ctx=2615c 523tok srch=763ms
+  NO  What martial arts has John done? | ctx=2813c 556tok srch=242ms
+  OK  What type of volunteering have John and Maria both | ctx=2679c 527tok srch=128ms
+  NO  When did John join the online support group? | ctx=2816c 542tok srch=184ms
+  NO  When did Maria go to the beach? | ctx=2470c 512tok srch=147ms
+  NO  Where has Maria made friends? | ctx=2544c 514tok srch=200ms
+  OK  What items des John mention having as a child? | ctx=2667c 546tok srch=143ms
+  NO  What might John's financial status be? | ctx=2708c 529tok srch=497ms
+  OK  Who gave Maria's family money when she was younger | ctx=2567c 528tok srch=170ms
+  OK  Is it likely that Nate has friends besides Joanna? | ctx=2185c 489tok srch=138ms
+  NO  What kind of interests do Joanna and Nate share? | ctx=2223c 496tok srch=305ms
+  OK  When did Joanna first watch "Eternal Sunshine of t | ctx=2604c 579tok srch=280ms
+  NO  When did Nate win his first video game tournament? | ctx=2510c 549tok srch=267ms
+  OK  What pets wouldn't cause any discomfort to Joanna? | ctx=2462c 538tok srch=129ms
+  NO  What are Joanna's hobbies? | ctx=2453c 524tok srch=215ms
+  OK  How long has Nate had his first two turtles? | ctx=2364c 529tok srch=405ms
+  OK  When did Joanna finish her first screenplay? | ctx=2621c 574tok srch=293ms
+  OK  When did Nate get his first two turtles? | ctx=2386c 531tok srch=188ms
+  OK  What major achievement did Joanna accomplish in Ja | ctx=2514c 554tok srch=260ms
+  NO  what are John's goals with regards to his basketba | ctx=2761c 551tok srch=208ms
+  NO  What are John's goals for his career that are not  | ctx=2758c 554tok srch=239ms
+  OK  What items does John collect? | ctx=2375c 516tok srch=175ms
+  OK  Would Tim enjoy reading books by C. S. Lewis or Jo | ctx=2236c 506tok srch=191ms
+  OK  What books has Tim read? | ctx=2367c 518tok srch=162ms
+  NO  Based on Tim's collections, what is a shop that he | ctx=2409c 530tok srch=172ms
+  OK  In which month's game did John achieve a career-hi | ctx=2672c 554tok srch=260ms
+  OK  Which geographical locations has Tim been to? | ctx=2440c 511tok srch=174ms
+  OK  Which outdoor gear company likely signed up John f | ctx=2561c 527tok srch=256ms
+  OK  Which endorsement deals has John been offered? | ctx=2591c 539tok srch=173ms
+  NO  Which year did Audrey adopt the first three of her | ctx=2352c 537tok srch=262ms
+  OK  When did Andrew start his new job as a financial a | ctx=2358c 524tok srch=196ms
+  NO  What kind of indoor activities has Andrew pursued  | ctx=2358c 524tok srch=127ms
+  NO  What kind of places have Andrew and his girlfriend | ctx=2358c 527tok srch=183ms
+  OK  When did Audrey make muffins for herself? | ctx=2335c 510tok srch=213ms
+  OK  When did Audrey see a hummingbird? | ctx=2430c 529tok srch=196ms
+  OK  When did Audrey adopt Pixie? | ctx=2465c 538tok srch=233ms
+  OK  How many years passed between Audrey adopting Pixi | ctx=2327c 537tok srch=199ms
+  OK  Did Andrew have a pet dog during March 2023? | ctx=2341c 534tok srch=207ms
+  OK  What kind of classes or groups has Audrey joined t | ctx=2320c 521tok srch=355ms
+  OK  What are John's suspected health problems? | ctx=2342c 545tok srch=165ms
+  OK  Which recreational activity was James pursuing on  | ctx=2257c 547tok srch=162ms
+  NO  Which places or events have John and James planned | ctx=2340c 545tok srch=158ms
+  OK  Do both James and John have pets? | ctx=2252c 512tok srch=172ms
+  OK  When did John resume playing drums in his adulthoo | ctx=2277c 532tok srch=144ms
+  NO  What are John and James' favorite games? | ctx=2394c 516tok srch=688ms
+  OK  Does James live in Connecticut? | ctx=2405c 543tok srch=259ms
+  OK  In which state is the shelter from which James ado | ctx=2373c 560tok srch=169ms
+  OK  How many pets does James have? | ctx=2384c 541tok srch=333ms
+  NO  What are the names of James's dogs? | ctx=2319c 525tok srch=223ms
+  OK  What kind of project was Jolene working on in the  | ctx=2601c 591tok srch=127ms
+  NO  Which of Deborah`s family and friends have passed  | ctx=2474c 568tok srch=187ms
+  OK  When did Deborah`s mother pass away? | ctx=2519c 579tok srch=119ms
+  OK  When did Jolene`s mother pass away? | ctx=2578c 582tok srch=141ms
+  OK  When did Jolene's mom gift her a pendant? | ctx=2547c 579tok srch=143ms
+  OK  In what country did Jolene's mother buy her the pe | ctx=2599c 594tok srch=190ms
+  NO  What symbolic gifts do Deborah and Jolene have fro | ctx=2499c 564tok srch=145ms
+  OK  Which country were Jolene and her mother visiting  | ctx=2594c 589tok srch=168ms
+  NO  What helped Deborah find peace when grieving death | ctx=2350c 537tok srch=181ms
+  OK  When did Deborah's father pass away? | ctx=2520c 570tok srch=157ms
+  OK  What kind of car does Evan drive? | ctx=2075c 524tok srch=162ms
+  NO  What kinds of things did Evan have broken? | ctx=2024c 480tok srch=2590ms
+  OK  Where has Evan been on roadtrips with his family? | ctx=2128c 534tok srch=141ms
+  OK  How many Prius has Evan owned? | ctx=2074c 510tok srch=363ms
+  OK  Which hobby did Sam take up in May 2023? | ctx=2109c 487tok srch=197ms
+  OK  Which country was Evan visiting in May 2023? | ctx=2104c 559tok srch=131ms
+  OK  How many roadtrips did Evan take in May 2023? | ctx=2157c 579tok srch=135ms
+  NO  What new hobbies did Sam consider trying? | ctx=2077c 469tok srch=184ms
+  OK  What hobby did Evan start practicing a few years a | ctx=1884c 445tok srch=201ms
+  NO  When did Evan go to Jasper with his family? | ctx=2140c 556tok srch=185ms
+  NO  When did Calvin first travel to Tokyo? | ctx=2588c 551tok srch=280ms
+  OK  What items did Calvin buy in March 2023? | ctx=2754c 605tok srch=409ms
+  OK  When did Dave see Aerosmith perform live? | ctx=2418c 509tok srch=166ms
+  OK  Which bands has Dave enjoyed listening to? | ctx=2405c 507tok srch=245ms
+  NO  Which country do Calvin and Dave want to meet in? | ctx=2496c 539tok srch=275ms
+  NO  What are Dave's dreams? | ctx=2395c 503tok srch=450ms
+  OK  Which types of cars does Dave like the most? | ctx=2476c 522tok srch=147ms
+  OK  Does Dave's shop employ a lot of people? | ctx=2464c 519tok srch=243ms
+  NO  When did Dave start his car maintenance shop? | ctx=2458c 520tok srch=189ms
+  NO  When did a mishap occur with Calvin's musical gear | ctx=2616c 564tok srch=165ms
+
+MEM0 LoCoMo [qwen] accuracy=0.6500 | mean_prompt_tok=542.6 mean_search_ms=251.2 ingest_s/conv=65.3
+[11:54:35Z]   OK
+[11:54:35Z] MEM0 gemma / locomo n=100
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-42 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-43 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-44 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-47 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-48 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-49 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-50 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2902c 596tok srch=151ms
+  OK  When did Melanie paint a sunrise? | ctx=2625c 608tok srch=10845ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=2767c 580tok srch=187ms
+  OK  What did Caroline research? | ctx=2879c 605tok srch=215ms
+  OK  What is Caroline's identity? | ctx=2910c 602tok srch=208ms
+  NO  When did Melanie run a charity race? | ctx=2565c 591tok srch=154ms
+  OK  When is Melanie planning on going camping? | ctx=2601c 603tok srch=156ms
+  OK  What is Caroline's relationship status? | ctx=2813c 595tok srch=388ms
+  OK  When did Caroline give a speech at a school? | ctx=2773c 585tok srch=248ms
+  NO  When did Caroline meet up with her friends, family | ctx=2895c 613tok srch=181ms
+  OK  When Jon has lost his job as a banker? | ctx=2413c 578tok srch=155ms
+  OK  When Gina has lost her job at Door Dash? | ctx=2603c 562tok srch=3114ms
+  NO  How do Jon and Gina both like to destress? | ctx=2487c 533tok srch=314ms
+  NO  What do Jon and Gina both have in common? | ctx=2519c 533tok srch=150ms
+  NO  Why did Jon decide to start his dance studio? | ctx=2492c 573tok srch=144ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2522c 581tok srch=319ms
+  OK  When is Jon's group performing at a festival? | ctx=2576c 610tok srch=282ms
+  OK  When did Gina launch an ad campaign for her store? | ctx=2699c 567tok srch=210ms
+  OK  When was Jon in Paris? | ctx=2440c 600tok srch=145ms
+  NO  Which city have both Jean and John visited? | ctx=2449c 565tok srch=196ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2629c 575tok srch=217ms
+  OK  When did Maria donate her car? | ctx=2683c 574tok srch=131ms
+  NO  What martial arts has John done? | ctx=2966c 599tok srch=134ms
+  OK  What type of volunteering have John and Maria both | ctx=2729c 559tok srch=141ms
+  NO  When did John join the online support group? | ctx=2787c 562tok srch=201ms
+  NO  When did Maria go to the beach? | ctx=2598c 565tok srch=286ms
+  NO  Where has Maria made friends? | ctx=2588c 548tok srch=125ms
+  NO  What items des John mention having as a child? | ctx=2691c 573tok srch=400ms
+  OK  What might John's financial status be? | ctx=2826c 577tok srch=468ms
+  OK  Who gave Maria's family money when she was younger | ctx=2666c 581tok srch=172ms
+  OK  Is it likely that Nate has friends besides Joanna? | ctx=2285c 534tok srch=1131ms
+  NO  What kind of interests do Joanna and Nate share? | ctx=2306c 536tok srch=447ms
+  OK  When did Joanna first watch "Eternal Sunshine of t | ctx=2807c 639tok srch=220ms
+  OK  When did Nate win his first video game tournament? | ctx=2442c 572tok srch=161ms
+  NO  What pets wouldn't cause any discomfort to Joanna? | ctx=2559c 591tok srch=134ms
+  NO  What are Joanna's hobbies? | ctx=2538c 581tok srch=153ms
+  OK  How long has Nate had his first two turtles? | ctx=2253c 532tok srch=235ms
+  OK  When did Joanna finish her first screenplay? | ctx=2776c 627tok srch=166ms
+  OK  When did Nate get his first two turtles? | ctx=2238c 528tok srch=177ms
+  OK  What major achievement did Joanna accomplish in Ja | ctx=2535c 583tok srch=228ms
+  NO  what are John's goals with regards to his basketba | ctx=2803c 584tok srch=131ms
+  NO  What are John's goals for his career that are not  | ctx=2744c 580tok srch=132ms
+  NO  What items does John collect? | ctx=2423c 542tok srch=147ms
+  OK  Would Tim enjoy reading books by C. S. Lewis or Jo | ctx=2403c 573tok srch=289ms
+  OK  What books has Tim read? | ctx=2470c 566tok srch=150ms
+  NO  Based on Tim's collections, what is a shop that he | ctx=2629c 601tok srch=168ms
+  OK  In which month's game did John achieve a career-hi | ctx=2748c 599tok srch=541ms
+  OK  Which geographical locations has Tim been to? | ctx=2587c 568tok srch=165ms
+  NO  Which outdoor gear company likely signed up John f | ctx=2627c 561tok srch=289ms
+  NO  Which endorsement deals has John been offered? | ctx=2509c 526tok srch=439ms
+  OK  Which year did Audrey adopt the first three of her | ctx=2281c 574tok srch=154ms
+  OK  When did Andrew start his new job as a financial a | ctx=2462c 572tok srch=193ms
+  NO  What kind of indoor activities has Andrew pursued  | ctx=2454c 558tok srch=150ms
+  NO  What kind of places have Andrew and his girlfriend | ctx=2443c 566tok srch=122ms
+  OK  When did Audrey make muffins for herself? | ctx=2265c 560tok srch=204ms
+  OK  When did Audrey see a hummingbird? | ctx=2267c 532tok srch=257ms
+  OK  When did Audrey adopt Pixie? | ctx=2338c 567tok srch=181ms
+  OK  How many years passed between Audrey adopting Pixi | ctx=2245c 568tok srch=224ms
+  NO  Did Andrew have a pet dog during March 2023? | ctx=2454c 588tok srch=218ms
+  OK  What kind of classes or groups has Audrey joined t | ctx=2422c 589tok srch=3106ms
+  OK  What are John's suspected health problems? | ctx=2257c 509tok srch=197ms
+  OK  Which recreational activity was James pursuing on  | ctx=2186c 517tok srch=153ms
+  NO  Which places or events have John and James planned | ctx=2079c 491tok srch=211ms
+  NO  Do both James and John have pets? | ctx=1909c 456tok srch=169ms
+  OK  When did John resume playing drums in his adulthoo | ctx=2334c 514tok srch=165ms
+  NO  What are John and James' favorite games? | ctx=2203c 502tok srch=180ms
+  OK  Does James live in Connecticut? | ctx=1990c 471tok srch=129ms
+  NO  In which state is the shelter from which James ado | ctx=2017c 493tok srch=159ms
+  NO  How many pets does James have? | ctx=1942c 473tok srch=220ms
+  NO  What are the names of James's dogs? | ctx=1912c 469tok srch=264ms
+  OK  What kind of project was Jolene working on in the  | ctx=2688c 613tok srch=164ms
+  NO  Which of Deborah`s family and friends have passed  | ctx=2469c 577tok srch=3193ms
+  OK  When did Deborah`s mother pass away? | ctx=2590c 592tok srch=2492ms
+  OK  When did Jolene`s mother pass away? | ctx=2502c 595tok srch=228ms
+  OK  When did Jolene's mom gift her a pendant? | ctx=2590c 609tok srch=182ms
+  OK  In what country did Jolene's mother buy her the pe | ctx=2590c 611tok srch=172ms
+  NO  What symbolic gifts do Deborah and Jolene have fro | ctx=2498c 581tok srch=141ms
+  OK  Which country were Jolene and her mother visiting  | ctx=2569c 603tok srch=135ms
+  NO  What helped Deborah find peace when grieving death | ctx=2549c 584tok srch=162ms
+  OK  When did Deborah's father pass away? | ctx=2562c 598tok srch=339ms
+  OK  What kind of car does Evan drive? | ctx=2380c 564tok srch=134ms
+  NO  What kinds of things did Evan have broken? | ctx=2408c 571tok srch=159ms
+  NO  Where has Evan been on roadtrips with his family? | ctx=2588c 610tok srch=149ms
+  OK  How many Prius has Evan owned? | ctx=2371c 568tok srch=198ms
+  OK  Which hobby did Sam take up in May 2023? | ctx=2378c 514tok srch=159ms
+  OK  Which country was Evan visiting in May 2023? | ctx=2492c 591tok srch=130ms
+  OK  How many roadtrips did Evan take in May 2023? | ctx=2556c 609tok srch=157ms
+  NO  What new hobbies did Sam consider trying? | ctx=2377c 507tok srch=139ms
+  NO  What hobby did Evan start practicing a few years a | ctx=2202c 490tok srch=174ms
+  NO  When did Evan go to Jasper with his family? | ctx=2415c 583tok srch=132ms
+  NO  When did Calvin first travel to Tokyo? | ctx=2716c 610tok srch=122ms
+  OK  What items did Calvin buy in March 2023? | ctx=2622c 607tok srch=249ms
+  OK  When did Dave see Aerosmith perform live? | ctx=2475c 546tok srch=506ms
+  OK  Which bands has Dave enjoyed listening to? | ctx=2469c 538tok srch=178ms
+  OK  Which country do Calvin and Dave want to meet in? | ctx=2636c 601tok srch=354ms
+  OK  What are Dave's dreams? | ctx=2394c 528tok srch=202ms
+  OK  Which types of cars does Dave like the most? | ctx=2436c 542tok srch=144ms
+  OK  Does Dave's shop employ a lot of people? | ctx=2429c 540tok srch=135ms
+  NO  When did Dave start his car maintenance shop? | ctx=2471c 549tok srch=171ms
+  NO  When did a mishap occur with Calvin's musical gear | ctx=2649c 606tok srch=4571ms
+
+MEM0 LoCoMo [gemma] accuracy=0.5900 | mean_prompt_tok=566.2 mean_search_ms=475.7 ingest_s/conv=64.5
+[12:09:57Z]   OK
+[12:09:57Z] MEM0 gpt-4o / locomo n=100
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-42 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-43 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-44 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-47 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-48 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-49 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-50 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2945c 600tok srch=263ms
+  OK  When did Melanie paint a sunrise? | ctx=2490c 555tok srch=173ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=2860c 590tok srch=464ms
+  OK  What did Caroline research? | ctx=2979c 597tok srch=208ms
+  OK  What is Caroline's identity? | ctx=2956c 610tok srch=167ms
+  NO  When did Melanie run a charity race? | ctx=2518c 554tok srch=3635ms
+  OK  When is Melanie planning on going camping? | ctx=2428c 534tok srch=151ms
+  NO  What is Caroline's relationship status? | ctx=2894c 608tok srch=143ms
+  NO  When did Caroline give a speech at a school? | ctx=2882c 601tok srch=347ms
+  NO  When did Caroline meet up with her friends, family | ctx=3034c 626tok srch=275ms
+  OK  When Jon has lost his job as a banker? | ctx=2442c 534tok srch=210ms
+  OK  When Gina has lost her job at Door Dash? | ctx=2597c 546tok srch=214ms
+  NO  How do Jon and Gina both like to destress? | ctx=2479c 514tok srch=209ms
+  NO  What do Jon and Gina both have in common? | ctx=2533c 532tok srch=176ms
+  OK  Why did Jon decide to start his dance studio? | ctx=2533c 544tok srch=262ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2556c 547tok srch=245ms
+  OK  When is Jon's group performing at a festival? | ctx=2572c 552tok srch=188ms
+  OK  When did Gina launch an ad campaign for her store? | ctx=2622c 550tok srch=163ms
+  OK  When was Jon in Paris? | ctx=2503c 545tok srch=135ms
+  OK  Which city have both Jean and John visited? | ctx=2504c 522tok srch=304ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2421c 501tok srch=178ms
+  OK  When did Maria donate her car? | ctx=2471c 499tok srch=174ms
+  NO  What martial arts has John done? | ctx=2497c 490tok srch=317ms
+  NO  What type of volunteering have John and Maria both | ctx=2445c 477tok srch=124ms
+  OK  When did John join the online support group? | ctx=2547c 489tok srch=176ms
+  OK  When did Maria go to the beach? | ctx=2434c 498tok srch=128ms
+  NO  Where has Maria made friends? | ctx=2527c 503tok srch=168ms
+  OK  What items des John mention having as a child? | ctx=2309c 467tok srch=354ms
+  OK  What might John's financial status be? | ctx=2350c 462tok srch=211ms
+  OK  Who gave Maria's family money when she was younger | ctx=2464c 507tok srch=186ms
+  OK  Is it likely that Nate has friends besides Joanna? | ctx=2270c 506tok srch=161ms
+  NO  What kind of interests do Joanna and Nate share? | ctx=2378c 515tok srch=213ms
+  OK  When did Joanna first watch "Eternal Sunshine of t | ctx=2779c 613tok srch=221ms
+  OK  When did Nate win his first video game tournament? | ctx=2437c 524tok srch=196ms
+  OK  What pets wouldn't cause any discomfort to Joanna? | ctx=2545c 556tok srch=1006ms
+  OK  What are Joanna's hobbies? | ctx=2664c 580tok srch=344ms
+  OK  How long has Nate had his first two turtles? | ctx=2462c 535tok srch=242ms
+  OK  When did Joanna finish her first screenplay? | ctx=2835c 606tok srch=182ms
+  OK  When did Nate get his first two turtles? | ctx=2462c 534tok srch=663ms
+  NO  What major achievement did Joanna accomplish in Ja | ctx=2820c 621tok srch=120ms
+  NO  what are John's goals with regards to his basketba | ctx=3018c 585tok srch=192ms
+  NO  What are John's goals for his career that are not  | ctx=2974c 584tok srch=500ms
+  OK  What items does John collect? | ctx=2504c 510tok srch=212ms
+  OK  Would Tim enjoy reading books by C. S. Lewis or Jo | ctx=2516c 533tok srch=143ms
+  OK  What books has Tim read? | ctx=2517c 529tok srch=230ms
+  NO  Based on Tim's collections, what is a shop that he | ctx=2530c 545tok srch=165ms
+  OK  In which month's game did John achieve a career-hi | ctx=2923c 598tok srch=193ms
+  OK  Which geographical locations has Tim been to? | ctx=2535c 531tok srch=412ms
+  OK  Which outdoor gear company likely signed up John f | ctx=2852c 579tok srch=170ms
+  NO  Which endorsement deals has John been offered? | ctx=2776c 552tok srch=330ms
+  OK  Which year did Audrey adopt the first three of her | ctx=2178c 498tok srch=133ms
+  OK  When did Andrew start his new job as a financial a | ctx=2199c 497tok srch=133ms
+  NO  What kind of indoor activities has Andrew pursued  | ctx=2225c 498tok srch=149ms
+  NO  What kind of places have Andrew and his girlfriend | ctx=2209c 499tok srch=158ms
+  OK  When did Audrey make muffins for herself? | ctx=2109c 469tok srch=341ms
+  OK  When did Audrey see a hummingbird? | ctx=2286c 488tok srch=250ms
+  OK  When did Audrey adopt Pixie? | ctx=2264c 499tok srch=154ms
+  OK  How many years passed between Audrey adopting Pixi | ctx=2131c 500tok srch=148ms
+  NO  Did Andrew have a pet dog during March 2023? | ctx=2218c 506tok srch=183ms
+  OK  What kind of classes or groups has Audrey joined t | ctx=2256c 513tok srch=135ms
+  OK  What are John's suspected health problems? | ctx=2108c 445tok srch=163ms
+  OK  Which recreational activity was James pursuing on  | ctx=2102c 472tok srch=201ms
+  NO  Which places or events have John and James planned | ctx=2029c 447tok srch=151ms
+  OK  Do both James and John have pets? | ctx=1829c 404tok srch=215ms
+  OK  When did John resume playing drums in his adulthoo | ctx=2172c 466tok srch=174ms
+  NO  What are John and James' favorite games? | ctx=2094c 457tok srch=220ms
+  OK  Does James live in Connecticut? | ctx=1895c 430tok srch=372ms
+  NO  In which state is the shelter from which James ado | ctx=2066c 476tok srch=187ms
+  NO  How many pets does James have? | ctx=1972c 454tok srch=253ms
+  NO  What are the names of James's dogs? | ctx=2028c 463tok srch=191ms
+  OK  What kind of project was Jolene working on in the  | ctx=2711c 578tok srch=261ms
+  NO  Which of Deborah`s family and friends have passed  | ctx=2437c 534tok srch=142ms
+  OK  When did Deborah`s mother pass away? | ctx=2505c 538tok srch=238ms
+  OK  When did Jolene`s mother pass away? | ctx=2291c 546tok srch=213ms
+  OK  When did Jolene's mom gift her a pendant? | ctx=2132c 521tok srch=325ms
+  OK  In what country did Jolene's mother buy her the pe | ctx=2304c 542tok srch=152ms
+  NO  What symbolic gifts do Deborah and Jolene have fro | ctx=2220c 509tok srch=206ms
+  OK  Which country were Jolene and her mother visiting  | ctx=2378c 533tok srch=157ms
+  NO  What helped Deborah find peace when grieving death | ctx=2536c 545tok srch=228ms
+  OK  When did Deborah's father pass away? | ctx=2475c 538tok srch=193ms
+  OK  What kind of car does Evan drive? | ctx=2003c 463tok srch=271ms
+  OK  What kinds of things did Evan have broken? | ctx=2089c 486tok srch=131ms
+  OK  Where has Evan been on roadtrips with his family? | ctx=2069c 483tok srch=136ms
+  OK  How many Prius has Evan owned? | ctx=2123c 487tok srch=279ms
+  NO  Which hobby did Sam take up in May 2023? | ctx=1935c 427tok srch=331ms
+  OK  Which country was Evan visiting in May 2023? | ctx=2095c 491tok srch=224ms
+  OK  How many roadtrips did Evan take in May 2023? | ctx=2103c 495tok srch=374ms
+  NO  What new hobbies did Sam consider trying? | ctx=1988c 434tok srch=164ms
+  NO  What hobby did Evan start practicing a few years a | ctx=1992c 446tok srch=128ms
+  NO  When did Evan go to Jasper with his family? | ctx=2124c 496tok srch=210ms
+  OK  When did Calvin first travel to Tokyo? | ctx=2728c 571tok srch=185ms
+  OK  What items did Calvin buy in March 2023? | ctx=2625c 572tok srch=221ms
+  OK  When did Dave see Aerosmith perform live? | ctx=2448c 514tok srch=225ms
+  OK  Which bands has Dave enjoyed listening to? | ctx=2456c 508tok srch=359ms
+  NO  Which country do Calvin and Dave want to meet in? | ctx=2571c 553tok srch=227ms
+  OK  What are Dave's dreams? | ctx=2391c 492tok srch=142ms
+  OK  Which types of cars does Dave like the most? | ctx=2436c 510tok srch=204ms
+  OK  Does Dave's shop employ a lot of people? | ctx=2505c 519tok srch=140ms
+  NO  When did Dave start his car maintenance shop? | ctx=2444c 513tok srch=157ms
+  NO  When did a mishap occur with Calvin's musical gear | ctx=2612c 568tok srch=1376ms
+
+MEM0 LoCoMo [gpt-4o] accuracy=0.6600 | mean_prompt_tok=521.8 mean_search_ms=273.5 ingest_s/conv=53.6
+[12:23:57Z]   OK
+[12:23:57Z] MEM0 gpt-5 / locomo n=100
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-42 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-43 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-44 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-47 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-48 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-49 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-50 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2838c 577tok srch=171ms
+  OK  When did Melanie paint a sunrise? | ctx=2496c 540tok srch=175ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=2842c 595tok srch=141ms
+  OK  What did Caroline research? | ctx=2962c 596tok srch=222ms
+  OK  What is Caroline's identity? | ctx=2889c 607tok srch=162ms
+  NO  When did Melanie run a charity race? | ctx=2488c 535tok srch=132ms
+  OK  When is Melanie planning on going camping? | ctx=2482c 536tok srch=136ms
+  OK  What is Caroline's relationship status? | ctx=2924c 613tok srch=206ms
+  NO  When did Caroline give a speech at a school? | ctx=2840c 595tok srch=274ms
+  OK  When did Caroline meet up with her friends, family | ctx=3066c 627tok srch=281ms
+  OK  When Jon has lost his job as a banker? | ctx=2431c 537tok srch=183ms
+  OK  When Gina has lost her job at Door Dash? | ctx=2480c 533tok srch=195ms
+  NO  How do Jon and Gina both like to destress? | ctx=2402c 494tok srch=1019ms
+  NO  What do Jon and Gina both have in common? | ctx=2520c 516tok srch=229ms
+  NO  Why did Jon decide to start his dance studio? | ctx=2432c 517tok srch=193ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2480c 532tok srch=188ms
+  OK  When is Jon's group performing at a festival? | ctx=2466c 532tok srch=232ms
+  OK  When did Gina launch an ad campaign for her store? | ctx=2532c 543tok srch=258ms
+  OK  When was Jon in Paris? | ctx=2444c 538tok srch=269ms
+  NO  Which city have both Jean and John visited? | ctx=2444c 516tok srch=195ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2696c 551tok srch=209ms
+  OK  When did Maria donate her car? | ctx=2649c 523tok srch=908ms
+  NO  What martial arts has John done? | ctx=2736c 544tok srch=326ms
+  OK  What type of volunteering have John and Maria both | ctx=2664c 510tok srch=188ms
+  NO  When did John join the online support group? | ctx=2635c 525tok srch=361ms
+  NO  When did Maria go to the beach? | ctx=2734c 554tok srch=152ms
+  NO  Where has Maria made friends? | ctx=2767c 541tok srch=169ms
+  NO  What items des John mention having as a child? | ctx=2685c 557tok srch=330ms
+  NO  What might John's financial status be? | ctx=2667c 511tok srch=646ms
+  NO  Who gave Maria's family money when she was younger | ctx=2670c 543tok srch=340ms
+  OK  Is it likely that Nate has friends besides Joanna? | ctx=2350c 514tok srch=251ms
+  OK  What kind of interests do Joanna and Nate share? | ctx=2386c 519tok srch=190ms
+  OK  When did Joanna first watch "Eternal Sunshine of t | ctx=2627c 577tok srch=348ms
+  OK  When did Nate win his first video game tournament? | ctx=2435c 524tok srch=209ms
+  NO  What pets wouldn't cause any discomfort to Joanna? | ctx=2481c 545tok srch=178ms
+  OK  What are Joanna's hobbies? | ctx=2570c 555tok srch=629ms
+  OK  How long has Nate had his first two turtles? | ctx=2389c 529tok srch=167ms
+  OK  When did Joanna finish her first screenplay? | ctx=2803c 599tok srch=311ms
+  OK  When did Nate get his first two turtles? | ctx=2413c 535tok srch=253ms
+  OK  What major achievement did Joanna accomplish in Ja | ctx=2555c 563tok srch=249ms
+  NO  what are John's goals with regards to his basketba | ctx=2801c 551tok srch=171ms
+  OK  What are John's goals for his career that are not  | ctx=2751c 551tok srch=251ms
+  OK  What items does John collect? | ctx=2511c 525tok srch=296ms
+  OK  Would Tim enjoy reading books by C. S. Lewis or Jo | ctx=2654c 568tok srch=138ms
+  OK  What books has Tim read? | ctx=2626c 555tok srch=205ms
+  NO  Based on Tim's collections, what is a shop that he | ctx=2767c 591tok srch=186ms
+  OK  In which month's game did John achieve a career-hi | ctx=2785c 573tok srch=514ms
+  OK  Which geographical locations has Tim been to? | ctx=2788c 575tok srch=278ms
+  OK  Which outdoor gear company likely signed up John f | ctx=2772c 558tok srch=189ms
+  NO  Which endorsement deals has John been offered? | ctx=2743c 550tok srch=157ms
+  OK  Which year did Audrey adopt the first three of her | ctx=2331c 529tok srch=206ms
+  OK  When did Andrew start his new job as a financial a | ctx=2504c 557tok srch=148ms
+  NO  What kind of indoor activities has Andrew pursued  | ctx=2295c 514tok srch=188ms
+  NO  What kind of places have Andrew and his girlfriend | ctx=2340c 529tok srch=214ms
+  OK  When did Audrey make muffins for herself? | ctx=2214c 488tok srch=188ms
+  OK  When did Audrey see a hummingbird? | ctx=2363c 516tok srch=264ms
+  OK  When did Audrey adopt Pixie? | ctx=2352c 525tok srch=254ms
+  OK  How many years passed between Audrey adopting Pixi | ctx=2297c 529tok srch=206ms
+  OK  Did Andrew have a pet dog during March 2023? | ctx=2392c 541tok srch=163ms
+  NO  What kind of classes or groups has Audrey joined t | ctx=2262c 514tok srch=159ms
+  OK  What are John's suspected health problems? | ctx=1959c 416tok srch=432ms
+  OK  Which recreational activity was James pursuing on  | ctx=2114c 469tok srch=247ms
+  NO  Which places or events have John and James planned | ctx=2064c 456tok srch=225ms
+  OK  Do both James and John have pets? | ctx=1772c 395tok srch=266ms
+  NO  When did John resume playing drums in his adulthoo | ctx=2031c 431tok srch=337ms
+  NO  What are John and James' favorite games? | ctx=2094c 453tok srch=255ms
+  OK  Does James live in Connecticut? | ctx=1937c 437tok srch=207ms
+  OK  In which state is the shelter from which James ado | ctx=2014c 460tok srch=285ms
+  OK  How many pets does James have? | ctx=1958c 447tok srch=273ms
+  NO  What are the names of James's dogs? | ctx=1995c 451tok srch=198ms
+  OK  What kind of project was Jolene working on in the  | ctx=2813c 610tok srch=328ms
+  NO  Which of Deborah`s family and friends have passed  | ctx=2371c 525tok srch=306ms
+  OK  When did Deborah`s mother pass away? | ctx=2371c 522tok srch=755ms
+  OK  When did Jolene`s mother pass away? | ctx=2492c 580tok srch=245ms
+  OK  When did Jolene's mom gift her a pendant? | ctx=2356c 549tok srch=134ms
+  OK  In what country did Jolene's mother buy her the pe | ctx=2337c 553tok srch=383ms
+  NO  What symbolic gifts do Deborah and Jolene have fro | ctx=2444c 552tok srch=132ms
+  OK  Which country were Jolene and her mother visiting  | ctx=2559c 562tok srch=239ms
+  NO  What helped Deborah find peace when grieving death | ctx=2484c 539tok srch=150ms
+  OK  When did Deborah's father pass away? | ctx=2371c 522tok srch=231ms
+  OK  What kind of car does Evan drive? | ctx=2005c 470tok srch=214ms
+  NO  What kinds of things did Evan have broken? | ctx=2143c 497tok srch=288ms
+  OK  Where has Evan been on roadtrips with his family? | ctx=2193c 497tok srch=250ms
+  OK  How many Prius has Evan owned? | ctx=2076c 477tok srch=403ms
+  OK  Which hobby did Sam take up in May 2023? | ctx=2268c 497tok srch=187ms
+  OK  Which country was Evan visiting in May 2023? | ctx=2150c 493tok srch=161ms
+  OK  How many roadtrips did Evan take in May 2023? | ctx=2159c 501tok srch=503ms
+  NO  What new hobbies did Sam consider trying? | ctx=2212c 487tok srch=300ms
+  NO  What hobby did Evan start practicing a few years a | ctx=2006c 454tok srch=276ms
+  NO  When did Evan go to Jasper with his family? | ctx=2211c 506tok srch=198ms
+  OK  When did Calvin first travel to Tokyo? | ctx=2726c 572tok srch=328ms
+  OK  What items did Calvin buy in March 2023? | ctx=2782c 598tok srch=181ms
+  OK  When did Dave see Aerosmith perform live? | ctx=2446c 519tok srch=258ms
+  OK  Which bands has Dave enjoyed listening to? | ctx=2462c 512tok srch=4211ms
+  NO  Which country do Calvin and Dave want to meet in? | ctx=2598c 557tok srch=307ms
+  OK  What are Dave's dreams? | ctx=2452c 510tok srch=247ms
+  OK  Which types of cars does Dave like the most? | ctx=2473c 517tok srch=303ms
+  OK  Does Dave's shop employ a lot of people? | ctx=2495c 524tok srch=226ms
+  NO  When did Dave start his car maintenance shop? | ctx=2466c 517tok srch=137ms
+  OK  When did a mishap occur with Calvin's musical gear | ctx=2696c 575tok srch=386ms
+
+MEM0 LoCoMo [gpt-5] accuracy=0.6600 | mean_prompt_tok=529.5 mean_search_ms=306.4 ingest_s/conv=66.3
+[12:48:13Z]   OK
+[12:48:13Z] MEM0_N100_DONE

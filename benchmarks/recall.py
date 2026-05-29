@@ -167,8 +167,16 @@ def write_report(report: dict[str, object], output_dir: Path | None = None) -> P
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-root", type=Path, default=None)
+    args = parser.parse_args()
+    output_dir = None
+    if args.output_root is not None:
+        output_dir = args.output_root / datetime.now(UTC).strftime("%Y-%m-%d")
     report = run_recall_benchmark()
-    print(write_report(report))
+    print(write_report(report, output_dir=output_dir))
 
 
 def _markdown(report: dict[str, object]) -> str:

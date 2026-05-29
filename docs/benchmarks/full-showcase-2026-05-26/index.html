@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>stele · benchmark showcase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --obsidian:#0a0c0f; --stone:#111418; --ink:#171b21; --line:#262b33;
+    --gold:#d8a657; --gold-bright:#f3cd86; --teal:#5fa8a8; --rust:#bd6a4a;
+    --text:#e9e3d4; --muted:#8b8678; --dim:#5a564c;
+    --serif:'Instrument Serif',Georgia,serif; --mono:'IBM Plex Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--obsidian); color:var(--text); font-family:var(--mono);
+    font-weight:300; line-height:1.5; overflow-x:hidden;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(216,166,87,.10), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 20%, rgba(95,168,168,.06), transparent 60%);
+    background-attachment:fixed;
+  }
+  /* film grain */
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:9999; opacity:.035;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+  .mono-label{font-family:var(--mono);font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:500}
+  .serif{font-family:var(--serif)}
+
+  /* ── HERO ── */
+  header{position:relative;padding:120px 0 70px;border-bottom:1px solid var(--line)}
+  .grid-bg{position:absolute;inset:0;z-index:0;opacity:.5;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:46px 46px;mask-image:radial-gradient(ellipse 70% 80% at 50% 30%,#000,transparent 75%)}
+  header .wrap{position:relative;z-index:1}
+  .kicker{display:flex;gap:14px;align-items:center;margin-bottom:30px;opacity:0;animation:rise .8s .1s forwards}
+  .kicker .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(56px,11vw,140px);line-height:.92;letter-spacing:-.02em;
+     color:transparent;background:linear-gradient(180deg,#fff7e6,#d8a657 60%,#9c7636);-webkit-background-clip:text;background-clip:text;
+     text-shadow:0 1px 0 rgba(255,255,255,.04);opacity:0;animation:rise 1s .2s forwards}
+  h1 em{font-style:italic;color:var(--teal);-webkit-text-fill-color:var(--teal)}
+  .sub{max-width:620px;margin-top:26px;font-size:16px;color:var(--muted);opacity:0;animation:rise 1s .45s forwards}
+  .sub b{color:var(--text);font-weight:400}
+  .prov{margin-top:22px;font-size:11.5px;color:var(--dim);letter-spacing:.04em;opacity:0;animation:rise 1s .6s forwards}
+  .prov span{color:var(--gold)}
+
+  /* ── HEADLINE STATS ── */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:64px;border:1px solid var(--line);background:var(--stone)}
+  .stat{padding:34px 30px;border-right:1px solid var(--line);position:relative;opacity:0;animation:rise .9s forwards}
+  .stat:last-child{border-right:0}
+  .stat:nth-child(1){animation-delay:.7s}.stat:nth-child(2){animation-delay:.82s}.stat:nth-child(3){animation-delay:.94s}
+  .stat .num{font-family:var(--serif);font-size:clamp(44px,6vw,72px);line-height:1;color:var(--gold-bright);letter-spacing:-.01em}
+  .stat .num small{font-size:.42em;color:var(--muted)}
+  .stat .cap{margin-top:12px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  .stat .det{margin-top:6px;font-size:12px;color:var(--dim)}
+
+  /* ── SECTIONS ── */
+  section{padding:88px 0;border-bottom:1px solid var(--line)}
+  .sec-head{display:flex;align-items:baseline;gap:18px;margin-bottom:8px;flex-wrap:wrap}
+  .sec-head h2{font-family:var(--serif);font-weight:400;font-size:clamp(34px,5vw,52px);letter-spacing:-.01em;color:var(--text)}
+  .sec-head .idx{font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:.2em}
+  .sec-desc{max-width:680px;color:var(--muted);font-size:14.5px;margin-bottom:36px}
+  .sec-desc b{color:var(--text);font-weight:400}
+
+  /* dataset selector */
+  .selector{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:30px}
+  .selector button{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+    background:transparent;color:var(--muted);border:1px solid var(--line);padding:9px 16px;cursor:pointer;transition:.22s}
+  .selector button:hover{color:var(--text);border-color:var(--dim)}
+  .selector button.active{background:var(--gold);color:#1a1206;border-color:var(--gold);font-weight:500}
+
+  .chart-card{background:var(--stone);border:1px solid var(--line);padding:30px 28px 22px}
+  .chart-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:22px}
+  @media(max-width:860px){.chart-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.stat{border-right:0;border-bottom:1px solid var(--line)}}
+  .chart-title{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
+  svg{width:100%;height:auto;display:block;overflow:visible}
+  text{font-family:var(--mono)}
+
+  /* legend */
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;font-size:12px;color:var(--muted)}
+  .legend i{display:inline-block;width:11px;height:11px;margin-right:7px;vertical-align:middle;border-radius:2px}
+  .legend .star{border-radius:0;transform:rotate(45deg);box-shadow:0 0 8px var(--gold)}
+
+  /* tooltip */
+  #tip{position:fixed;pointer-events:none;z-index:50;background:#000;border:1px solid var(--gold);
+    padding:9px 12px;font-size:12px;color:var(--text);opacity:0;transition:opacity .12s;max-width:240px;line-height:1.45}
+  #tip b{color:var(--gold-bright)}
+
+  .takeaway{margin-top:26px;border-left:2px solid var(--gold);padding:14px 20px;background:rgba(216,166,87,.05);font-size:14px;color:var(--muted)}
+  .takeaway b{color:var(--gold-bright);font-weight:500}
+  .caveat{margin-bottom:24px;border:1px solid var(--rust);border-left:3px solid var(--rust);padding:13px 18px;background:rgba(189,106,74,.06);font-size:12.5px;color:var(--muted);letter-spacing:.01em}
+  .caveat b{color:var(--rust);font-weight:500}
+  .sources{margin-top:18px;font-size:12px;color:var(--dim);letter-spacing:.04em}
+  .sources a{color:var(--teal);text-decoration:none;border-bottom:1px solid transparent;margin-right:14px;transition:.18s}
+  .sources a:hover{border-bottom-color:var(--teal);color:var(--gold-bright)}
+
+  footer{padding:70px 0 90px}
+  .repro{background:#000;border:1px solid var(--line);padding:18px 22px;font-size:13px;color:var(--teal);overflow-x:auto;white-space:nowrap}
+  .repro span{color:var(--dim)}
+  .foot-meta{margin-top:26px;font-size:11.5px;color:var(--dim);letter-spacing:.04em;display:flex;gap:26px;flex-wrap:wrap}
+  .foot-meta b{color:var(--muted);font-weight:400}
+
+  @keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+  .reveal{opacity:0}
+  .reveal.in{animation:rise .9s forwards}
+  /* never gate visibility on motion */
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none!important;transition:none!important}
+    .reveal,.kicker,h1,.sub,.prov,.stat{opacity:1!important;transform:none!important}
+  }
+</style>
+</head>
+<body>
+<div id="tip"></div>
+
+<header>
+  <div class="grid-bg"></div>
+  <div class="wrap">
+    <div class="kicker"><span class="dot"></span><span class="mono-label">Full end-to-end benchmark · 2026-05-26</span></div>
+    <h1>stele,<br><em>measured.</em></h1>
+    <p class="sub">An off-prompt memory layer keeps the exact bytes off the model and returns a citation-grade snippet. This is the receipt: token reduction, latency, long-term recall, and answer accuracy — graded by an <b>independent</b> local judge across five third-party corpora.</p>
+    <p class="prov">stele-core <span>0.2.1</span> · lede <span>0.4.5</span> · chunkshop <span>0.6.1</span> · pg-raggraph <span>0.4.0a1</span> &nbsp;|&nbsp; answerer <span>Qwen3-Coder</span> · judge <span>gemma-4-26B</span> (no self-grading)</p>
+
+    <div class="stats">
+      <div class="stat"><div class="num" data-count="96.57" data-suffix="%">0<small>%</small></div><div class="cap">Prompt-payload reduction</div><div class="det">mean across 4 engines · 93.1–98.5%</div></div>
+      <div class="stat"><div class="num" data-count="0" data-plain="0">0</div><div class="cap">PII leaks</div><div class="det">3,265 graded events · zero</div></div>
+      <div class="stat"><div class="num" data-count="0.981" data-dp="3">0</div><div class="cap">Long-term recall accuracy</div><div class="det">2,625-run matrix · 100% exact-fetch</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- EFFICIENCY FRONTIER -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="idx">01</span><h2 class="serif">The efficiency frontier</h2></div>
+    <p class="sec-desc">Every retrieval strategy plotted by <b>answer accuracy</b> against the <b>tokens it spends</b> (log scale). The prize is the top-left: high accuracy, low cost. <b>digest</b> — a lede summary + extracted facts + the top-5 chunks — lands there while <b>raw context</b> sprawls expensively to the right.</p>
+    <div class="selector" id="sel"></div>
+    <div class="chart-card">
+      <div class="chart-title" id="frontier-title"></div>
+      <svg id="frontier" viewBox="0 0 900 460" role="img"></svg>
+      <div class="legend">
+        <span><i class="star" style="background:var(--gold)"></i>digest</span>
+        <span><i style="background:var(--rust)"></i>raw_fetch (full context)</span>
+        <span><i style="background:var(--teal)"></i>cheap retrieval</span>
+        <span style="color:var(--dim)">↖ better — more accurate, fewer tokens</span>
+      </div>
+    </div>
+    <div class="takeaway" id="frontier-take"></div>
+  </div>
+</section>
+
+<!-- ACCURACY BY STRATEGY -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="idx">02</span><h2 class="serif">Accuracy, strategy by strategy</h2></div>
+    <p class="sec-desc">Same selector. Bars are answer accuracy; the number on the right is mean tokens. On real corpora, <b>digest matches or beats full context at a fraction of the tokens</b> — and on LongMemEval it actively <b>denoises</b>: 15k raw tokens score 0.50, a 1.5k digest scores 0.75.</p>
+    <div class="chart-card"><svg id="bars" viewBox="0 0 900 360" role="img"></svg></div>
+  </div>
+</section>
+
+<!-- ENGINES -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="idx">03</span><h2 class="serif">Four engines, one contract</h2></div>
+    <p class="sec-desc">Payload reduction is identical across backends (<b>96.57%</b> — same content, same chunking). What changes is latency. The full path — intercept, store, scrub, summarize — stays in <b>single-digit-to-low-double-digit milliseconds</b> everywhere.</p>
+    <div class="chart-grid">
+      <div class="chart-card"><div class="chart-title">Latency by engine — intercept · fetch · search (ms)</div><svg id="engines" viewBox="0 0 560 320" role="img"></svg></div>
+      <div class="chart-card"><div class="chart-title">Long-term recall · long-run matrix</div><svg id="recall" viewBox="0 0 380 320" role="img"></svg></div>
+    </div>
+  </div>
+</section>
+
+<!-- THE FIELD -->
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="idx">04</span><h2 class="serif">The field, in context</h2></div>
+    <p class="sec-desc">Published LoCoMo scores from other agentic-memory systems. <b>These are not a leaderboard.</b> Each was run under a different answer model (mostly GPT-4o / GPT-4o-mini), a different judge, and a different harness — the same system scores <b>58% → 75%</b> depending on who runs it. stele's bar uses a fully <b>local</b> quantized Qwen answerer + an independent gemma judge, so it is <b>not comparable</b> to a GPT-4o-mini number — it's shown for honest placement, not victory.</p>
+    <div class="caveat">⚠ Different LLMs · different judges · different harnesses · "J" means LLM-judge for some, Jaccard or F1 for others. Cross-vendor rankings only hold within one source's run. The only true comparison is re-running rivals in one harness — which <b>scripts/run-full-showcase.sh</b> is built to do.</div>
+    <div class="chart-card">
+      <div class="chart-title">LoCoMo · published LLM-judge score (claimed, see caveat)</div>
+      <svg id="field" viewBox="0 0 900 460" role="img"></svg>
+    </div>
+    <div class="takeaway"><b>Calibration (matched stack: gpt-4o-mini answerer + gpt-4o judge).</b> Re-run on the field's own stack, stele's naive-RAG baseline scores <b>0.611</b> on LoCoMo — right on Mem0's published RAG <b>0.610</b> — and full-context <b>0.667</b> vs their 0.729. When two harnesses reproduce each other's baselines, the memory numbers line up too. <b>The earlier low LoCoMo was the weak local answerer, not stele.</b></div>
+    <div class="takeaway"><b>Where stele genuinely stands out is LongMemEval</b> — digest scores <b>0.83</b> on the matched stack (and 0.75 on the fully-local one), above published GPT-4o-mini memory numbers (~0.60) and full-context baselines (~0.55–0.64). Treat as directional (small N). Full sourced table + confounders: <b>agentic-memory-comparison.md</b>.</div>
+    <p class="sources">Sources →
+      <a href="https://arxiv.org/abs/2504.19413">Mem0</a>
+      <a href="https://blog.getzep.com/state-of-the-art-agent-memory/">Zep</a>
+      <a href="https://www.letta.com/blog/benchmarking-ai-agent-memory">Letta/MemGPT</a>
+      <a href="https://github.com/memodb-io/memobase">Memobase</a>
+      <a href="https://www.cognee.ai/research-and-evaluation-results">cognee</a>
+      <a href="https://arxiv.org/abs/2410.10813">LongMemEval</a>
+      <a href="https://github.com/snap-research/locomo">LoCoMo</a>
+      <a href="https://blog.getzep.com/lies-damn-lies-statistics-is-mem0-really-sota-in-agent-memory/">Zep↔Mem0 harness dispute</a>
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="sec-head"><span class="idx">05</span><h2 class="serif">Reproduce it</h2></div>
+    <p class="sec-desc">Deterministic lanes are byte-stable; the LLM-judged lane uses two separate local models. Every number on this page reads from a committed JSON artifact beside it.</p>
+    <div class="repro"><span>$</span> scripts/run-full-showcase.sh</div>
+    <div class="foot-meta">
+      <span><b>engines</b> memory · sqlite · postgres · clickhouse</span>
+      <span><b>corpora</b> synthetic · LongBench · RAGBench · LongMemEval · LoCoMo</span>
+      <span><b>artifacts</b> docs/benchmarks/full-showcase-2026-05-26/</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+const DATA = {
+  order:["search_first","summary_only","summary_then_search","adaptive","iterative","digest","raw_fetch"],
+  datasets:{
+    synthetic:{label:"Synthetic", s:{search_first:[.8286,154],summary_only:[.7143,327],summary_then_search:[.7714,383],adaptive:[.7714,684],iterative:[.6571,803],digest:[.7429,2000],raw_fetch:[.7714,8974]}},
+    longbench:{label:"LongBench", s:{search_first:[.5312,151],summary_only:[.4062,434],summary_then_search:[.4375,560],adaptive:[.5,4415],iterative:[.3125,756],digest:[.5312,1626],raw_fetch:[.5625,12843]}},
+    ragbench:{label:"RAGBench", s:{search_first:[.3333,132],summary_only:[.7222,488],summary_then_search:[.75,559],adaptive:[.75,1235],iterative:[.5556,443],digest:[.8333,1548],raw_fetch:[.7778,1591]}},
+    longmemeval:{label:"LongMemEval", s:{search_first:[.6667,60],summary_only:[.75,378],summary_then_search:[.75,413],adaptive:[.75,11694],iterative:[.6667,4255],digest:[.75,1461],raw_fetch:[.5,15405]}},
+    locomo:{label:"LoCoMo", s:{search_first:[.2778,121],summary_only:[.2778,451],summary_then_search:[.2778,541],adaptive:[.4444,4422],iterative:[.2778,520],digest:[.5,1288],raw_fetch:[.5556,10488]}}
+  },
+  takeaways:{
+    all:"Across the four real-world corpora, <b>digest</b> beats full context outright on RAGBench and LongMemEval, and ties it within ~3 points at 8–10× fewer tokens on LongBench and LoCoMo.",
+    synthetic:"Synthetic favours terse single-span retrieval — <b>search_first</b> wins here. This is the artificial case; it's exactly why real corpora matter.",
+    longbench:"<b>digest</b> ties the full-context winner (0.53) at <b>~8× fewer tokens</b> — 1.6k vs 12.8k.",
+    ragbench:"<b>digest wins outright</b> — 0.83 vs raw context's 0.78, at roughly the same token cost.",
+    longmemeval:"<b>digest beats full context by 25 points</b> (0.75 vs 0.50) on <b>10× fewer tokens</b>. Summarising long histories denoises them.",
+    locomo:"<b>digest</b> trails raw context by 6 points but on <b>8× fewer tokens</b>, and beats every other cheap strategy by 6–22 points."
+  },
+  engines:{ // intercept, fetch, search (ms)
+    Memory:[7.83,0.03,0.64], SQLite:[6.78,0.07,0.21], Postgres:[11.73,0.87,6.80], ClickHouse:[20.16,9.58,14.28]
+  },
+  recall:{accuracy:0.981, exact:1.0, block:1.0, reduction:95.74, runs:2625},
+  // Published LoCoMo LLM-judge scores (claimed; mostly GPT-4o-mini answerer).
+  // NOT comparable to stele's local-answerer run — see caveat. ceiling=full-context.
+  field:[
+    {name:"Memobase",val:75.78,kind:"other"},
+    {name:"Zep (self-reported)",val:75.14,kind:"other"},
+    {name:"Letta / MemGPT",val:74.0,kind:"other"},
+    {name:"Full-context (ceiling)",val:72.9,kind:"ceiling"},
+    {name:"Mem0ᵍ (graph)",val:68.4,kind:"other"},
+    {name:"Mem0",val:66.9,kind:"other"},
+    {name:"Zep (run by Mem0)",val:65.99,kind:"other"},
+    {name:"RAG (best k=2)",val:60.97,kind:"other"},
+    {name:"LangMem",val:58.10,kind:"other"},
+    {name:"stele · digest △ local Qwen+gemma",val:50.0,kind:"stele"},
+    {name:"OpenAI memory",val:52.9,kind:"other"},
+    {name:"A-Mem",val:39.79,kind:"other"}
+  ]
+};
+const COL={digest:"#d8a657",raw_fetch:"#bd6a4a",other:"#5fa8a8"};
+const SHORT={search_first:"search_first",summary_only:"summary_only",summary_then_search:"summary→search",adaptive:"adaptive",iterative:"iterative",digest:"digest",raw_fetch:"raw_fetch"};
+const NS="http://www.w3.org/2000/svg";
+const REDUCE=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tip=document.getElementById('tip');
+function el(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function showTip(html,ev){tip.innerHTML=html;tip.style.opacity=1;tip.style.left=Math.min(ev.clientX+14,innerWidth-250)+'px';tip.style.top=(ev.clientY+14)+'px';}
+function hideTip(){tip.style.opacity=0;}
+
+let current="all";
+
+/* ---- efficiency frontier scatter ---- */
+function drawFrontier(){
+  const svg=document.getElementById('frontier'); svg.innerHTML='';
+  const W=900,H=460,L=64,R=20,T=24,B=52, pw=W-L-R, ph=H-T-B;
+  const xmin=Math.log10(45), xmax=Math.log10(20000);
+  const X=t=>L+(Math.log10(t)-xmin)/(xmax-xmin)*pw;
+  const Y=a=>T+(1-a)*ph;
+  document.getElementById('frontier-title').textContent =
+    (current==="all"?"All corpora":DATA.datasets[current].label)+" · accuracy vs mean tokens (log)";
+  // gridlines
+  [0,.25,.5,.75,1].forEach(a=>{
+    svg.appendChild(el('line',{x1:L,y1:Y(a),x2:W-R,y2:Y(a),stroke:'#262b33','stroke-width':1}));
+    svg.appendChild(Object.assign(el('text',{x:L-10,y:Y(a)+4,'text-anchor':'end',fill:'#8b8678','font-size':11}),{textContent:a.toFixed(2)}));
+  });
+  [100,1000,10000].forEach(t=>{
+    svg.appendChild(el('line',{x1:X(t),y1:T,x2:X(t),y2:T+ph,stroke:'#1c2027','stroke-width':1}));
+    svg.appendChild(Object.assign(el('text',{x:X(t),y:H-32,'text-anchor':'middle',fill:'#8b8678','font-size':11}),{textContent:t>=1000?(t/1000)+'k':t}));
+  });
+  svg.appendChild(Object.assign(el('text',{x:L,y:H-10,fill:'#5a564c','font-size':11}),{textContent:'← fewer tokens'}));
+  svg.appendChild(Object.assign(el('text',{x:W-R,y:H-10,'text-anchor':'end',fill:'#5a564c','font-size':11}),{textContent:'more tokens →'}));
+  svg.appendChild(Object.assign(el('text',{x:-T-ph/2,y:16,transform:'rotate(-90)','text-anchor':'middle',fill:'#5a564c','font-size':11}),{textContent:'accuracy →'}));
+  // sweet-spot glow
+  svg.appendChild(el('rect',{x:L,y:T,width:pw*0.4,height:ph*0.45,fill:'url(#sweet)'}));
+  const defs=el('defs',{}); const g=el('radialGradient',{id:'sweet',cx:'0%',cy:'0%',r:'100%'});
+  g.appendChild(el('stop',{offset:'0%','stop-color':'rgba(216,166,87,.13)'}));
+  g.appendChild(el('stop',{offset:'100%','stop-color':'rgba(216,166,87,0)'})); defs.appendChild(g); svg.appendChild(defs);
+
+  const sets = current==="all"?Object.keys(DATA.datasets):[current];
+  let pts=[];
+  sets.forEach(ds=>{const S=DATA.datasets[ds].s;DATA.order.forEach(name=>{const[a,t]=S[name];pts.push({ds,name,a,t});});});
+  // draw non-digest/raw first, then raw, then digest on top
+  const tierOrder={other:0,raw_fetch:1,digest:2};
+  pts.sort((p,q)=>tierOrder[p.name==='digest'?'digest':p.name==='raw_fetch'?'raw_fetch':'other']-tierOrder[q.name==='digest'?'digest':q.name==='raw_fetch'?'raw_fetch':'other']);
+  pts.forEach((p,i)=>{
+    const cx=X(p.t),cy=Y(p.a);
+    const kind=p.name==='digest'?'digest':p.name==='raw_fetch'?'raw_fetch':'other';
+    const col=COL[kind];
+    let node;
+    if(kind==='digest'){ // diamond star
+      node=el('rect',{x:cx-7,y:cy-7,width:14,height:14,fill:col,transform:`rotate(45 ${cx} ${cy})`,stroke:'#1a1206','stroke-width':1.5,filter:'drop-shadow(0 0 7px rgba(216,166,87,.9))'});
+    }else if(kind==='raw_fetch'){
+      node=el('circle',{cx,cy,r:7,fill:'none',stroke:col,'stroke-width':2.2});
+    }else{
+      node=el('circle',{cx,cy,r:4.5,fill:col,'fill-opacity':current==='all'?.7:.95});
+    }
+    node.style.cursor='pointer';
+    if(!REDUCE){node.style.opacity=0;node.style.animation=`rise .5s ${.2+i*0.012}s forwards`;}
+    node.addEventListener('mousemove',e=>showTip(`<b>${SHORT[p.name]}</b> · ${DATA.datasets[p.ds].label}<br>accuracy <b>${p.a.toFixed(3)}</b> · ${p.t.toLocaleString()} tokens`,e));
+    node.addEventListener('mouseleave',hideTip);
+    svg.appendChild(node);
+  });
+}
+
+/* ---- accuracy bars ---- */
+function drawBars(){
+  const svg=document.getElementById('bars'); svg.innerHTML='';
+  const W=900,H=360,L=150,R=120,T=14,B=20, pw=W-L-R, ph=H-T-B;
+  const ds = current==="all"?"ragbench":current; // 'all' shows a representative real corpus
+  const S=DATA.datasets[ds].s; const n=DATA.order.length; const bh=ph/n*0.62; const gap=ph/n;
+  DATA.order.forEach((name,i)=>{
+    const[a,t]=S[name]; const y=T+i*gap+(gap-bh)/2;
+    const kind=name==='digest'?'digest':name==='raw_fetch'?'raw_fetch':'other';
+    const col=COL[kind];
+    svg.appendChild(Object.assign(el('text',{x:L-14,y:y+bh/2+4,'text-anchor':'end',fill:name==='digest'?'#f3cd86':'#8b8678','font-size':13,'font-weight':name==='digest'?600:300}),{textContent:SHORT[name]}));
+    const bar=el('rect',{x:L,y,width:0,height:bh,fill:col,'fill-opacity':kind==='other'?.55:.92,rx:1});
+    svg.appendChild(bar);
+    requestAnimationFrame(()=>{bar.style.transition=`width .9s ${.1+i*.06}s cubic-bezier(.2,.7,.2,1)`;bar.setAttribute('width',a*pw);});
+    svg.appendChild(Object.assign(el('text',{x:L+a*pw+10,y:y+bh/2+4,fill:'#e9e3d4','font-size':13,'font-weight':500}),{textContent:a.toFixed(3)}));
+    svg.appendChild(Object.assign(el('text',{x:W-12,y:y+bh/2+4,'text-anchor':'end',fill:'#5a564c','font-size':12}),{textContent:t.toLocaleString()+' tok'}));
+  });
+}
+
+/* ---- engines latency grouped bars ---- */
+function drawEngines(){
+  const svg=document.getElementById('engines'); svg.innerHTML='';
+  const W=560,H=320,L=86,R=20,T=20,B=46, pw=W-L-R, ph=H-T-B;
+  const names=Object.keys(DATA.engines); const max=24;
+  const sub=['intercept','fetch','search']; const subcol=['#d8a657','#5fa8a8','#8b8678'];
+  const gh=ph/names.length; const bh=gh*0.22;
+  const X=v=>L+v/max*pw;
+  [0,6,12,18,24].forEach(v=>{svg.appendChild(el('line',{x1:X(v),y1:T,x2:X(v),y2:T+ph,stroke:'#1c2027'}));
+    svg.appendChild(Object.assign(el('text',{x:X(v),y:H-26,'text-anchor':'middle',fill:'#5a564c','font-size':10}),{textContent:v}));});
+  svg.appendChild(Object.assign(el('text',{x:L+pw/2,y:H-8,'text-anchor':'middle',fill:'#5a564c','font-size':10}),{textContent:'milliseconds'}));
+  names.forEach((nm,i)=>{
+    const vals=DATA.engines[nm]; const gy=T+i*gh+gh*0.12;
+    svg.appendChild(Object.assign(el('text',{x:L-12,y:gy+bh*1.5+4,'text-anchor':'end',fill:'#e9e3d4','font-size':12}),{textContent:nm}));
+    vals.forEach((v,j)=>{
+      const y=gy+j*bh; const bar=el('rect',{x:L,y,width:0,height:bh-1.5,fill:subcol[j],'fill-opacity':.9,rx:1});
+      svg.appendChild(bar);
+      requestAnimationFrame(()=>{bar.style.transition=`width .8s ${.15+i*.07+j*.04}s ease-out`;bar.setAttribute('width',Math.max(X(v)-L,1.5));});
+      bar.addEventListener('mousemove',e=>showTip(`<b>${nm}</b> · ${sub[j]}<br><b>${v} ms</b>`,e));
+      bar.addEventListener('mouseleave',hideTip);
+    });
+  });
+  // legend
+  sub.forEach((s,j)=>{svg.appendChild(el('rect',{x:L+j*120,y:H-2,width:10,height:10,fill:subcol[j]}));
+    svg.appendChild(Object.assign(el('text',{x:L+j*120+15,y:H+7,fill:'#8b8678','font-size':10}),{textContent:s}));});
+}
+
+/* ---- recall radial gauges ---- */
+function drawRecall(){
+  const svg=document.getElementById('recall'); svg.innerHTML='';
+  const items=[['accuracy',DATA.recall.accuracy],['exact-fetch',DATA.recall.exact],['PII-block',DATA.recall.block]];
+  const cx=190, r=58, cy0=70;
+  items.forEach((it,i)=>{
+    const cy=cy0+i*88;
+    svg.appendChild(el('circle',{cx,cy,r,fill:'none',stroke:'#1c2027','stroke-width':9}));
+    const circ=2*Math.PI*r; const arc=el('circle',{cx,cy,r,fill:'none',stroke:i===0?'#d8a657':'#5fa8a8','stroke-width':9,'stroke-linecap':'round','stroke-dasharray':circ,'stroke-dashoffset':circ,transform:`rotate(-90 ${cx} ${cy})`});
+    svg.appendChild(arc);
+    requestAnimationFrame(()=>{arc.style.transition=`stroke-dashoffset 1.1s ${.2+i*.18}s cubic-bezier(.2,.7,.2,1)`;arc.setAttribute('stroke-dashoffset',circ*(1-it[1]));});
+    svg.appendChild(Object.assign(el('text',{x:cx,y:cy+2,'text-anchor':'middle',fill:'#f3cd86','font-size':26,'font-family':"'Instrument Serif',serif"}),{textContent:(it[1]*100).toFixed(it[1]===0.981?1:0)+'%'}));
+    svg.appendChild(Object.assign(el('text',{x:cx,y:cy+22,'text-anchor':'middle',fill:'#8b8678','font-size':10.5,'letter-spacing':'.12em'}),{textContent:it[0].toUpperCase()}));
+  });
+  svg.appendChild(Object.assign(el('text',{x:190,y:cy0+3*88-6,'text-anchor':'middle',fill:'#5a564c','font-size':11}),{textContent:DATA.recall.runs.toLocaleString()+' runs · '+DATA.recall.reduction+'% reduction'}));
+}
+
+/* ---- field landscape (published LoCoMo, not comparable) ---- */
+function drawField(){
+  const svg=document.getElementById('field'); if(!svg) return; svg.innerHTML='';
+  const W=900,H=460,L=240,R=56,T=14,B=34, pw=W-L-R, ph=H-T-B;
+  const rows=[...DATA.field].sort((a,b)=>b.val-a.val);
+  const max=80, X=v=>L+v/max*pw;
+  const colf={other:'#5fa8a8',ceiling:'#8b8678',stele:'#d8a657'};
+  [0,20,40,60,80].forEach(v=>{svg.appendChild(el('line',{x1:X(v),y1:T,x2:X(v),y2:T+ph,stroke:'#1c2027'}));
+    svg.appendChild(Object.assign(el('text',{x:X(v),y:H-14,'text-anchor':'middle',fill:'#5a564c','font-size':10}),{textContent:v}));});
+  svg.appendChild(Object.assign(el('text',{x:L+pw/2,y:H-2,'text-anchor':'middle',fill:'#5a564c','font-size':10}),{textContent:'claimed LLM-judge score (%) — different harnesses, see caveat'}));
+  const gh=ph/rows.length, bh=gh*0.6;
+  rows.forEach((r,i)=>{
+    const y=T+i*gh+(gh-bh)/2, col=colf[r.kind];
+    const isStele=r.kind==='stele';
+    svg.appendChild(Object.assign(el('text',{x:L-12,y:y+bh/2+4,'text-anchor':'end',
+      fill:isStele?'#f3cd86':(r.kind==='ceiling'?'#8b8678':'#cfc8b6'),'font-size':12,'font-weight':isStele?600:300}),{textContent:r.name}));
+    const bar=el('rect',{x:L,y,width:0,height:bh,fill:col,'fill-opacity':r.kind==='other'?.5:.92,rx:1,
+      stroke:isStele?'#1a1206':'none','stroke-width':isStele?1.5:0});
+    if(r.kind==='ceiling'){bar.setAttribute('fill','none');bar.setAttribute('stroke','#8b8678');bar.setAttribute('stroke-width','1.5');bar.setAttribute('stroke-dasharray','4 3');}
+    svg.appendChild(bar);
+    if(!REDUCE){requestAnimationFrame(()=>{bar.style.transition=`width .85s ${.1+i*.05}s cubic-bezier(.2,.7,.2,1)`;bar.setAttribute('width',X(r.val)-L);});}
+    else bar.setAttribute('width',X(r.val)-L);
+    svg.appendChild(Object.assign(el('text',{x:X(r.val)+9,y:y+bh/2+4,fill:isStele?'#f3cd86':'#8b8678','font-size':12,'font-weight':isStele?600:400}),{textContent:r.val.toFixed(1)}));
+  });
+}
+
+function selectDS(k){current=k;document.querySelectorAll('#sel button').forEach(b=>b.classList.toggle('active',b.dataset.k===k));
+  document.getElementById('frontier-take').innerHTML=DATA.takeaways[k]||DATA.takeaways.all;
+  drawFrontier();drawBars();}
+
+/* build selector */
+const sel=document.getElementById('sel');
+[['all','All corpora'],['synthetic','Synthetic'],['longbench','LongBench'],['ragbench','RAGBench'],['longmemeval','LongMemEval'],['locomo','LoCoMo']].forEach(([k,l])=>{
+  const b=document.createElement('button');b.textContent=l;b.dataset.k=k;b.onclick=()=>selectDS(k);sel.appendChild(b);});
+
+/* count-up */
+function countUp(){document.querySelectorAll('.num[data-count]').forEach(node=>{
+  const target=parseFloat(node.dataset.count), dp=node.dataset.dp?+node.dataset.dp:(node.dataset.suffix?2:0), suf=node.dataset.suffix||'';
+  if(node.dataset.plain!==undefined){node.textContent='0';return;}
+  const fin=()=>node.innerHTML=target.toFixed(dp)+(suf?`<small>${suf}</small>`:'');
+  if(REDUCE){fin();return;}
+  let t0=null;const dur=1400;
+  function step(ts){if(!t0)t0=ts;const p=Math.min((ts-t0)/dur,1);const e=1-Math.pow(1-p,3);
+    const v=(target*e).toFixed(dp);node.innerHTML=v+(suf?`<small>${suf}</small>`:'');if(p<1)requestAnimationFrame(step);}
+  requestAnimationFrame(step);});}
+
+/* scroll reveal */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.15});
+document.querySelectorAll('section .chart-card, .takeaway').forEach(n=>{n.classList.add('reveal');io.observe(n);});
+
+window.addEventListener('load',()=>{setTimeout(countUp,650);selectDS('all');drawEngines();drawRecall();drawField();});
+window.addEventListener('resize',()=>{drawFrontier();drawBars();});
+</script>
+</body>
+</html>

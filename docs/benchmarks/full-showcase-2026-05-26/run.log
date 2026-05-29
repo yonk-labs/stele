@@ -1,0 +1,184 @@
+[22:12:49Z] === full showcase start -> benchmarks/runs/full-20260526T221249Z ===
+[22:12:49Z] answerer=Intel/Qwen3-Coder-Next-int4-AutoRound @ http://192.168.1.193:8000/v1
+[22:12:49Z] judge=cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit @ http://192.168.1.133:8000/v1
+[22:12:49Z] engines=memory,sqlite,postgres,clickhouse  datasets=synthetic longbench ragbench longmemeval locomo
+[22:12:49Z] START showcase (all engines)
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "total_workloads": 20,
+  "mean_savings_pct": 96.57,
+  "median_savings_pct": 97.02,
+  "min_savings_pct": 93.12,
+  "max_savings_pct": 98.53,
+  "mean_intercept_ms": 11.627,
+  "mean_fetch_ms": 2.636,
+  "mean_search_ms": 5.481,
+  "total_pii_leakage_count": 0
+}
+[22:12:50Z] OK    showcase (all engines)
+[22:12:50Z] START recall
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+benchmarks/runs/full-20260526T221249Z/2026-05-26/Recall.md
+[22:12:50Z] OK    recall
+[22:12:50Z] START longrun (memory,sqlite,postgres)
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+target.hnsw=true on SQLite is a no-op — sqlite-vec uses brute-force KNN. Querying with `embedding MATCH '[...]' AND k = N` works without an index.
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "backend_count": 3,
+  "content_multiplier": 8,
+  "direct_context_answer_accuracy": 1.0,
+  "exact_fetch_accuracy": 1.0,
+  "mean_fetch_ms": 2.2328,
+  "mean_intercept_ms": 91.2898,
+  "mean_payload_reduction_pct": 95.7419,
+  "mean_query_ms": 9.4086,
+  "mean_search_ms": 3.6536,
+  "mrr": 0.981,
+  "raw_fetch_block_rate": 1.0,
+  "recall_at_1": 0.981,
+  "repeat": 25,
+  "retrieval_answer_accuracy": 0.981,
+  "run_id": "20260526T221250Z-9552d868",
+  "scenario_count": 35,
+  "supersession_enabled": true,
+  "total_pii_leaks": 0,
+  "total_runs": 2625
+}
+benchmarks/runs/full-20260526T221249Z/2026-05-26/longrun-20260526T221250Z-9552d868
+[22:17:37Z] OK    longrun (memory,sqlite,postgres)
+[22:17:37Z] START answer-workflow:synthetic
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+vector recall shortfall: returned=0 requested=20 seed_size=810 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=810 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=810 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=810 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=810 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+{
+  "best_accuracy": 0.8286,
+  "cheapest_accurate_strategy": "digest",
+  "lowest_mean_tokens": 154.2857,
+  "overall_accuracy": 0.751,
+  "scenario_count": 35,
+  "strategy_count": 7,
+  "total_runs": 245
+}
+benchmarks/runs/full-20260526T221249Z/2026-05-26/answer-workflow-20260526T221737Z
+[22:35:01Z] OK    answer-workflow:synthetic
+[22:35:01Z] START answer-workflow:longbench
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+vector recall shortfall: returned=0 requested=20 seed_size=132 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=315 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=467 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=19 requested=20 seed_size=631 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=776 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=1595 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=1595 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=1595 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=12 requested=20 seed_size=2142 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=2451 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=2528 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+{
+  "best_accuracy": 0.5625,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 151.0312,
+  "overall_accuracy": 0.4688,
+  "scenario_count": 32,
+  "strategy_count": 7,
+  "total_runs": 224
+}
+benchmarks/runs/full-20260526T221249Z/2026-05-26/answer-workflow-20260526T223502Z
+[22:57:49Z] OK    answer-workflow:longbench
+[22:57:49Z] START answer-workflow:ragbench
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+vector recall shortfall: returned=9 requested=20 seed_size=20 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=4 requested=20 seed_size=20 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=7 requested=20 seed_size=20 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=4 requested=20 seed_size=24 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=4 requested=20 seed_size=28 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=5 requested=20 seed_size=33 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=9 requested=20 seed_size=42 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=8 requested=20 seed_size=50 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=9 requested=20 seed_size=59 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=12 requested=20 seed_size=71 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=12 requested=20 seed_size=83 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=10 requested=20 seed_size=93 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=6 requested=20 seed_size=99 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=7 requested=20 seed_size=106 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=5 requested=20 seed_size=111 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=6 requested=20 seed_size=117 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=5 requested=20 seed_size=122 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=6 requested=20 seed_size=128 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=6 requested=20 seed_size=134 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=4 requested=20 seed_size=138 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=5 requested=20 seed_size=143 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=4 requested=20 seed_size=147 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=4 requested=20 seed_size=151 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=3 requested=20 seed_size=154 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=154 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=15 requested=20 seed_size=169 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=0 requested=20 seed_size=222 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=18 requested=20 seed_size=240 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=6 requested=20 seed_size=269 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=3 requested=20 seed_size=272 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=1 requested=20 seed_size=273 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=3 requested=20 seed_size=276 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=2 requested=20 seed_size=278 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+vector recall shortfall: returned=1 requested=20 seed_size=279 has_reference_filter=True — increase IndexingConfig.chunk_overlap_words or oversample factor; try keyword/hybrid mode; broaden the reference filter (see docs/retrieval-tuning-guide.md#vector-recall-shortfall)
+{
+  "best_accuracy": 0.8333,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 132.4444,
+  "overall_accuracy": 0.6746,
+  "scenario_count": 36,
+  "strategy_count": 7,
+  "total_runs": 252
+}
+benchmarks/runs/full-20260526T221249Z/2026-05-26/answer-workflow-20260526T225749Z
+[23:17:33Z] OK    answer-workflow:ragbench
+[23:17:33Z] START answer-workflow:longmemeval
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.75,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 59.5833,
+  "overall_accuracy": 0.6905,
+  "scenario_count": 12,
+  "strategy_count": 7,
+  "total_runs": 84
+}
+benchmarks/runs/full-20260526T221249Z/2026-05-26/answer-workflow-20260526T231734Z
+[23:25:23Z] OK    answer-workflow:longmemeval
+[23:25:23Z] START answer-workflow:locomo
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.5556,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 120.5,
+  "overall_accuracy": 0.373,
+  "scenario_count": 18,
+  "strategy_count": 7,
+  "total_runs": 126
+}
+benchmarks/runs/full-20260526T221249Z/2026-05-26/answer-workflow-20260526T232524Z
+[23:36:35Z] OK    answer-workflow:locomo
+[23:36:35Z] START consolidate cross-benchmark
+wrote benchmarks/runs/full-20260526T221249Z/2026-05-26/Answer-Workflow-CrossBenchmark.md
+[23:36:35Z] OK    consolidate cross-benchmark
+[23:36:35Z] START consolidate full report
+wrote benchmarks/runs/full-20260526T221249Z/2026-05-26/FULL-SHOWCASE-REPORT.md
+[23:36:35Z] OK    consolidate full report
+[23:36:35Z] === done -> benchmarks/runs/full-20260526T221249Z/2026-05-26/FULL-SHOWCASE-REPORT.md ===

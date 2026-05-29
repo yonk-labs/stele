@@ -35,7 +35,8 @@ from stele.interception.wrapper import stash_tool_result
 
 Strategy = Literal[
     "summary_only", "summary_then_search", "search_first",
-    "adaptive", "raw_fetch", "iterative", "digest",
+    "adaptive", "raw_fetch", "iterative", "digest", "digest10", "digest_xh",
+    "digest_fcs", "digest_csf", "digest_cfs",
 ]
 JudgeMode = Literal["deterministic", "openai"]
 
@@ -76,6 +77,9 @@ class WorkflowResult:
     latency_ms: float
     answer: str
     rationale: str
+    question: str = ""
+    expected: str = ""
+    context: str = ""
 
 
 class JudgeVerdict(BaseModel):
@@ -482,6 +486,8 @@ def run_answer_workflow_benchmark(
     backend: dict[str, Any] | None = None,
     scenarios_source: str = "synthetic",
     longbench_per_task: int = 8,
+    locomo_max_samples: int | None = None,
+    locomo_qas_per_sample: int = 12,
 ) -> dict[str, Any]:
     if judge_mode == "openai":
         answerer: Answerer = OpenAICompatAnswerer(
@@ -500,7 +506,10 @@ def run_answer_workflow_benchmark(
         scenarios = build_longbench_scenarios(per_task=longbench_per_task)
     elif scenarios_source in {"ragbench", "longmemeval", "locomo"}:
         from benchmarks.external.third_party_scenarios import build_scenarios_for
-        scenarios = build_scenarios_for(scenarios_source)
+        extra: dict[str, int] = {}
+        if scenarios_source == "locomo" and locomo_max_samples is not None:
+            extra = {"max_samples": locomo_max_samples, "qas_per_sample": locomo_qas_per_sample}
+        scenarios = build_scenarios_for(scenarios_source, **extra)
     elif scenarios_source == "synthetic":
         scenarios = build_scenarios(content_multiplier=10)
     else:
@@ -654,6 +663,14 @@ def main() -> None:
         type=int, default=8,
         help="Records per LongBench task (only used with --scenarios longbench).",
     )
+    parser.add_argument(
+        "--locomo-max-samples", type=int, default=None,
+        help="LoCoMo conversations to sample (default 3; up to 10). Raises N.",
+    )
+    parser.add_argument(
+        "--locomo-qas-per-sample", type=int, default=12,
+        help="QA per LoCoMo conversation (with --locomo-max-samples).",
+    )
     args = parser.parse_args()
     backend_cfg: dict[str, Any] = {"type": args.backend}
     if args.backend == "postgres":
@@ -687,6 +704,8 @@ def main() -> None:
         backend=backend_cfg,
         scenarios_source=args.scenarios,
         longbench_per_task=args.longbench_per_task,
+        locomo_max_samples=args.locomo_max_samples,
+        locomo_qas_per_sample=args.locomo_qas_per_sample,
     )
     print(json.dumps(report["summary"], indent=2, sort_keys=True))
     print(report["run_dir"])
@@ -816,26 +835,50 @@ def _run_strategy(
             llm_round_trips=1,
         )
 
-    if strategy == "digest":
-        # The proven-best hybrid-search packing: a lede summary + fact
-        # extraction over the retrieved hits, plus the top-5 raw chunks
-        # (the shape of the pg-raggraph `balanced` profile / chunkshop
-        # summarize_hits). Benchmark-only lane composing Stele.search +
-        # lede.readable_report; not (yet) a production recall strategy.
+    if strategy.startswith("digest"):
+        # Hybrid-search packing: lede summary (S) + extracted facts (F) +
+        # top-N raw chunks (C). Strategy-name suffixes tune it:
+        #   digest        canonical: order S,F,C, top-5, normal hints
+        #   digest10      top-10 raw chunks (wider verbatim coverage)
+        #   digest_xh     expanded query hints + harder hint focus
+        #   digest_<SFC>  reorder the blocks (e.g. digest_fcs = facts,chunks,summary)
         import lede
 
-        hits = stash.search(reference, scenario.query, limit=10, mode="hybrid")
+        suffix = strategy[len("digest"):].lstrip("_")
+        top_n = 10 if "10" in suffix else 5
+        limit = 20 if "10" in suffix else 10
+        expand = "xh" in suffix
+        order = "SFC"
+        code = "".join(c for c in suffix.upper() if c in "SFC")
+        if sorted(code) == sorted("SFC"):
+            order = code
+        hints: list[str] = [scenario.query]
+        hint_focus = 0.7
+        if expand:
+            hint_focus = 0.85
+            try:
+                from lede_spacy import expand_hints
+                hints = list(expand_hints([scenario.query], kinds=("lemma", "synonyms"), top_k=8))
+            except Exception:
+                hints = [scenario.query]
+        hits = stash.search(reference, scenario.query, limit=limit, mode="hybrid")
         if hits:
             joined = "\n\n".join(hit.text for hit in hits)
-            report = lede.readable_report(joined, hints=[scenario.query])
-            top5 = "\n\n---\n\n".join(hit.text for hit in hits[:5])
-            digest = f"{report.to_markdown()}\n\n## Retrieved Chunks\n\n{top5}"
+            report = lede.readable_report(joined, hints=hints, hint_focus=hint_focus)
+            top = "\n\n---\n\n".join(hit.text for hit in hits[:top_n])
+            facts = getattr(report, "key_facts", ()) or ()
+            blocks = {
+                "S": "## Summary\n\n" + str(report.summary or ""),
+                "F": "## Facts and Important Details\n\n" + "\n".join(f"- {f}" for f in facts),
+                "C": "## Retrieved Chunks\n\n" + top,
+            }
+            digest = "\n\n".join(blocks[c] for c in order)
         else:
             digest = ""
         return _answer_with_context(
             answerer,
             scenario=scenario,
-            contexts=[("digest", digest)],
+            contexts=[(strategy, digest)],
             search_calls=1,
             fetch_calls=0,
             llm_round_trips=1,
@@ -990,6 +1033,9 @@ def _flush_judge_batch(
                 latency_ms=item.latency_ms,
                 answer=attempt.answer,
                 rationale=verdict.rationale,
+                question=item.scenario.query,
+                expected=item.scenario.expected_answer or "",
+                context=attempt.path,
             )
             results.append(result)
             handle.write(json.dumps(asdict(result), sort_keys=True))

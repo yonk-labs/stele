@@ -1,0 +1,128 @@
+[03:54:34Z] STELE gpt-4-turbo / locomo
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.5,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 105.7222,
+  "overall_accuracy": 0.4444,
+  "scenario_count": 18,
+  "strategy_count": 4,
+  "total_runs": 72
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T035435Z
+[03:59:04Z]   OK
+[03:59:04Z] STELE gpt-4-turbo / longmemeval
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.8333,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 59.5833,
+  "overall_accuracy": 0.7292,
+  "scenario_count": 12,
+  "strategy_count": 4,
+  "total_runs": 48
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T035905Z
+[04:03:09Z]   OK
+[04:03:09Z] MEM0 gpt-5-mini / locomo
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+fastembed not installed — BM25 keyword search disabled. Install with: pip install fastembed
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2963c 606tok srch=190ms
+  OK  When did Melanie paint a sunrise? | ctx=2524c 564tok srch=233ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=3017c 621tok srch=451ms
+  OK  What did Caroline research? | ctx=2986c 610tok srch=144ms
+  OK  What is Caroline's identity? | ctx=3079c 635tok srch=138ms
+  NO  When did Melanie run a charity race? | ctx=2488c 554tok srch=152ms
+  OK  When Jon has lost his job as a banker? | ctx=2456c 551tok srch=154ms
+  OK  When Gina has lost her job at Door Dash? | ctx=2489c 539tok srch=159ms
+  NO  How do Jon and Gina both like to destress? | ctx=2423c 512tok srch=181ms
+  NO  What do Jon and Gina both have in common? | ctx=2531c 521tok srch=221ms
+  OK  Why did Jon decide to start his dance studio? | ctx=2604c 559tok srch=194ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2593c 556tok srch=218ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2558c 515tok srch=1256ms
+  OK  When did Maria donate her car? | ctx=2591c 516tok srch=180ms
+  NO  What martial arts has John done? | ctx=2720c 533tok srch=122ms
+  OK  What type of volunteering have John and Maria both | ctx=2669c 507tok srch=206ms
+  OK  When did John join the online support group? | ctx=2572c 507tok srch=103ms
+  NO  When did Maria go to the beach? | ctx=2527c 505tok srch=175ms
+
+MEM0 LoCoMo [gpt-5-mini] accuracy=0.6667 | mean_prompt_tok=550.6 mean_search_ms=248.7 ingest_s/conv=99.4
+[04:09:46Z]   OK
+[04:09:46Z] MEM0 gpt-5 / locomo
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+fastembed not installed — BM25 keyword search disabled. Install with: pip install fastembed
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2862c 593tok srch=134ms
+  OK  When did Melanie paint a sunrise? | ctx=2535c 550tok srch=353ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=2912c 598tok srch=184ms
+  OK  What did Caroline research? | ctx=2937c 589tok srch=183ms
+  OK  What is Caroline's identity? | ctx=2947c 605tok srch=169ms
+  NO  When did Melanie run a charity race? | ctx=2505c 547tok srch=222ms
+  OK  When Jon has lost his job as a banker? | ctx=2502c 556tok srch=143ms
+  OK  When Gina has lost her job at Door Dash? | ctx=2500c 531tok srch=170ms
+  NO  How do Jon and Gina both like to destress? | ctx=2506c 520tok srch=154ms
+  NO  What do Jon and Gina both have in common? | ctx=2506c 514tok srch=137ms
+  OK  Why did Jon decide to start his dance studio? | ctx=2551c 544tok srch=445ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2582c 557tok srch=189ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2433c 482tok srch=184ms
+  OK  When did Maria donate her car? | ctx=2477c 482tok srch=124ms
+  NO  What martial arts has John done? | ctx=2690c 522tok srch=1677ms
+  OK  What type of volunteering have John and Maria both | ctx=2492c 478tok srch=243ms
+  NO  When did John join the online support group? | ctx=2570c 494tok srch=217ms
+  NO  When did Maria go to the beach? | ctx=2401c 474tok srch=328ms
+
+MEM0 LoCoMo [gpt-5] accuracy=0.6111 | mean_prompt_tok=535.3 mean_search_ms=292.1 ingest_s/conv=81.6
+[04:16:56Z]   OK
+wrote docs/benchmarks/model-matrix-2026-05-27.md
+[04:16:56Z] GAPFILL_DONE

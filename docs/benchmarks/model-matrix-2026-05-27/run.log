@@ -1,0 +1,614 @@
+[02:30:26Z] === model matrix -> benchmarks/runs/matrix-20260527T023026Z (judge=gpt-4o constant) ===
+[02:30:26Z] STELE qwen / locomo / [search_first,raw_fetch,digest,adaptive,digest_fcs,digest_csf,digest_cfs]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.5,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 117.6667,
+  "overall_accuracy": 0.3968,
+  "scenario_count": 18,
+  "strategy_count": 7,
+  "total_runs": 126
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T023026Z
+[02:36:51Z]   OK
+[02:36:51Z] STELE qwen / longmemeval / [search_first,raw_fetch,digest,adaptive,digest_fcs,digest_csf,digest_cfs]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.8333,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 59.5833,
+  "overall_accuracy": 0.7738,
+  "scenario_count": 12,
+  "strategy_count": 7,
+  "total_runs": 84
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T023652Z
+[02:41:35Z]   OK
+[02:41:35Z] STELE gemma / locomo / [search_first,raw_fetch,digest,adaptive]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.8333,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 106.0,
+  "overall_accuracy": 0.625,
+  "scenario_count": 18,
+  "strategy_count": 4,
+  "total_runs": 72
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T024136Z
+[02:45:36Z]   OK
+[02:45:36Z] STELE gemma / longmemeval / [search_first,raw_fetch,digest,adaptive]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.8333,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 59.5833,
+  "overall_accuracy": 0.7917,
+  "scenario_count": 12,
+  "strategy_count": 4,
+  "total_runs": 48
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T024537Z
+[02:47:54Z]   OK
+[02:47:54Z] STELE gpt-4 / locomo / [search_first,raw_fetch,digest,adaptive]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+Traceback (most recent call last):
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 462, in _chat
+    with urlopen(request, timeout=120) as response:
+         ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 189, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 495, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.13/urllib/request.py", line 604, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.13/urllib/request.py", line 533, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 466, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.13/urllib/request.py", line 613, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 400: Bad Request
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 1172, in <module>
+    main()
+    ~~~~^^
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 676, in main
+    report = run_answer_workflow_benchmark(
+        judge_mode=args.judge,
+    ...<12 lines>...
+        longbench_per_task=args.longbench_per_task,
+    )
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 549, in run_answer_workflow_benchmark
+    attempt = _run_strategy(
+        stash=stash,
+    ...<4 lines>...
+        answerer=answerer,
+    )
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 811, in _run_strategy
+    return _answer_with_context(
+        answerer,
+    ...<4 lines>...
+        llm_round_trips=1,
+    )
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 1035, in _answer_with_context
+    answer, completion_tokens = answerer.answer(
+                                ~~~~~~~~~~~~~~~^
+        question=scenario.query,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+        context=context,
+        ^^^^^^^^^^^^^^^^
+        expected_answer=scenario.expected_answer,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 259, in answer
+    content = self._chat(
+        model=self.answer_model,
+    ...<9 lines>...
+        ],
+    )
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 466, in _chat
+    raise RuntimeError(f"OpenAI-compatible server error {exc.code}: {detail}") from exc
+RuntimeError: OpenAI-compatible server error 400: {
+  "error": {
+    "message": "This model's maximum context length is 8192 tokens. However, your messages resulted in 9772 tokens. Please reduce the length of the messages.",
+    "type": "invalid_request_error",
+    "param": "messages",
+    "code": "context_length_exceeded"
+  }
+}
+[02:47:56Z]   FAIL (continuing)
+[02:47:56Z] STELE gpt-4 / longmemeval / [search_first,raw_fetch,digest,adaptive]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+Traceback (most recent call last):
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 462, in _chat
+    with urlopen(request, timeout=120) as response:
+         ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 189, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 495, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.13/urllib/request.py", line 604, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.13/urllib/request.py", line 533, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.13/urllib/request.py", line 466, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.13/urllib/request.py", line 613, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 400: Bad Request
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 1172, in <module>
+    main()
+    ~~~~^^
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 676, in main
+    report = run_answer_workflow_benchmark(
+        judge_mode=args.judge,
+    ...<12 lines>...
+        longbench_per_task=args.longbench_per_task,
+    )
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 549, in run_answer_workflow_benchmark
+    attempt = _run_strategy(
+        stash=stash,
+    ...<4 lines>...
+        answerer=answerer,
+    )
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 811, in _run_strategy
+    return _answer_with_context(
+        answerer,
+    ...<4 lines>...
+        llm_round_trips=1,
+    )
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 1035, in _answer_with_context
+    answer, completion_tokens = answerer.answer(
+                                ~~~~~~~~~~~~~~~^
+        question=scenario.query,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+        context=context,
+        ^^^^^^^^^^^^^^^^
+        expected_answer=scenario.expected_answer,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 259, in answer
+    content = self._chat(
+        model=self.answer_model,
+    ...<9 lines>...
+        ],
+    )
+  File "/home/yonk/yonk-tools/stele/benchmarks/answer_workflow.py", line 466, in _chat
+    raise RuntimeError(f"OpenAI-compatible server error {exc.code}: {detail}") from exc
+RuntimeError: OpenAI-compatible server error 400: {
+  "error": {
+    "message": "This model's maximum context length is 8192 tokens. However, your messages resulted in 12933 tokens. Please reduce the length of the messages.",
+    "type": "invalid_request_error",
+    "param": "messages",
+    "code": "context_length_exceeded"
+  }
+}
+[02:47:59Z]   FAIL (continuing)
+[02:47:59Z] STELE gpt-4o / locomo / [search_first,raw_fetch,digest,adaptive,digest_fcs,digest_csf,digest_cfs]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.5556,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 105.3889,
+  "overall_accuracy": 0.5079,
+  "scenario_count": 18,
+  "strategy_count": 7,
+  "total_runs": 126
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T024759Z
+[02:51:51Z]   OK
+[02:51:51Z] STELE gpt-4o / longmemeval / [search_first,raw_fetch,digest,adaptive,digest_fcs,digest_csf,digest_cfs]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.8333,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 59.5833,
+  "overall_accuracy": 0.7738,
+  "scenario_count": 12,
+  "strategy_count": 7,
+  "total_runs": 84
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T025152Z
+[02:54:52Z]   OK
+[02:54:52Z] STELE gpt-5-mini / locomo / [search_first,raw_fetch,digest,adaptive,digest_fcs,digest_csf,digest_cfs]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.5,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 106.8333,
+  "overall_accuracy": 0.4127,
+  "scenario_count": 18,
+  "strategy_count": 7,
+  "total_runs": 126
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T025453Z
+[03:06:00Z]   OK
+[03:06:00Z] STELE gpt-5-mini / longmemeval / [search_first,raw_fetch,digest,adaptive,digest_fcs,digest_csf,digest_cfs]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.8333,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 59.5833,
+  "overall_accuracy": 0.7738,
+  "scenario_count": 12,
+  "strategy_count": 7,
+  "total_runs": 84
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T030600Z
+[03:12:48Z]   OK
+[03:12:48Z] STELE gpt-5 / locomo / [search_first,raw_fetch,digest,adaptive]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.6667,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 105.2778,
+  "overall_accuracy": 0.4444,
+  "scenario_count": 18,
+  "strategy_count": 4,
+  "total_runs": 72
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T031249Z
+[03:21:15Z]   OK
+[03:21:15Z] STELE gpt-5 / longmemeval / [search_first,raw_fetch,digest,adaptive]
+/home/yonk/yonk-tools/stele/src/stele/core/stash.py:203: SteleSecurityWarning: stele: reference signing is DISABLED — stele:// references are unsigned and forgeable. Safe for single-user/local. For any shared, multi-tenant, or networked deployment set signing.mode='required' with a strong secret. See docs/SECURITY.md.
+  return cls(StashConfig.load(config))
+{
+  "best_accuracy": 0.8333,
+  "cheapest_accurate_strategy": "search_first",
+  "lowest_mean_tokens": 59.5833,
+  "overall_accuracy": 0.8125,
+  "scenario_count": 12,
+  "strategy_count": 4,
+  "total_runs": 48
+}
+benchmarks/runs/matrix-20260527T023026Z/2026-05-27/answer-workflow-20260527T032116Z
+[03:24:33Z]   OK
+[03:24:33Z] MEM0 qwen / locomo
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+fastembed not installed — BM25 keyword search disabled. Install with: pip install fastembed
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2772c 580tok srch=124ms
+  OK  When did Melanie paint a sunrise? | ctx=2421c 568tok srch=595ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=2787c 584tok srch=1551ms
+  OK  What did Caroline research? | ctx=2906c 588tok srch=205ms
+  OK  What is Caroline's identity? | ctx=3035c 623tok srch=310ms
+  NO  When did Melanie run a charity race? | ctx=2451c 562tok srch=153ms
+  OK  When Jon has lost his job as a banker? | ctx=2416c 544tok srch=116ms
+  OK  When Gina has lost her job at Door Dash? | ctx=2529c 535tok srch=144ms
+  OK  How do Jon and Gina both like to destress? | ctx=2336c 489tok srch=149ms
+  OK  What do Jon and Gina both have in common? | ctx=2416c 506tok srch=167ms
+  OK  Why did Jon decide to start his dance studio? | ctx=2573c 548tok srch=241ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2538c 538tok srch=139ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2311c 482tok srch=125ms
+  NO  When did Maria donate her car? | ctx=2355c 481tok srch=113ms
+  NO  What martial arts has John done? | ctx=2871c 569tok srch=155ms
+  OK  What type of volunteering have John and Maria both | ctx=2553c 509tok srch=162ms
+  NO  When did John join the online support group? | ctx=2770c 545tok srch=120ms
+  OK  When did Maria go to the beach? | ctx=2280c 475tok srch=110ms
+
+MEM0 LoCoMo [qwen] accuracy=0.7222 | mean_prompt_tok=540.3 mean_search_ms=260.0 ingest_s/conv=81.7
+[03:29:34Z]   OK
+[03:29:34Z] MEM0 gemma / locomo
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+fastembed not installed — BM25 keyword search disabled. Install with: pip install fastembed
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2830c 613tok srch=219ms
+  OK  When did Melanie paint a sunrise? | ctx=2542c 582tok srch=356ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=2686c 569tok srch=340ms
+  OK  What did Caroline research? | ctx=2751c 567tok srch=111ms
+  NO  What is Caroline's identity? | ctx=2682c 570tok srch=173ms
+  NO  When did Melanie run a charity race? | ctx=2486c 577tok srch=128ms
+  NO  When Jon has lost his job as a banker? | ctx=2337c 521tok srch=120ms
+  NO  When Gina has lost her job at Door Dash? | ctx=2173c 498tok srch=150ms
+  NO  How do Jon and Gina both like to destress? | ctx=2111c 483tok srch=189ms
+  NO  What do Jon and Gina both have in common? | ctx=2158c 485tok srch=160ms
+  OK  Why did Jon decide to start his dance studio? | ctx=2633c 555tok srch=138ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2595c 557tok srch=112ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2361c 532tok srch=2945ms
+  OK  When did Maria donate her car? | ctx=2460c 519tok srch=113ms
+  NO  What martial arts has John done? | ctx=2907c 599tok srch=177ms
+  OK  What type of volunteering have John and Maria both | ctx=2563c 537tok srch=161ms
+  OK  When did John join the online support group? | ctx=2570c 541tok srch=172ms
+  OK  When did Maria go to the beach? | ctx=2355c 529tok srch=156ms
+
+MEM0 LoCoMo [gemma] accuracy=0.5556 | mean_prompt_tok=546.3 mean_search_ms=329.0 ingest_s/conv=64.0
+[03:33:29Z]   OK
+[03:33:29Z] MEM0 gpt-4 / locomo
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+fastembed not installed — BM25 keyword search disabled. Install with: pip install fastembed
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2890c 585tok srch=168ms
+  OK  When did Melanie paint a sunrise? | ctx=2551c 567tok srch=208ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=3015c 631tok srch=415ms
+  OK  What did Caroline research? | ctx=3039c 632tok srch=228ms
+  OK  What is Caroline's identity? | ctx=2923c 624tok srch=159ms
+  NO  When did Melanie run a charity race? | ctx=2540c 566tok srch=133ms
+  OK  When Jon has lost his job as a banker? | ctx=2405c 528tok srch=221ms
+  OK  When Gina has lost her job at Door Dash? | ctx=2607c 544tok srch=207ms
+  NO  How do Jon and Gina both like to destress? | ctx=2648c 543tok srch=156ms
+  OK  What do Jon and Gina both have in common? | ctx=2590c 534tok srch=137ms
+  OK  Why did Jon decide to start his dance studio? | ctx=2483c 531tok srch=139ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2488c 540tok srch=202ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2722c 559tok srch=175ms
+  OK  When did Maria donate her car? | ctx=2698c 537tok srch=185ms
+  NO  What martial arts has John done? | ctx=2614c 519tok srch=161ms
+  OK  What type of volunteering have John and Maria both | ctx=2720c 528tok srch=162ms
+  NO  When did John join the online support group? | ctx=2620c 522tok srch=182ms
+  NO  When did Maria go to the beach? | ctx=2686c 548tok srch=172ms
+
+MEM0 LoCoMo [gpt-4] accuracy=0.6667 | mean_prompt_tok=557.7 mean_search_ms=189.5 ingest_s/conv=76.8
+[03:38:17Z]   OK
+[03:38:17Z] MEM0 gpt-4o / locomo
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+fastembed not installed — BM25 keyword search disabled. Install with: pip install fastembed
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+  OK  When did Caroline go to the LGBTQ support group? | ctx=2692c 567tok srch=185ms
+  OK  When did Melanie paint a sunrise? | ctx=2546c 565tok srch=115ms
+  OK  What fields would Caroline be likely to pursue in  | ctx=2759c 571tok srch=120ms
+  OK  What did Caroline research? | ctx=2796c 572tok srch=150ms
+  NO  What is Caroline's identity? | ctx=2850c 597tok srch=126ms
+  NO  When did Melanie run a charity race? | ctx=2628c 573tok srch=166ms
+  OK  When Jon has lost his job as a banker? | ctx=2276c 511tok srch=228ms
+  OK  When Gina has lost her job at Door Dash? | ctx=2500c 526tok srch=208ms
+  NO  How do Jon and Gina both like to destress? | ctx=2407c 502tok srch=239ms
+  OK  What do Jon and Gina both have in common? | ctx=2449c 501tok srch=110ms
+  OK  Why did Jon decide to start his dance studio? | ctx=2459c 532tok srch=211ms
+  NO  What Jon thinks the ideal dance studio should look | ctx=2442c 530tok srch=183ms
+  OK  Who did Maria have dinner with on May 3, 2023? | ctx=2604c 522tok srch=254ms
+  OK  When did Maria donate her car? | ctx=2647c 521tok srch=170ms
+  NO  What martial arts has John done? | ctx=2865c 564tok srch=715ms
+  NO  What type of volunteering have John and Maria both | ctx=2710c 523tok srch=2149ms
+  OK  When did John join the online support group? | ctx=2779c 548tok srch=116ms
+  OK  When did Maria go to the beach? | ctx=2537c 504tok srch=130ms
+
+MEM0 LoCoMo [gpt-4o] accuracy=0.6667 | mean_prompt_tok=540.5 mean_search_ms=309.8 ingest_s/conv=74.8
+[03:42:49Z]   OK
+[03:42:49Z] MEM0 gpt-5-mini / locomo
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+fastembed not installed — BM25 keyword search disabled. Install with: pip install fastembed
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+Traceback (most recent call last):
+  File "/tmp/mem0_runner.py", line 106, in <module>
+    main()
+    ~~~~^^
+  File "/tmp/mem0_runner.py", line 79, in main
+    ans, usage = answer(s["query"], ctx)
+                 ~~~~~~^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0_runner.py", line 27, in answer
+    r = answer_client.chat.completions.create(model=A_MODEL, temperature=0, max_tokens=512,
+        messages=[
+            {"role":"system","content":"Answer using only the provided context. If the context is insufficient, say exactly: I do not have enough information to answer."},
+            {"role":"user","content":f"Question:\n{question}\n\nContext:\n{context}"}])
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 1215, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<51 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}
+[03:46:33Z]   FAIL (continuing)
+[03:46:33Z] MEM0 gpt-5 / locomo
+[ingest] locomo-conv-26 (40000 chars, 7 chunks)
+Failed to load spaCy lemma model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+fastembed not installed — BM25 keyword search disabled. Install with: pip install fastembed
+Failed to load spaCy full model: spaCy is not installed. Install it with: pip install mem0ai[nlp]
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-30 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+[ingest] locomo-conv-41 (40000 chars, 7 chunks)
+    chunk 1/7
+    chunk 2/7
+    chunk 3/7
+    chunk 4/7
+    chunk 5/7
+    chunk 6/7
+    chunk 7/7
+Traceback (most recent call last):
+  File "/tmp/mem0_runner.py", line 106, in <module>
+    main()
+    ~~~~^^
+  File "/tmp/mem0_runner.py", line 79, in main
+    ans, usage = answer(s["query"], ctx)
+                 ~~~~~~^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0_runner.py", line 27, in answer
+    r = answer_client.chat.completions.create(model=A_MODEL, temperature=0, max_tokens=512,
+        messages=[
+            {"role":"system","content":"Answer using only the provided context. If the context is insufficient, say exactly: I do not have enough information to answer."},
+            {"role":"user","content":f"Question:\n{question}\n\nContext:\n{context}"}])
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_utils/_utils.py", line 298, in wrapper
+    return func(*args, **kwargs)
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/resources/chat/completions/completions.py", line 1215, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/chat/completions",
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<51 lines>...
+        stream_cls=Stream[ChatCompletionChunk],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1332, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/mem0venv/lib/python3.13/site-packages/openai/_base_client.py", line 1105, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'message': "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.", 'type': 'invalid_request_error', 'param': 'max_tokens', 'code': 'unsupported_parameter'}}
+[03:51:01Z]   FAIL (continuing)
+[03:51:01Z] consolidating...
+wrote docs/benchmarks/model-matrix-2026-05-27.md
+[03:51:01Z] === MATRIX DONE -> benchmarks/runs/matrix-20260527T023026Z ===
