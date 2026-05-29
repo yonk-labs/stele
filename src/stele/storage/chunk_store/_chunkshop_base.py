@@ -94,6 +94,8 @@ class ChunkshopChunkStore:
             )
         from chunkshop.chunkers import load_chunker
         from chunkshop.config import (
+            CallableConsolidator,
+            ConsolidationChunker,
             FastembedEmbedder,
             FixedOverlapChunker,
             TargetConfig,
@@ -111,13 +113,30 @@ class ChunkshopChunkStore:
                 dim=dim,
             )
         )
-        self._chunker = load_chunker(
-            FixedOverlapChunker(
-                type="fixed_overlap",
-                window_words=config.chunk_words,
-                step_words=max(1, config.chunk_words - config.chunk_overlap_words),
-            )
+        base_chunker_cfg = FixedOverlapChunker(
+            type="fixed_overlap",
+            window_words=config.chunk_words,
+            step_words=max(1, config.chunk_words - config.chunk_overlap_words),
         )
+        if config.chunker == "consolidation":
+            # Validated by IndexingConfig._check_task_backend_dsn that
+            # consolidator_module is set when chunker == "consolidation".
+            assert config.consolidator_module is not None
+            self._chunker = load_chunker(
+                ConsolidationChunker(
+                    type="consolidation",
+                    base=base_chunker_cfg,
+                    consolidator=CallableConsolidator(
+                        mode="callable",
+                        module=config.consolidator_module,
+                        function=config.consolidator_function,
+                        kwargs=config.consolidator_kwargs,
+                    ),
+                    fact_max_chars=config.fact_max_chars,
+                )
+            )
+        else:
+            self._chunker = load_chunker(base_chunker_cfg)
         target = TargetConfig(
             type=self._target_type,
             dsn=dsn,
@@ -156,13 +175,27 @@ class ChunkshopChunkStore:
         self._sink.write_document(
             artifact.artifact_id, chunks, embeddings, [[] for _ in chunks]
         )
-        meta: dict[str, Any] = {
+        artifact_meta: dict[str, Any] = {
             "namespace": artifact.namespace,
             "session_id": artifact.session_id,
         }
         for chunk in chunks:
             cid = stele_chunk_id(artifact.artifact_id, chunk.seq_num)
-            self._chunks[cid] = (chunk.original_content, artifact.reference, meta)
+            # Use embedded_content (post-distillation view) rather than
+            # original_content as the surface text. For FixedOverlap these
+            # are identical; for ConsolidationChunker, episodes' embedded
+            # content is the compressed summary while original is the full
+            # pre-distill text. The model should see the compressed view.
+            # The chunkshop chunk-level metadata (kind, subject, predicate,
+            # object, support_span, ...) is layered onto artifact_meta so
+            # consumers can distinguish episode vs fact via SearchHit.metadata.
+            chunk_meta = {**artifact_meta}
+            if chunk.metadata:
+                for k, v in chunk.metadata.items():
+                    if k.startswith("_"):
+                        continue
+                    chunk_meta.setdefault(k, v)
+            self._chunks[cid] = (chunk.embedded_content, artifact.reference, chunk_meta)
         self._ref_docs.setdefault(artifact.reference, set()).add(
             artifact.artifact_id
         )

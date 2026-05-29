@@ -18,11 +18,16 @@ from typing import Any
 _SYSTEM = (
     "You distill a conversation into a compact memory record. Return JSON only."
 )
-_USER_TEMPLATE = """Below is a conversation (possibly multi-session). Produce a JSON object with:
-- summary: at most {summary_words} words covering the load-bearing facts, decisions, dates, and entities.
-- facts: a list of up to {max_facts} atomic facts as {{"subject": str, "predicate": str, "object": str, "support_span": str (the exact phrase from the conversation supporting the fact, <= 180 chars), "confidence": float in [0,1]}}.
+_USER_TEMPLATE = """Below is a conversation (possibly multi-session). Distil it into a JSON memory record a future reader will query for specific facts.
 
-Focus on durable knowledge a reader would need to answer questions later: who, did what, when, with whom, why. Skip pleasantries.
+Produce a JSON object with:
+- summary: at most {summary_words} words. Preserve EVERY date, time, place name, person name, number, and quantity VERBATIM as written (do not paraphrase "last week" — keep both the relative and any absolute date present). Cover who did what, when, where, with whom, and why.
+- facts: a list of up to {max_facts} atomic facts. Each is {{"subject": str, "predicate": str, "object": str, "support_span": str, "confidence": float in [0,1]}}. The support_span is the EXACT phrase from the conversation supporting the fact (<= 180 chars), copied verbatim including any date/number/name. Emit one fact per distinct (who, did-what, when/where) — prefer MORE granular facts over fewer broad ones. Every date, event, preference, relationship, decision, and named entity mentioned should appear in at least one fact's support_span.
+
+Rules:
+- Never invent or round dates/numbers; copy them exactly.
+- A question like "When did X happen?" must be answerable from a support_span — so always keep the date attached to its event in the same span.
+- Skip pleasantries and filler.
 
 Conversation:
 {text}

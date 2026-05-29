@@ -151,7 +151,13 @@ def build_locomo_scenarios(
     for sample in samples:
         sid = sample.get("sample_id", "?")
         conv = sample.get("conversation", {}) or {}
-        # Concatenate every session_X list of turns in order.
+        # Concatenate every session_X list of turns in order, PREFIXED with
+        # that session's date-time header. LoCoMo dialogue only ever uses
+        # RELATIVE dates ("last Friday"); the absolute date a temporal
+        # question needs lives in the `session_N_date_time` string, not the
+        # turns. Dropping it (the old behaviour) made category-2 temporal
+        # questions unanswerable from context. We inject it so any lane can
+        # resolve "last Friday" against "8 May 2023".
         parts: list[str] = []
         for key in sorted(conv.keys()):
             if not key.startswith("session_"):
@@ -159,6 +165,9 @@ def build_locomo_scenarios(
             val = conv.get(key)
             if not isinstance(val, list):
                 continue
+            dt = conv.get(f"{key}_date_time")
+            if isinstance(dt, str) and dt:
+                parts.append(f"[Session date: {dt}]")
             for turn in val:
                 if not isinstance(turn, dict):
                     continue
