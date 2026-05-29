@@ -80,9 +80,19 @@ TOOLS: list[ToolSpec] = [
     ),
     ToolSpec(
         "stele_query",
-        "Targeted query against the chunk index (vector/hybrid when configured).",
+        "Targeted query against the chunk index (vector/hybrid when configured). "
+        "Optional filters narrow by session/time/metadata before ranking; "
+        "created_after/created_before and now accept ISO-8601 strings.",
         _obj(
-            {"query": _STR, "namespace": _STR, "mode": _STR, "limit": _INT},
+            {
+                "query": _STR,
+                "namespace": _STR,
+                "mode": _STR,
+                "limit": _INT,
+                "session_id": _STR,
+                "filters": _OBJ_ANY,
+                "now": _STR,
+            },
             ["query"],
         ),
     ),
@@ -347,6 +357,17 @@ def _parse_dt(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value)
 
 
+def _coerce_filter_dates(filters: dict[str, Any]) -> dict[str, Any]:
+    """JSON carries no datetimes — parse created_after/created_before ISO
+    strings into datetimes so the retrieval predicate can range-compare them.
+    metadata.* keys (including ISO date strings) pass through unchanged."""
+    out = dict(filters)
+    for key in ("created_after", "created_before"):
+        if isinstance(out.get(key), str):
+            out[key] = _parse_dt(out[key])
+    return out
+
+
 def _build_scope(namespace: str | None) -> Any:
     from stele.core.memory_record import MemoryScope
 
@@ -406,10 +427,19 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
         namespace: str | None = None,
         mode: str | None = None,
         limit: int = 10,
+        session_id: str | None = None,
+        filters: dict[str, Any] | None = None,
+        now: str | None = None,
     ) -> dict[str, Any]:
         kwargs: dict[str, Any] = {"limit": limit}
         if mode is not None:
             kwargs["mode"] = mode
+        if session_id is not None:
+            kwargs["session_id"] = session_id
+        if filters:
+            kwargs["filters"] = _coerce_filter_dates(filters)
+        if now is not None:
+            kwargs["now"] = _parse_dt(now)
         hits = stele.query(namespace or "default", query, **kwargs)
         return {"hits": [_to_jsonable(h) for h in hits]}
 

@@ -10,9 +10,10 @@ Works on every backend (memory, sqlite, postgres, mariadb, clickhouse) and every
 retrieval mode (keyword, vector, hybrid).
 
 > **Surface availability.** Filtering is exposed on the **Python API**
-> (`Stele.query(..., filters=...)`). The MCP `query` tool and the `stele` CLI do
-> not pass filters yet — that surface wiring is a follow-up. Use the Python API
-> (or the `parse_temporal` helper) for filtered retrieval today.
+> (`Stele.query(..., filters=...)`), the **MCP `stele_query` tool** (`filters`,
+> `session_id`, `now` params — dates as ISO-8601 strings), and the **`stele
+> query` CLI** (`--filter KEY=VALUE`, `--created-after/before`, `--session-id`,
+> `--now`).
 
 ## 1. Attach metadata when you store
 
@@ -65,6 +66,18 @@ hits = stele.query(
 
 Unknown keys are ignored (forward-compatible). `session_id` can also be passed
 as the dedicated `session_id=` argument.
+
+### From the CLI / MCP
+
+```bash
+stele query "what auth bug did I fix" --namespace sessions \
+  --created-after 2026-05-18T00:00:00 --created-before 2026-05-24T23:59:59 \
+  --filter metadata.git_branch=auth-refactor \
+  --filter metadata.tool__in=editor,shell
+```
+
+The MCP `stele_query` tool takes the same shape: `filters` (object),
+`session_id`, and `now` (all dates ISO-8601 strings, coerced server-side).
 
 ## 3. Filtering facts (SPO)
 
