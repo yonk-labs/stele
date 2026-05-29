@@ -212,3 +212,78 @@ biggest lever for the headline number is the answerer, not the consolidator.
 The default-judge inflation for compression-heavy lanes is the cautionary-
 tale finding — 0.94 → 0.07 (extractive) is the kind of number that would
 have shipped as the headline in any benchmark that didn't validate its judge.
+
+## Addendum 2 (2026-05-29) — date-header fix, extractive rewrite, store-vs-retrieve, gpt-5
+
+Three structural probes after the answerer ablation. All n=100 LoCoMo, jscore.
+
+### a) Extractive consolidator rewrite (free, deterministic)
+
+The original extractive scored sentences by length-proximity-to-80-chars and
+truncated spans mid-word — garbage fragments, ~0.07 jscore. Rewrote it to
+segment into speaker-attributed sentences, rank by answer-bearing density
+(dates/numbers/proper-nouns), and keep WHOLE sentences. Result:
+
+| consolidator | answerer | jscore | cost |
+|---|---|---:|---|
+| old extractive | gpt-4o-mini | ~0.07 | free |
+| new extractive | gpt-4o-mini | 0.24 | free |
+| LLM (gpt-4o-mini) | qwen | 0.30 | API |
+| Mem0 (reference) | qwen | 0.34 | API |
+| **new extractive** | **qwen** | **0.38** | **free** |
+
+The free deterministic extractive BEATS the LLM consolidator and Mem0 on the
+same ruler — because it keeps verbatim spans (dates/numbers intact) while the
+LLM paraphrases and drops specifics. For fact recall, selection > generation.
+
+### b) Session-date-header fix — helps full context, NOT distilled lanes
+
+The LoCoMo builder silently dropped `session_N_date_time` (a string, skipped
+by the turn-list filter), so dialogue carried only RELATIVE dates while gold
+answers are absolute. Injected `[Session date: ...]` headers. Effect (qwen):
+
+| lane | jscore w/o fix | jscore w/ fix |
+|---|---:|---:|
+| raw_fetch | 0.53 | **0.58** |
+| consolidation (extractive) | 0.38 | 0.37 |
+| digest | 0.43 | 0.36 |
+
+Only raw_fetch benefited. Distillation/retrieval SEPARATES the date anchor
+(its own chunk) from the relative-date fact, so they rarely co-occur in a
+retrieved set. Only full context lets the model do "last Friday" + "session
+was 8 May" resolution. Distillation actively breaks temporal reasoning.
+
+### c) Store-many / retrieve-few — hypothesis FALSIFIED for this task
+
+RAG theory says: store a rich pool (mf=40), retrieve a tight top-k so search
+selects best fits. We added a `STELE_CONS_RETRIEVE_K` knob to decouple
+stored-count from retrieved-count and tested it (store=40):
+
+| retrieve-k | answerer | jscore | abstention | mean tokens |
+|---:|---|---:|---:|---:|
+| 8 | qwen | 0.28 | 52% | 210 |
+| 25 | qwen | **0.33** | 52% | 638 |
+| 8 | gpt-5 | 0.12 | 80% | 210 |
+
+Tight retrieval scored LOWER. Same abstention rate at k=8 vs k=25, but k=25
+was right more often — because hybrid/vector retrieval can't reliably rank the
+date/number fact into the top-8 (the embedding weakness: "7 May" and "12 May"
+embed nearly identically). So "retrieve few" = gamble the answer-bearing fact
+is in the top-8, and it usually isn't. **For LoCoMo, recall beats precision.**
+
+### d) gpt-5 as answerer — worse, not better
+
+gpt-5 (store40/ret8) scored 0.12 — the LOWEST of any answerer — at 80%
+abstention. gpt-5 is the most cautious model; starve it and it refuses. Its
+default-judge 0.66 vs jscore 0.12 is a +0.54 abstention-credit gap, the
+largest in the study. The bottleneck is willingness-to-commit + retrieval
+recall, NOT answerer reasoning. A newer/smarter model made it worse.
+
+### Bottom line
+
+The free rewritten extractive (qwen, 0.38) is the best consolidation result —
+Mem0-beating, digest-adjacent, zero API cost. But the lane's ceiling is
+structural: distillation strips the date anchors temporal questions need, and
+retrieval can't rank dates/numbers to compensate. Full context (raw_fetch
+0.58) remains the accuracy ceiling; digest (~0.36-0.43) the
+accuracy-per-token sweet spot; consolidation the minimum-token option.
