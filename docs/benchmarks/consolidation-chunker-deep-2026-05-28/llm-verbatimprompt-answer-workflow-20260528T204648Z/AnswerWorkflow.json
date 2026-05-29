@@ -1,0 +1,40 @@
+{
+  "benchmark": "answer_workflow",
+  "by_strategy": {
+    "consolidation": {
+      "accuracy": 0.63,
+      "mean_fetch_calls": 0.0,
+      "mean_latency_ms": 932.3709,
+      "mean_llm_round_trips": 1.0,
+      "mean_prompt_tokens": 494.44,
+      "mean_search_calls": 1.0,
+      "mean_total_tokens": 513.2,
+      "runs": 100
+    }
+  },
+  "config": {
+    "answer_base_url": "https://api.openai.com/v1",
+    "answer_model": "gpt-4o-mini",
+    "judge_base_url": "https://api.openai.com/v1",
+    "judge_mode": "openai",
+    "judge_model": "gpt-4o",
+    "scenarios_source": "locomo"
+  },
+  "generated_at": "2026-05-28T21:27:26.865969+00:00",
+  "summary": {
+    "best_accuracy": 0.63,
+    "cheapest_accurate_strategy": "consolidation",
+    "lowest_mean_tokens": 513.2,
+    "overall_accuracy": 0.63,
+    "scenario_count": 100,
+    "strategy_count": 1,
+    "total_runs": 100
+  },
+  "versions": {
+    "chunkshop": "0.6.1",
+    "lede": "0.4.5",
+    "pg-raggraph": "0.4.0a1",
+    "stele-core": "0.2.1"
+  },
+  "_note": "results[] stripped; per-row evidence in REJUDGE-*.json"
+}

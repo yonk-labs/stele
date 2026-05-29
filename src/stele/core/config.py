@@ -49,9 +49,18 @@ class RetrievalConfig(BaseModel):
 class IndexingConfig(BaseModel):
     mode: Literal["async", "sync", "skip"] = "skip"
     provider: Literal["none", "chunkshop"] = "none"
-    chunker: Literal["fixed_overlap"] = "fixed_overlap"
+    chunker: Literal["fixed_overlap", "consolidation"] = "fixed_overlap"
     chunk_words: int = 220
     chunk_overlap_words: int = 60
+    # Consolidation chunker fields (used iff chunker == "consolidation").
+    # The consolidator is loaded by import path on the chunkshop side via
+    # CallableConsolidator(module=..., function=..., kwargs=...). API keys
+    # and other secrets MUST be read from env inside the consolidator —
+    # never persisted via consolidator_kwargs.
+    consolidator_module: str | None = None
+    consolidator_function: str = "consolidate"
+    consolidator_kwargs: dict[str, Any] = Field(default_factory=dict)
+    fact_max_chars: int = Field(default=200, ge=1)
     # Phase 4 fields
     bakeoff_path: str | None = None
     similarity: Literal["cosine", "ip", "l2"] = "cosine"
@@ -87,6 +96,10 @@ class IndexingConfig(BaseModel):
             and sum(self.hybrid_weights.values()) == 0
         ):
             raise ValueError("hybrid_method='weighted_sum' requires non-zero weights")
+        if self.chunker == "consolidation" and not self.consolidator_module:
+            raise ValueError(
+                "chunker='consolidation' requires consolidator_module to be set"
+            )
         return self
 
 

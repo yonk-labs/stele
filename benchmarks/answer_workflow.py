@@ -35,8 +35,8 @@ from stele.interception.wrapper import stash_tool_result
 
 Strategy = Literal[
     "summary_only", "summary_then_search", "search_first",
-    "adaptive", "raw_fetch", "iterative", "digest", "digest10", "digest_xh",
-    "digest_fcs", "digest_csf", "digest_cfs",
+    "adaptive", "raw_fetch", "iterative", "digest", "consolidation",
+    "consolidation_digest",
 ]
 JudgeMode = Literal["deterministic", "openai"]
 
@@ -486,6 +486,7 @@ def run_answer_workflow_benchmark(
     backend: dict[str, Any] | None = None,
     scenarios_source: str = "synthetic",
     longbench_per_task: int = 8,
+    indexing_overrides: dict[str, Any] | None = None,
     locomo_max_samples: int | None = None,
     locomo_qas_per_sample: int = 12,
 ) -> dict[str, Any]:
@@ -535,6 +536,7 @@ def run_answer_workflow_benchmark(
                 "mode": "sync",
                 "chunk_words": 90,
                 "chunk_overlap_words": 25,
+                **(indexing_overrides or {}),
             },
         }
     )
@@ -664,6 +666,20 @@ def main() -> None:
         help="Records per LongBench task (only used with --scenarios longbench).",
     )
     parser.add_argument(
+        "--chunker", choices=["fixed_overlap", "consolidation"], default="fixed_overlap",
+        help="Chunker for indexing. 'consolidation' enables the strategy lane "
+             "of the same name; requires --consolidator-module.",
+    )
+    parser.add_argument(
+        "--consolidator-module", default=None,
+        help="Python import path to a module exposing consolidate(text, **kwargs); "
+             "required when --chunker=consolidation.",
+    )
+    parser.add_argument(
+        "--consolidator-kwargs", default="{}",
+        help="JSON dict of kwargs passed to the consolidator callable.",
+    )
+    parser.add_argument(
         "--locomo-max-samples", type=int, default=None,
         help="LoCoMo conversations to sample (default 3; up to 10). Raises N.",
     )
@@ -672,6 +688,16 @@ def main() -> None:
         help="QA per LoCoMo conversation (with --locomo-max-samples).",
     )
     args = parser.parse_args()
+    if args.chunker == "consolidation" and not args.consolidator_module:
+        parser.error("--chunker=consolidation requires --consolidator-module")
+    try:
+        consolidator_kwargs = (
+            json.loads(args.consolidator_kwargs) if args.consolidator_kwargs else {}
+        )
+    except json.JSONDecodeError as e:
+        parser.error(f"--consolidator-kwargs is not valid JSON: {e}")
+    if not isinstance(consolidator_kwargs, dict):
+        parser.error("--consolidator-kwargs must be a JSON object")
     backend_cfg: dict[str, Any] = {"type": args.backend}
     if args.backend == "postgres":
         dsn = os.environ.get("STELE_PG_DSN")
@@ -689,6 +715,13 @@ def main() -> None:
             parser.error("--backend clickhouse requires STELE_CLICKHOUSE_DSN env var")
         backend_cfg["dsn"] = dsn
     strategies = [item.strip() for item in args.strategies.split(",") if item.strip()]
+    indexing_overrides: dict[str, Any] = {}
+    if args.chunker == "consolidation":
+        indexing_overrides = {
+            "chunker": "consolidation",
+            "consolidator_module": args.consolidator_module,
+            "consolidator_kwargs": consolidator_kwargs,
+        }
     report = run_answer_workflow_benchmark(
         judge_mode=args.judge,
         strategies=strategies,
@@ -704,6 +737,7 @@ def main() -> None:
         backend=backend_cfg,
         scenarios_source=args.scenarios,
         longbench_per_task=args.longbench_per_task,
+        indexing_overrides=indexing_overrides,
         locomo_max_samples=args.locomo_max_samples,
         locomo_qas_per_sample=args.locomo_qas_per_sample,
     )
@@ -835,50 +869,96 @@ def _run_strategy(
             llm_round_trips=1,
         )
 
-    if strategy.startswith("digest"):
-        # Hybrid-search packing: lede summary (S) + extracted facts (F) +
-        # top-N raw chunks (C). Strategy-name suffixes tune it:
-        #   digest        canonical: order S,F,C, top-5, normal hints
-        #   digest10      top-10 raw chunks (wider verbatim coverage)
-        #   digest_xh     expanded query hints + harder hint focus
-        #   digest_<SFC>  reorder the blocks (e.g. digest_fcs = facts,chunks,summary)
+    if strategy == "digest":
+        # The proven-best hybrid-search packing: a lede summary + fact
+        # extraction over the retrieved hits, plus the top-5 raw chunks
+        # (the shape of the pg-raggraph `balanced` profile / chunkshop
+        # summarize_hits). Benchmark-only lane composing Stele.search +
+        # lede.readable_report; not (yet) a production recall strategy.
         import lede
 
-        suffix = strategy[len("digest"):].lstrip("_")
-        top_n = 10 if "10" in suffix else 5
-        limit = 20 if "10" in suffix else 10
-        expand = "xh" in suffix
-        order = "SFC"
-        code = "".join(c for c in suffix.upper() if c in "SFC")
-        if sorted(code) == sorted("SFC"):
-            order = code
-        hints: list[str] = [scenario.query]
-        hint_focus = 0.7
-        if expand:
-            hint_focus = 0.85
-            try:
-                from lede_spacy import expand_hints
-                hints = list(expand_hints([scenario.query], kinds=("lemma", "synonyms"), top_k=8))
-            except Exception:
-                hints = [scenario.query]
-        hits = stash.search(reference, scenario.query, limit=limit, mode="hybrid")
+        hits = stash.search(reference, scenario.query, limit=10, mode="hybrid")
         if hits:
             joined = "\n\n".join(hit.text for hit in hits)
-            report = lede.readable_report(joined, hints=hints, hint_focus=hint_focus)
-            top = "\n\n---\n\n".join(hit.text for hit in hits[:top_n])
-            facts = getattr(report, "key_facts", ()) or ()
-            blocks = {
-                "S": "## Summary\n\n" + str(report.summary or ""),
-                "F": "## Facts and Important Details\n\n" + "\n".join(f"- {f}" for f in facts),
-                "C": "## Retrieved Chunks\n\n" + top,
-            }
-            digest = "\n\n".join(blocks[c] for c in order)
+            report = lede.readable_report(joined, hints=[scenario.query])
+            top5 = "\n\n---\n\n".join(hit.text for hit in hits[:5])
+            digest = f"{report.to_markdown()}\n\n## Retrieved Chunks\n\n{top5}"
         else:
             digest = ""
         return _answer_with_context(
             answerer,
             scenario=scenario,
-            contexts=[(strategy, digest)],
+            contexts=[("digest", digest)],
+            search_calls=1,
+            fetch_calls=0,
+            llm_round_trips=1,
+        )
+
+    if strategy == "consolidation":
+        # Assumes the artifact was indexed with IndexingConfig.chunker =
+        # "consolidation" (1 episode-summary chunk + N atomic-fact spans per
+        # document). Hybrid retrieval (vector + keyword) so questions with
+        # specific named entities or dates land on the literal-token fact
+        # spans, not just on semantic neighbors. limit=25 covers larger
+        # fact budgets (max_facts up to ~25) without truncating.
+        # Context format: [SUMMARY] + [FACTS] blocks; for facts we surface
+        # the support_span text directly. The chunkshop SPO triples carry
+        # signal when the consolidator is an LLM, but as plaintext tokens
+        # they don't help the answerer beyond what the span already says.
+        hits = stash.search(reference, scenario.query, limit=25, mode="hybrid")
+        summary_lines: list[str] = []
+        fact_lines: list[str] = []
+        for h in hits:
+            kind = (h.metadata or {}).get("kind")
+            if kind == "episode":
+                summary_lines.append(h.text)
+            else:
+                fact_lines.append(f"- {h.text}")
+        if summary_lines or fact_lines:
+            parts: list[str] = []
+            if summary_lines:
+                parts.append("[SUMMARY]\n" + "\n".join(summary_lines))
+            if fact_lines:
+                parts.append("[FACTS]\n" + "\n".join(fact_lines))
+            body = "\n\n".join(parts)
+        else:
+            body = ""
+        return _answer_with_context(
+            answerer,
+            scenario=scenario,
+            contexts=[("consolidation", body)],
+            search_calls=1,
+            fetch_calls=0,
+            llm_round_trips=1,
+        )
+
+    if strategy == "consolidation_digest":
+        # Combo: consolidation-indexed artifact (pre-distilled episode +
+        # fact spans) THEN lede's query-aware extraction over those spans.
+        # Marries consolidation's index-time compression with digest's
+        # query-time focus (hints=[query]) — the "get the chunks, give me
+        # the query-relevant X" pattern, but over distilled facts instead
+        # of raw chunks. Keeps the episode summary verbatim as an anchor.
+        import lede
+
+        hits = stash.search(reference, scenario.query, limit=25, mode="hybrid")
+        summary_lines = [h.text for h in hits if (h.metadata or {}).get("kind") == "episode"]
+        fact_lines = [h.text for h in hits if (h.metadata or {}).get("kind") != "episode"]
+        if fact_lines:
+            report = lede.readable_report("\n".join(fact_lines), hints=[scenario.query])
+            focused = report.to_markdown()
+        else:
+            focused = ""
+        parts = []
+        if summary_lines:
+            parts.append("[SUMMARY]\n" + "\n".join(summary_lines))
+        if focused:
+            parts.append("[QUERY-FOCUSED FACTS]\n" + focused)
+        body = "\n\n".join(parts)
+        return _answer_with_context(
+            answerer,
+            scenario=scenario,
+            contexts=[("consolidation_digest", body)],
             search_calls=1,
             fetch_calls=0,
             llm_round_trips=1,

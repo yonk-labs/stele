@@ -1,0 +1,40 @@
+{
+  "benchmark": "answer_workflow",
+  "by_strategy": {
+    "consolidation": {
+      "accuracy": 0.6,
+      "mean_fetch_calls": 0.0,
+      "mean_latency_ms": 1199.7576,
+      "mean_llm_round_trips": 1.0,
+      "mean_prompt_tokens": 500.96,
+      "mean_search_calls": 1.0,
+      "mean_total_tokens": 585.19,
+      "runs": 100
+    }
+  },
+  "config": {
+    "answer_base_url": "http://192.168.1.193:8000/v1",
+    "answer_model": "Intel/Qwen3-Coder-Next-int4-AutoRound",
+    "judge_base_url": "https://api.openai.com/v1",
+    "judge_mode": "openai",
+    "judge_model": "gpt-4o",
+    "scenarios_source": "locomo"
+  },
+  "generated_at": "2026-05-28T23:00:45.446577+00:00",
+  "summary": {
+    "best_accuracy": 0.6,
+    "cheapest_accurate_strategy": "consolidation",
+    "lowest_mean_tokens": 585.19,
+    "overall_accuracy": 0.6,
+    "scenario_count": 100,
+    "strategy_count": 1,
+    "total_runs": 100
+  },
+  "versions": {
+    "chunkshop": "0.6.1",
+    "lede": "0.4.5",
+    "pg-raggraph": "0.4.0a1",
+    "stele-core": "0.2.1"
+  },
+  "_note": "results[] stripped; per-row evidence in REJUDGE-*.json"
+}
