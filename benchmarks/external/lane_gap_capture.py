@@ -1,4 +1,4 @@
-# ruff: noqa: E501  -- benchmark/diagnostic helper; long lines are fine.
+# ruff: noqa: E501,SIM115  -- benchmark/diagnostic helper; brevity over ceremony.
 """Capture per-lane retrieved chunks for questions where raw_fetch beats digest.
 
 Reads a chunker-shootout run, finds questions raw_fetch answered correctly but

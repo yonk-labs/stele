@@ -97,7 +97,7 @@ def main() -> None:
             ),
             retrieval=RetrievalConfig(default_mode="hybrid"),
         ))
-        res = stash.store(_dialog(s["conversation"]), namespace=sid)
+        stash.store(_dialog(s["conversation"]), namespace=sid)
         taken = 0
         for qa in s["qa"]:
             if qa.get("category") == 5 or taken >= args.qas_per_sample:
