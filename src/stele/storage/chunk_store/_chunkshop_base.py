@@ -86,7 +86,8 @@ def _warn_vector_recall_shortfall(
 
 
 def _assert_no_pii(text: str) -> None:
-    """Defensive write-boundary check. Text must already be scrubbed."""
+    """Backstop: when the store expects scrubbed input, raw PII reaching the
+    write boundary is a bug upstream — fail loud."""
     for pattern in DEFAULT_PATTERNS:
         if pattern.pattern.search(text):
             raise BackendError(
@@ -123,6 +124,10 @@ class ChunkshopChunkStore:
         from chunkshop.sinks import load_sink
 
         self._config = config
+        # Whether this store expects already-scrubbed text (so the no-PII
+        # backstop fires). The facade sets it to pii.enabled; raw direct
+        # construction defaults to expecting scrubbed (fail-loud) for safety.
+        self._expect_scrubbed = True
         self._sim: Literal["cosine", "ip", "l2"] = config.similarity
         dim = config.vector_dim or _resolve_embed_dim(config.embed_model)
         self._embedder = load_embedder(
@@ -210,8 +215,9 @@ class ChunkshopChunkStore:
         )
         if not chunks:
             return 0
-        for chunk in chunks:
-            _assert_no_pii(chunk.original_content)
+        if self._expect_scrubbed:
+            for chunk in chunks:
+                _assert_no_pii(chunk.original_content)
         embeddings = self._embedder.embed([c.embedded_content for c in chunks])
         self._sink.write_document(
             artifact.artifact_id, chunks, embeddings, [[] for _ in chunks]

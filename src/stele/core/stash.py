@@ -58,7 +58,7 @@ from stele.indexing.bakeoff import (
 )
 from stele.indexing.chunk_index import ChunkIndex
 from stele.indexing.dim_resolution import resolve_dim_and_similarity
-from stele.indexing.job import IndexResult
+from stele.indexing.job import IndexJob, IndexResult
 from stele.indexing.queue import NoOpIndexer, SyncChunkIndexer
 from stele.indexing.task_backend.base import IndexTask
 from stele.indexing.task_backend.in_process import InProcessTaskBackend
@@ -261,6 +261,11 @@ class Stele:
             self.indexer = NoOpIndexer()
             return
         self._chunk_store = self._build_chunk_store()
+        # The chunk store's no-PII backstop only applies when we promise it
+        # scrubbed text — i.e. when PII handling is on. With PII off (default)
+        # raw content is indexed by design, so the guard must stand down.
+        if hasattr(self._chunk_store, "_expect_scrubbed"):
+            self._chunk_store._expect_scrubbed = self.config.pii.enabled
         # Keep the existing in-proc keyword path coherent for the memory
         # backend: expose the store's own ChunkIndex so search_reference /
         # delete stay consistent with what the indexer actually wrote.
@@ -400,9 +405,7 @@ class Stele:
             updated_at=now,
         )
         record = self.storage.store(artifact)
-        if isinstance(self.indexer, AsyncChunkIndexer):
-            self._pending_records[record.artifact_id] = record
-        index_result = self.indexer.submit(record)
+        index_result = self._submit_index(record)
         if self.revisor.active:
             # Project the already-PII-scrubbed summary — source-backed and
             # PII-safe; the artifact's stele:// ref round-trips on every hit.
@@ -496,9 +499,7 @@ class Stele:
         records = self.storage.store_many(artifacts)
         results: list[StoredResult] = []
         for record, raw_summary in zip(records, raw_summaries, strict=True):
-            if isinstance(self.indexer, AsyncChunkIndexer):
-                self._pending_records[record.artifact_id] = record
-            index_result = self.indexer.submit(record)
+            index_result = self._submit_index(record)
             if self.revisor.active:
                 self.revisor.ingest_evidence(
                     stele_ref=record.reference,
@@ -1063,6 +1064,31 @@ class Stele:
                     **emb,
                 )
         return self._revisor
+
+    def _submit_index(self, record: ArtifactRecord) -> IndexResult | IndexJob:
+        """Index a record under the PII policy; the raw artifact is untouched.
+
+        PII off (default): index the raw record. PII on: a doc with no detected
+        PII indexes as-is; one with PII is either masked (index a scrubbed copy,
+        so no raw PII reaches the chunk index/embeddings) or skipped entirely,
+        per ``pii.index_on_pii``. Model-visible hits are scrubbed again at read.
+        """
+        index_record = record
+        if self.config.pii.enabled:
+            scrubbed = self._scrub_text(record.content_as_text())
+            if scrubbed.detections:
+                if self.config.pii.index_on_pii == "skip":
+                    return IndexResult(
+                        artifact_id=record.artifact_id,
+                        status="skipped",
+                        message="PII present; index_on_pii=skip",
+                    )
+                index_record = record.model_copy(
+                    update={"content": scrubbed.text, "content_encoding": "utf-8"}
+                )
+        if isinstance(self.indexer, AsyncChunkIndexer):
+            self._pending_records[index_record.artifact_id] = index_record
+        return self.indexer.submit(index_record)
 
     def _scrub_text(self, text: str) -> ScrubResult:
         if not self.config.pii.enabled:
