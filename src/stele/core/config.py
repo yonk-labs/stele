@@ -56,9 +56,16 @@ class RetrievalConfig(BaseModel):
 class IndexingConfig(BaseModel):
     mode: Literal["async", "sync", "skip"] = "skip"
     provider: Literal["none", "chunkshop"] = "none"
-    chunker: Literal["fixed_overlap", "consolidation"] = "fixed_overlap"
+    chunker: Literal["fixed_overlap", "sentence_aware", "consolidation"] = "fixed_overlap"
     chunk_words: int = 220
     chunk_overlap_words: int = 60
+    # sentence_aware chunker (used iff chunker == "sentence_aware"): split on
+    # full-sentence boundaries (never mid-sentence), packing up to
+    # sentence_max_chars. neighbor_window > 0 wraps each chunk with ±N adjacent
+    # chunks for context (chunkshop NeighborExpandChunker).
+    sentence_max_chars: int = 1000
+    sentence_min_chars: int = 200
+    neighbor_window: int = 0
     # Consolidation chunker fields (used iff chunker == "consolidation").
     # The consolidator is loaded by import path on the chunkshop side via
     # CallableConsolidator(module=..., function=..., kwargs=...). API keys

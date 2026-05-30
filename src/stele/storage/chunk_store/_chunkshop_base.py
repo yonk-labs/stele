@@ -102,6 +102,8 @@ class ChunkshopChunkStore:
             ConsolidationChunker,
             FastembedEmbedder,
             FixedOverlapChunker,
+            NeighborExpandChunker,
+            SentenceAwareChunker,
             TargetConfig,
         )
         from chunkshop.embedders import load_embedder
@@ -139,6 +141,24 @@ class ChunkshopChunkStore:
                     fact_max_chars=config.fact_max_chars,
                 )
             )
+        elif config.chunker == "sentence_aware":
+            # Full-sentence boundaries (never mid-sentence); optional ±N
+            # neighbor expansion gives each chunk surrounding-sentence context.
+            sent_cfg = SentenceAwareChunker(
+                type="sentence_aware",
+                max_chars=config.sentence_max_chars,
+                min_chars=config.sentence_min_chars,
+            )
+            if config.neighbor_window > 0:
+                self._chunker = load_chunker(
+                    NeighborExpandChunker(
+                        type="neighbor_expand",
+                        base=sent_cfg,
+                        window=config.neighbor_window,
+                    )
+                )
+            else:
+                self._chunker = load_chunker(sent_cfg)
         else:
             self._chunker = load_chunker(base_chunker_cfg)
         target = TargetConfig(
