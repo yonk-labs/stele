@@ -84,7 +84,8 @@ def main() -> None:
         print(f"{d.name}: " + "  ".join(
             f"{t}={'✓' if out['lanes'][t]['correct'] else '✗'}" for t in out["lanes"]))
 
-    print("\n=== aggregate (n=%d questions) ===" % (len(next(iter(agg.values()))) if agg else 0))
+    n_agg = len(next(iter(agg.values()))) if agg else 0
+    print(f"\n=== aggregate (n={n_agg} questions) ===")
     for tag, oks in sorted(agg.items(), key=lambda kv: -sum(kv[1])):
         print(f"  {tag:18} {sum(oks)}/{len(oks)} correct")
 
