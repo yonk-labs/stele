@@ -75,10 +75,38 @@ enriching (consolidation chunker + enriching consolidator, verbatim).
 | | consolidation | 0.39 | 0.56 | 455 | |
 | | digest | 0.35 | 0.59 | 1,325 | |
 | | enriching | 0.26 | 0.70 | 312 | per-sentence too granular; top-15 starves model |
-| v3 (enriching TURN-level top-30 + digest_enriched) | _pending_ | | | | added digest_enriched lane |
+| v3 (enriching TURN-level top-30 + digest_enriched) | raw_fetch | 0.82-0.84 | 0.10 | 18,929 | confirmed across 2 jscore runs |
+| | consolidation | 0.39 | 0.56 | 455 | |
+| | digest | 0.36 | 0.58 | 1,325 | |
+| | digest_enriched | 0.15 | 0.82 | 1,166 | CONFOUNDED — see below |
+| | enriching (turn-level) | 0.15 | 0.83 | 687 | CONFOUNDED — see below |
 
 Predictions for v3 (stated before the run): enriching ~0.40, digest_enriched
-~0.48, raw_fetch ~0.86, digest ~0.35, consolidation ~0.39.
+~0.48 — **both WRONG** (came in at 0.15). Third wrong "enriching wins" call.
+
+**v3 confound (do not treat 0.15 as a verdict on enrichment):** enriching/
+digest_enriched ctx_chars show a hard FLOOR (min=p25=1028 chars) — retrieval
+returned the same minimal candidate set for ≥25% of questions regardless of
+query. This is the **vector recall shortfall**: the chunk store returns far
+fewer candidates than requested on indexes with many small chunks (~400
+turn-chunks). So 83% abstain is a retrieval-layer artifact, not proof
+enrichment loses. Fair re-test requires fixing the recall floor OR using
+bigger enriched chunks (group 3-5 turns). Clean standing lanes: raw_fetch 0.82
+>> consolidation 0.39 ≈ digest 0.36.
+
+### Dedup fixes (2026-05-30, from eyeballing lane outputs)
+- `_prepare_hits` select-distinct by text (query + search, all modes; catches
+  hybrid-RRF dups + repeated spans). `_scope_namespace` dedups before the limit
+  cut. enriching consolidator skips identical spans. 871 tests pass.
+
+### Open fork (awaiting decision)
+- **A** fix vector recall shortfall, then re-judge enriching fairly.
+- **B** bigger enriched chunks (3-5 turns) so recall recovers; re-run.
+- **C** drop enriching as a retrieval lane; keep enrichment metadata for
+  filtering only (proven).
+- **#2 (regardless):** wire `NeighborExpandChunker(base=sentence_aware,
+  window=2)` for digest — full-sentence chunks + ±2 sentence context (fixes
+  the mid-sentence cuts; improves the healthy digest lane).
 
 ## 4. Lane-gap diagnostic (why raw beats digest)
 
