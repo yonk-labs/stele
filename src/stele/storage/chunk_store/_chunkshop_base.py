@@ -174,6 +174,9 @@ class ChunkshopChunkStore:
                 self._chunker = load_chunker(sent_cfg)
         else:
             self._chunker = load_chunker(base_chunker_cfg)
+        # Wire the configured similarity to the sink (was silently ignored —
+        # the sink always used its 'cosine' default). stele 'ip' == 'inner_product'.
+        _metric = {"cosine": "cosine", "ip": "inner_product", "l2": "l2"}[self._sim]
         target = TargetConfig(
             type=self._target_type,
             dsn=dsn,
@@ -181,6 +184,7 @@ class ChunkshopChunkStore:
             table=table,
             hnsw=True,
             mode="overwrite",
+            vector_metric=_metric,
         )
         self._sink = load_sink(target, self._embedder.dim)
         self._sink.create_table()
