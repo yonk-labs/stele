@@ -8,7 +8,7 @@ from stele.core.exceptions import CapabilityError
 from stele.core.reference import Reference
 from stele.core.types import RetrievalMode
 from stele.retrieval._filters import FilterableRow, record_matches_filters
-from stele.retrieval.rank import snippet_around
+from stele.retrieval.rank import content_terms, snippet_around
 from stele.storage.sqlite import SQLiteStorageBackend
 
 
@@ -113,7 +113,9 @@ class SQLiteRetrievalBackend:
 
 
 def _fts_query(query: str) -> str:
-    terms = [term.replace('"', '""') for term in query.split() if term.strip()]
+    # content_terms strips stopwords + punctuation, so the OR-join only carries
+    # high-signal terms ("friends" not "friends,", no "when"/"with"/"and").
+    terms = content_terms(query)
     if not terms:
         return '""'
     return " OR ".join(f'"{term}"' for term in terms)
