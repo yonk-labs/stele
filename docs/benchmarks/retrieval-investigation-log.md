@@ -111,8 +111,91 @@ each caught by pushing past the first conclusion:
 
 ---
 
+## Session 2026-05-30 (cont.): hybrid architecture (blog + guide source)
+
+Triggered by a single failing question — q07 "When did Caroline meet up with her
+friends, family, and mentors?" — which exposed how little we understood our own
+hybrid path. Three theories died in order, each killed by measuring instead of
+arguing (this is the blog's spine):
+
+1. **"Chunk dilution by size."** Overstated. The answer chunk's *exact* cosine to
+   the query is a healthy 0.60 at 1000-char — it's findable, just not top-ranked.
+   Shrinking to 500-char concentrates the embedding and it jumps to #0, but that's
+   a precision/coverage *tradeoff*, not a bug. Size was a red herring.
+2. **"The vector ranking is broken."** Overstated. The chunkshop sink is
+   approximate (answer at sink-rank 22 vs exact-cosine-rank 39, scores don't match
+   cosine) but even *perfect* brute-force cosine puts the answer at 39/66. The
+   query is semantically diffuse — friends/family/mentors/meeting recur all over a
+   life-chat — so no vector metric surfaces it. Confirmed by sweeping pgvector
+   operators (see below).
+3. **"FTS punctuation is the cause."** Real bug, wrong path. `_fts_query` glued
+   punctuation to terms (`"friends," OR "mentors?"`) AND carried stopwords — but
+   that's the *artifact* keyword path; the *hybrid* keyword side uses Python
+   `keyword_score`, which already tokenizes cleanly. Fixing punctuation changed
+   the q07 hybrid result by zero.
+
+What actually was wrong / worth shipping:
+
+- **Stopwords in the keyword query** (`rank.py`): new shared `STOPWORDS` +
+  `content_terms()` strips function words + punctuation before scoring and before
+  the FTS expression. `keyword_score` and `_fts_query` now share it (also closes
+  the sqlite-OR / postgres-AND tokenization divergence on the sqlite side).
+  q07 query → `caroline meet friends family mentors`. Effect alone: nudged q07
+  hybrid from absent → rank 9. Necessary, not sufficient.
+- **Hybrid returned snippets, not full chunks** (`hybrid.py`): the
+  representative-hit merge iterated `[*kw, *vec]` so the keyword path's 500-char
+  *snippet* won over the vector path's full chunk text — the exact opposite of the
+  code's own comment. Every keyword-matched chunk in hybrid mode was silently
+  truncated to ~500 chars. One-line fix (`[*vec, *kw]`); ranking unchanged, text
+  now full. **This also tainted the first cascade shootout** (cascades packed 3×
+  the context), which is why the 9-lane matrix was re-run on a level field.
+
+- **pgvector metric sweep (for the guide).** On L2-normalized bge vectors,
+  cosine `<=>` ≡ L2 `<->` ≡ inner-product `<#>` give *provably identical*
+  rankings (all monotone transforms of vᵀq; verified: same answer-rank 39, same
+  top-5). L1 `<+>` is the only operator that reorders, and it barely moves it
+  (39→37). Takeaway for the guide: **don't tune the distance metric on normalized
+  embeddings — it cannot help.** Hamming/Jaccard are bit-vector only.
+
+- **Cascade vs RRF — the win evaporated (9-lane matrix, n=50, postgres).** The
+  mechanic is real (cascade_b = semantic-net → keyword-rerank; the rerank stage
+  carries the strong signal, the net only needs to contain the answer; FTS pool 30
+  → top 10). But on a FAIR field (after the snippet fix), retrieval barely moves
+  the needle: **cascade_b 0.700 ≈ rrf 0.693**, cascade_a 0.660. The entire 6-vs-4
+  from the first shootout was the snippet-truncation confound. **Lesson for the
+  blog: a correctness bug dwarfed the architecture choice.** Keep RRF as default
+  (simpler, already shipped); the snippet fix is the actual win.
+- **Packing is the real lever, and it's query-type-specific (n=50).** By packing:
+  facts 0.727 > raw 0.680 > digest 0.647. Split by question type:
+  - **Temporal ("when/how-long"), n=20:** digest+**facts** 0.80–0.85 vs raw/digest
+    0.65–0.70. The extractive `[date: ISO]` spans answer what prose buries. +0.15–0.20.
+  - **Non-temporal, n=30:** **raw chunks** best (0.67–0.73); facts neutral-to-slightly
+    negative. Don't pay the packing tax when the answer isn't a date/fact.
+  - **Plain lede digest is the worst packing everywhere** — strips signal; only
+    wins once facts are appended. (Confirms the earlier raw_chunks > digest result.)
+  - Top overall (tied): `rrf+facts` = `cascade_b+facts` = 0.74.
+  - Caveat: margins (37 vs 35 / 50) are within noise; only the temporal-facts
+    effect is pronounced. Single dataset, answer-dense, regex temporal heuristic.
+    Directly motivates the adaptive bake-off (no universal best).
+
+- **Methodology, again:** ran the entire q07 dig on sqlite before catching that
+  postgres/pgvector is the default — ranks/cosines don't transfer between
+  backends. Re-ran everything on postgres.
+
 ## Open items / next
 
+- 9-lane matrix (3 retrieval × 3 packing, postgres, n≈50) → fills the cascade
+  aggregate verdict + the digest/digest+facts packing lift. **Blog + guide
+  deliverables are queued on this.**
+- **Adaptive strategy bake-off (future feature).** No universal best strategy: the
+  winner depends on the user's query mix (exact/factoid/temporal favour
+  keyword/FTS/metadata-predicate ranking; paraphrase/conceptual favour semantic).
+  Ship a user-runnable, periodic (e.g. weekly) bake-off that scores
+  retrieval×packing on the user's OWN corpus + query log and rewrites the
+  configured default (cascade_b ↔ cascade_a ↔ rrf; raw/digest/facts). Reuse the
+  `cascade_packing_matrix` harness as the engine; expose as `stele tune` CLI/MCP.
+  Note: cascade_b already encodes "exact ranks, semantic recalls" (keyword is its
+  rerank stage) — a different corpus could still favour FTS-first.
 - bge re-run results → append to ledger + Findings.
 - Decide: ship sentence_aware as the default chunker? (it's the biggest win).
 - digest_enriched done right (additive, inline coref/date annotation of digest's
