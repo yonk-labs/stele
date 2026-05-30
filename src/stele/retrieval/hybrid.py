@@ -61,9 +61,11 @@ def hybrid_search(
     kw = kw or []
     vec = vec or []
 
-    # Representative hit per chunk (vector has full chunk text; prefer it).
+    # Representative hit per chunk: vector carries the full chunk text while the
+    # keyword path only carries a ~500-char snippet, so insert vector first and
+    # let setdefault keep it — a chunk matched by both must surface full text.
     rep: dict[tuple[str, str | None], SearchHit] = {}
-    for hit in [*kw, *vec]:
+    for hit in [*vec, *kw]:
         rep.setdefault(_key(hit), hit)
 
     fused: dict[tuple[str, str | None], float] = {}
