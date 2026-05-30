@@ -18,6 +18,7 @@ their documented ctor param into ``dsn``.
 from __future__ import annotations
 
 import logging
+import re
 from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -33,6 +34,9 @@ if TYPE_CHECKING:
 
 _DEFAULT_DIM = 384
 _PIP_HINT = "pip install 'stele-core[chunkshop]'"
+# A consolidator that resolves relative dates emits "[date: 2023-05-05]" (ISO,
+# or a bare year) in the fact span; we lift it into a filterable fact_date field.
+_FACT_DATE = re.compile(r"\[date:\s*(\d{4}(?:-\d{2}-\d{2})?)\]")
 
 _logger = logging.getLogger("stele.retrieval")
 
@@ -199,6 +203,14 @@ class ChunkshopChunkStore:
                     if k.startswith("_"):
                         continue
                     chunk_meta.setdefault(k, v)
+            # Promote a resolved per-fact date ("[date: 2023-05-05]", emitted by
+            # a date-resolving consolidator) into a filterable fact_date field.
+            # chunkshop's fact schema doesn't propagate arbitrary keys, so the
+            # date rides in the span text; we lift it back out here so temporal
+            # range filters (metadata.fact_date__gte/__lte) work on facts.
+            fd = _FACT_DATE.search(chunk.embedded_content)
+            if fd:
+                chunk_meta.setdefault("fact_date", fd.group(1))
             self._chunks[cid] = (chunk.embedded_content, artifact.reference, chunk_meta)
         self._ref_docs.setdefault(artifact.reference, set()).add(
             artifact.artifact_id

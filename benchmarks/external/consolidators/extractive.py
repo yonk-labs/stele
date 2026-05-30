@@ -71,7 +71,9 @@ def _resolve(sentence: str, anchor: _dt.date) -> str | None:
     low = sentence.lower()
 
     def fmt(d: _dt.date) -> str:
-        return d.strftime("%-d %B %Y") if hasattr(d, "strftime") else str(d)
+        # ISO so stele can parse it into a filterable fact_date metadata field
+        # (and ISO is unambiguous for the answerer too).
+        return d.isoformat() if hasattr(d, "isoformat") else str(d)
 
     if "yesterday" in low:
         return fmt(anchor - _dt.timedelta(days=1))
