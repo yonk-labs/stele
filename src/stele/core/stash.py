@@ -338,6 +338,7 @@ class Stele:
         # filter-then-rank for the vector path. SPO fact fields (subject/
         # predicate/object) are filterable too since they're in the same dict.
         out: list[SearchHit] = []
+        seen_text: set[str] = set()  # select-distinct: never return the same chunk twice
         for h in hits:
             if h.metadata.get("namespace") != namespace:
                 continue
@@ -349,6 +350,9 @@ class Stele:
                 )
                 if not record_matches_filters(shim, filters):
                     continue
+            if h.text in seen_text:  # dup from hybrid RRF merge / repeated spans
+                continue
+            seen_text.add(h.text)
             out.append(h)
         return out
 
@@ -1083,6 +1087,16 @@ class Stele:
         *,
         raw: bool,
     ) -> builtins.list[SearchHit]:
+        # Select-distinct: never hand back the same chunk text twice (dups can
+        # arise from the hybrid RRF merge or repeated spans across artifacts).
+        # Order-preserving, so the highest-ranked instance is kept.
+        seen: set[str] = set()
+        distinct: builtins.list[SearchHit] = []
+        for h in hits:
+            if h.text not in seen:
+                seen.add(h.text)
+                distinct.append(h)
+        hits = distinct
         if raw or not self.config.pii.enabled:
             return [hit.model_copy(update={"scrubbed": False}) for hit in hits]
         prepared: builtins.list[SearchHit] = []

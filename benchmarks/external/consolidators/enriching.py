@@ -33,6 +33,7 @@ def consolidate(
 ) -> dict[str, Any]:
     facts: list[dict[str, Any]] = []
     seen_dates: list[str] = []
+    seen_units: set[str] = set()  # dedup: same turn/sentence text -> one fact
     anchor = None
     # _dialog() emits one turn per line: "[Session date: ...]" or "[Speaker] text".
     for line in text.split("\n"):
@@ -53,8 +54,9 @@ def consolidate(
         units = [body] if granularity == "turn" else re.split(r"(?<=[.!?])\s+", body)
         for unit in units:
             unit = unit.strip()
-            if not unit:
+            if not unit or unit.lower() in seen_units:
                 continue
+            seen_units.add(unit.lower())
             span = f"[{spk}] {unit}"
             if anchor is not None and date_mode in ("anchor", "both"):
                 span = f"(around {anchor.isoformat()}) {span}"
