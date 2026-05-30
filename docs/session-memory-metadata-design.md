@@ -231,3 +231,38 @@ stele.query(ns, cleaned_query, filters={
     "metadata.git_branch": branch,        # ambient
 })
 ```
+
+## When filters HURT — the LoCoMo entity-filter result (2026-05-29)
+
+The demo above shows filters winning (0/4 → 4/4). This is the counterweight: a
+measured case where filtering **hurt**, and why.
+
+~99% of LoCoMo questions name a participant, so they are entity-filterable via
+`metadata.subject` on consolidation facts. We tested it (5 convs × 20 QA, LLM
+consolidator so `subject` = real fact subject, qwen answerer, jscore):
+
+| arm | jscore | abstain |
+|---|---:|---:|
+| baseline (consolidation, no filter) | 0.18 | 77% |
+| entity filter (`metadata.subject` = named person) | **0.04** | 87% |
+
+Pairwise: entity filtering helped 1 question, **hurt 15**, no change on 84.
+
+**The rule this establishes.** A filter helps only when BOTH hold:
+1. the dimension is **not lexically rankable** (dates, numbers, exact IDs — which
+   embeddings/keyword cannot order), AND
+2. the filtered field **reliably contains the answer-bearing item**.
+
+Entity fails both: names ARE rankable (keyword/vector already surface
+"Caroline"), so the filter adds nothing on the upside; and the consolidator's
+`subject` label is inconsistent (tags "I"/"she"/the other speaker), so the
+filter drops answer-bearing facts → abstention 77%→87% → 0.18→0.04. The
+session-memory demo won because its dimension was dates (unrankable) and its
+field was an exact ISO date (reliable) — both conditions met.
+
+**Practical guidance.** Use filters for time / numeric / exact-ID dimensions
+backed by clean structured fields. Do NOT filter on entity/topic dimensions that
+ranking already handles, especially when the metadata is model-extracted and
+unreliable. This is exactly why temporal routing ships **opt-in** with an
+empty-result fallback — a misapplied filter is a net loss, and the fallback
+keeps a bad parse from hiding the answer.
