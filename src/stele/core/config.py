@@ -57,14 +57,23 @@ class IndexingConfig(BaseModel):
     mode: Literal["async", "sync", "skip"] = "skip"
     provider: Literal["none", "chunkshop"] = "none"
     chunker: Literal["fixed_overlap", "sentence_aware", "consolidation"] = "fixed_overlap"
-    chunk_words: int = 220
-    chunk_overlap_words: int = 60
+    # Embedding model for the chunkshop vector index. Default matches chunkshop's
+    # de-facto default — Xenova/bge-base-en-v1.5-int8 (768-dim, int8-quantized) —
+    # a far stronger retriever than the old all-MiniLM-L6-v2 (384). dim is
+    # auto-derived from the model unless vector_dim is set explicitly.
+    embed_model: str = "Xenova/bge-base-en-v1.5-int8"
+    # Chunk sizes are tuned to bge-base's 512-token window (~2x MiniLM's 256).
+    # 220 words (~290 tokens) wasted half that capacity and produced too many
+    # tiny chunks — hurting coverage and recall. ~350 words (~460 tokens) fills
+    # the window with headroom under 512 before the embedder truncates.
+    chunk_words: int = 350
+    chunk_overlap_words: int = 80
     # sentence_aware chunker (used iff chunker == "sentence_aware"): split on
     # full-sentence boundaries (never mid-sentence), packing up to
     # sentence_max_chars. neighbor_window > 0 wraps each chunk with ±N adjacent
     # chunks for context (chunkshop NeighborExpandChunker).
-    sentence_max_chars: int = 1000
-    sentence_min_chars: int = 200
+    sentence_max_chars: int = 1600
+    sentence_min_chars: int = 300
     neighbor_window: int = 0
     # Consolidation chunker fields (used iff chunker == "consolidation").
     # The consolidator is loaded by import path on the chunkshop side via

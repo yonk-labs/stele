@@ -32,8 +32,21 @@ from stele.retrieval.rank import keyword_score, snippet_around
 if TYPE_CHECKING:
     import numpy as np
 
-_DEFAULT_DIM = 384
+_DEFAULT_DIM = 768  # bge-base-en-v1.5
 _PIP_HINT = "pip install 'stele-core[chunkshop]'"
+
+
+def _resolve_embed_dim(model_name: str) -> int:
+    """Native output dim for a fastembed model (so callers don't hand-set it)."""
+    try:
+        from fastembed import TextEmbedding
+
+        for m in TextEmbedding.list_supported_models():
+            if m["model"] == model_name:
+                return int(m["dim"])
+    except Exception:  # pragma: no cover - fastembed optional/env-dependent
+        pass
+    return _DEFAULT_DIM
 # A consolidator that resolves relative dates emits "[date: 2023-05-05]" (ISO,
 # or a bare year) in the fact span; we lift it into a filterable fact_date field.
 _FACT_DATE = re.compile(r"\[date:\s*(\d{4}(?:-\d{2}-\d{2})?)\]")
@@ -111,11 +124,11 @@ class ChunkshopChunkStore:
 
         self._config = config
         self._sim: Literal["cosine", "ip", "l2"] = config.similarity
-        dim = config.vector_dim or _DEFAULT_DIM
+        dim = config.vector_dim or _resolve_embed_dim(config.embed_model)
         self._embedder = load_embedder(
             FastembedEmbedder(
                 type="fastembed",
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_name=config.embed_model,
                 dim=dim,
             )
         )
