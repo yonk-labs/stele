@@ -8,7 +8,12 @@ from stele.core.memory_record import MemoryScope
 
 
 def _stele():
-    return Stele.from_config({"backend": {"type": "memory"}})  # no graph
+    # no graph, no chunk store: these tests exercise adaptive strategy fallback
+    # when only the artifact/memory backends exist. Skip indexing explicitly now
+    # that sync+hybrid is the default.
+    return Stele.from_config(
+        {"backend": {"type": "memory"}, "indexing": {"mode": "skip"}}
+    )
 
 
 def test_adaptive_without_as_of_uses_a_non_graph_strategy():

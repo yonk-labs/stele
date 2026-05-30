@@ -29,7 +29,8 @@ def test_corpus_shape() -> None:
 
 
 def test_pii_never_survives_store_or_recall() -> None:
-    s = Stele.from_config({"backend": {"type": "memory"}})
+    # PII scrubbing is opt-in; this test asserts the guarantee when it's on.
+    s = Stele.from_config({"backend": {"type": "memory"}, "pii": {"enabled": True}})
     scope = MemoryScope(namespace="corpus")
     pii_docs = [d for d in CORPUS if d.pii]
     assert pii_docs  # corpus actually contains PII to test

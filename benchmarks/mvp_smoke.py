@@ -10,7 +10,9 @@ from stele.interception.wrapper import stash_tool_result
 
 
 def run(output_dir: Path) -> dict[str, object]:
-    stash = Stele.from_config({"interception": {"min_chars": 1000}})
+    stash = Stele.from_config(
+        {"interception": {"min_chars": 1000}, "pii": {"enabled": True}}
+    )
     payload = {
         "records": [
             {

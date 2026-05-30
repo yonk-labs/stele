@@ -48,6 +48,7 @@ def test_recall_contract_memory_then_artifact(
         assert result.strategy_used in {
             "memory_search",
             "artifact_search",
+            "digest",
             "adaptive",
             "abstain",
         }

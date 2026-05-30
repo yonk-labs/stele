@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from stele import Stele
-from stele.core.config import StashConfig
+from stele.core.config import PIIConfig, StashConfig
 from stele.core.memory_record import MemoryScope
 
 PII_TEXT = "Contact alice@example.com or 415-555-0199 for the migration plan."
 
 
 def test_recall_context_remains_scrubbed() -> None:
-    stele = Stele(StashConfig())
+    stele = Stele(StashConfig(pii=PIIConfig(enabled=True)))
     stele.memory.add(
         text=PII_TEXT,
         kind="fact",
@@ -27,7 +27,7 @@ def test_recall_context_remains_scrubbed() -> None:
 
 
 def test_recall_collects_pii_flags() -> None:
-    stele = Stele(StashConfig())
+    stele = Stele(StashConfig(pii=PIIConfig(enabled=True)))
     stele.memory.add(
         text=PII_TEXT,
         kind="fact",

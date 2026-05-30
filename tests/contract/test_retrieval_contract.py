@@ -15,29 +15,22 @@ if os.environ.get("STELE_CLICKHOUSE_DSN"):
     BACKENDS.append("clickhouse")
 
 
-def _stash_for_backend(tmp_path: Path, backend: str) -> Stele:
-    if backend == "sqlite":
-        return Stele.from_config(
-            {"backend": {"type": "sqlite", "path": str(tmp_path / "s.db")}}
-        )
-    if backend == "postgres":
-        return Stele.from_config(
-            {"backend": {"type": "postgres", "dsn": os.environ["STELE_PG_DSN"]}}
-        )
-    if backend == "mariadb":
-        return Stele.from_config(
-            {"backend": {"type": "mariadb", "dsn": os.environ["STELE_MARIADB_DSN"]}}
-        )
-    if backend == "clickhouse":
-        return Stele.from_config(
-            {
-                "backend": {
-                    "type": "clickhouse",
-                    "dsn": os.environ["STELE_CLICKHOUSE_DSN"],
-                }
-            }
-        )
-    return Stele.from_config()
+def _stash_for_backend(
+    tmp_path: Path, backend: str, *, extra: dict[str, object] | None = None
+) -> Stele:
+    backends: dict[str, dict[str, object]] = {
+        "memory": {},
+        "sqlite": {"backend": {"type": "sqlite", "path": str(tmp_path / "s.db")}},
+        "postgres": {"backend": {"type": "postgres", "dsn": os.environ.get("STELE_PG_DSN", "")}},
+        "mariadb": {"backend": {"type": "mariadb", "dsn": os.environ.get("STELE_MARIADB_DSN", "")}},
+        "clickhouse": {
+            "backend": {"type": "clickhouse", "dsn": os.environ.get("STELE_CLICKHOUSE_DSN", "")}
+        },
+    }
+    cfg = dict(backends[backend])
+    if extra:
+        cfg.update(extra)
+    return Stele.from_config(cfg)
 
 
 @pytest.mark.parametrize("backend", BACKENDS)
@@ -76,14 +69,17 @@ def test_unsupported_explicit_mode_raises(tmp_path: Path, backend: str) -> None:
     stash = _stash_for_backend(tmp_path, backend)
     stored = stash.store("some text")
 
+    # vector/hybrid are on by default now (chunk index); graph still needs a
+    # graph backend, so it remains unsupported on these stores.
     with pytest.raises(CapabilityError):
-        stash.search(stored.reference, "text", mode="vector")
+        stash.search(stored.reference, "text", mode="graph")
     stash.close()
 
 
 @pytest.mark.parametrize("backend", BACKENDS)
 def test_search_results_are_scrubbed_by_default(tmp_path: Path, backend: str) -> None:
-    stash = _stash_for_backend(tmp_path, backend)
+    # PII scrubbing is opt-in; this test exercises the scrubbing surface.
+    stash = _stash_for_backend(tmp_path, backend, extra={"pii": {"enabled": True}})
     namespace = f"ops_{uuid.uuid4().hex}"
     stored = stash.store(
         "Contact alice@example.com about the ClickHouse migration.",

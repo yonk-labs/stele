@@ -20,7 +20,8 @@ _TOOL_OUTPUT = (
 
 
 def _session() -> SteleAgentSession:
-    stele = Stele.from_config({"backend": {"type": "memory"}})
+    # PII scrubbing is opt-in; the loop test asserts PII never leaks into packs.
+    stele = Stele.from_config({"backend": {"type": "memory"}, "pii": {"enabled": True}})
     return SteleAgentSession(
         stele=stele, wg_store=InProcessWorkGraphStore(),
         namespace="loop", session_id="sess-1",

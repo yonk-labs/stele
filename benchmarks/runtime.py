@@ -27,7 +27,9 @@ from stele.workgraph.store import InProcessWorkGraphStore
 
 def run_benchmark(n: int = 100) -> dict[str, Any]:
     corpus = sample_corpus(n)
-    stele = Stele.from_config({"backend": {"type": "memory"}})
+    stele = Stele.from_config(
+        {"backend": {"type": "memory"}, "pii": {"enabled": True}}
+    )
     sess = SteleAgentSession(
         stele=stele, wg_store=InProcessWorkGraphStore(),
         namespace="bench", session_id="b1",

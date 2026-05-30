@@ -65,7 +65,7 @@ def test_capabilities_reports_phase4_runtime_state() -> None:
 
 
 def test_capabilities_skip_mode_has_no_chunk_store() -> None:
-    stash = Stele.from_config()  # default: skip
+    stash = Stele.from_config({"indexing": {"mode": "skip"}})
     caps = stash.capabilities()
     assert caps.chunk_store_backend is None
     assert caps.vector_enabled is False

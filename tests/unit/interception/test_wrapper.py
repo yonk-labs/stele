@@ -14,7 +14,10 @@ def test_below_threshold_passes_through() -> None:
 
 def test_large_output_is_replaced_and_scrubbed() -> None:
     stash = Stele.from_config(
-        {"interception": {"min_chars": 100, "min_estimated_tokens": 25}}
+        {
+            "interception": {"min_chars": 100, "min_estimated_tokens": 25},
+            "pii": {"enabled": True},  # scrubbing is opt-in
+        }
     )
     raw = "alice@example.com " + ("database row " * 100)
 
