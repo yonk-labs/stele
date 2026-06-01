@@ -28,49 +28,117 @@ _KEY = """## How to read this grid
 
 Each row is one **recipe** (a "lane") run against one **corpus**, scored on the same
 questions by the same judge. Higher `jscore` = more right answers; lower `~tokens` =
-cheaper context. The only hard part is decoding the lane name — it's shorthand for a
-few choices.
+cheaper context. The only hard part is decoding the lane name.
 
-### `system` — who produced the row
+### `system` (who produced the row)
 
 | name | what it is |
 |---|---|
 | `stele-highN` | stele, the **confident** runs (n≈250). These are the numbers to trust. |
-| `stele-sweep` | stele, a wide **exploratory** sweep (n=40). Directional only — small samples flip. |
+| `stele-sweep` | stele, a wide **exploratory** sweep (n=40). Directional only; small samples flip. |
 | `letta-archival` | Letta (a competitor) in its archival-memory mode. |
-| `letta-agent` | Letta in agent mode — an **interrupted** n=20 run that scored 0.00. Kept as a record, *not* a fair number. |
+| `letta-agent` | Letta in agent mode. An **interrupted** n=20 run that scored 0.00; kept as a record, *not* a fair number. |
 | `mem0-local` | Mem0 (a competitor), using a local LLM to boil docs down to atomic facts. |
-| `PARAMETRIC-FLOOR` | The control: answer with **no memory at all**. Whatever the model scores here it already knew — subtract it before believing any row. |
+| `PARAMETRIC-FLOOR` | The control: answer with **no memory at all**. Whatever the model scores here it already knew, so subtract it before believing any row. |
 
-### `lane` — the recipe
+### `lane` (the recipe)
 
-A lane name encodes **chunker -> retrieval -> packing** (plus a couple of knobs).
+**Every lane is a full recipe: chunker + retrieval + packing + knobs.** The lane *name*
+only spells out the axes that **changed** in that experiment. Anything the name leaves out
+sits at the default:
 
-**Chunker** (how a doc is sliced before indexing): `sentence_aware` = sentence boundaries,
+> chunker = `sentence_aware` · retrieval = `hybrid` · packing = `raw` · index = `hnsw` · neighbor = on
+
+So `nb1_k=10` is the defaults with neighbor **on** and the **top-10** chunks fed (it comes
+from a neighbor/k sweep, so only those two move; retrieval is still hybrid, packing still
+raw). `hybrid_raw_hnsw` is those same defaults written out in full. What each lane name
+overrides:
+
+| lane shape | what it changes vs the default | reading |
+|---|---|---|
+| `raw_fetch` | no retrieval; feeds the **whole document** | the ceiling (packing is moot) |
+| `keyword`, `cascade_b_hnsw` | the **retrieval** step | keyword-only / vector-then-keyword |
+| `hybrid_facts_hnsw`, `hybrid_digest_hnsw` | the **packing** | facts list / query-digest, not raw |
+| `hybrid_raw_exact` | the **index** (brute-force, not HNSW) | the exact-vs-HNSW test |
+| `nb1_k=N`, `nb0_k=N` | **neighbor** on/off + how many **chunks** (k) | `nb0_k=5` = neighbor off, top-5 |
+| `digest_mix` | the **packing** (digest + facts + top-3 raw) | the kitchen sink |
+| `digest_expanded` | **packing** = digest with synonym-**expanded** hints | |
+| `enriching_digest`, `enriching_facts` | the **chunker** (enriching) + packing | |
+| `A:<chunker>+<packing>` | **chunker x packing** (sweep family A); retrieval stays hybrid | `A:sentence_aware+facts` |
+| `B:<retrieval>+<packing>` | **retrieval x packing** (sweep family B); chunker stays sentence_aware | `B:cascade_b+raw` |
+| `C:hints-<none\\|expanded>+<packing>` | **hints x packing** (sweep family C) | `C:hints-expanded+digest` |
+| `(memory)` | a competitor's own end-to-end pipeline; not comparable axis-by-axis | |
+
+The building blocks those names draw from:
+
+**Chunkers** (how a doc is sliced before indexing): `sentence_aware` = sentence boundaries,
 ~1000 chars (default) · `fixed_overlap` = blind fixed windows · `consolidation` /
 `enriching` = squeeze the doc into extracted facts.
 
 **Retrieval** (how chunks are picked per question): `hybrid` = vector + keyword fused via
-RRF (default) · `keyword` = full-text only (the *old* default — note how close it sits to
+RRF (default) · `keyword` = full-text only (the *old* default; note how close it sits to
 the floor) · `cascade_a` = keyword-first then vector re-rank · `cascade_b` = vector-first
-then keyword re-rank · `raw_fetch` = skip retrieval, feed the whole document (ceiling).
+then keyword re-rank · `raw_fetch` = skip retrieval, feed the whole document.
 
 **Packing** (how chunks are formatted for the model): `raw` = verbatim · `digest` =
 query-focused summary + top-5 chunks · `facts` = digest + extracted fact list ·
-`digest_mix` = digest + facts + top-3 raw chunks (kitchen sink).
+`digest_mix` = digest + facts + top-3 raw chunks.
 
 **Knobs:** `hnsw` = approximate vector index (default) vs `exact` = brute-force scan ·
-`nb1`/`nb0` = neighbor window on/off · `k=N` = how many chunks were fed. So
-`hybrid_raw_hnsw` = the default recipe, `nb0_k=10` = neighbor off / top-10,
-`A:sentence_aware+facts` = sweep family A, `(memory)` = a competitor's own single lane.
+`nb1`/`nb0` = neighbor window on/off · `k=N` = how many chunks were fed.
 
 ### Columns
 
-`jscore` = fraction the judge marked correct (gemma-4-26B, **abstention = wrong**), 0-1 ·
+`chunker` · `retrieval` · `packing` · `knobs` = the lane decoded into its four axes, so you
+don't have to parse the codename (`knobs` packs index·neighbor·k). The values repeat a lot
+across rows; that's expected. Then the scores:
+
+`jscore` = fraction the judge marked correct (gemma-4-26B, **abstention = wrong**), 0 to 1 ·
 `mrr` = how near the top the right chunk ranked, 1/rank averaged (stele-only; competitor
-memories are abstractive -> `—`) · `~tokens` ≈ ctx_chars/4 (cost axis) · `retr_ms` /
-`ans_ms` = retrieval / answer latency · `n` = questions in that cell.
+memories are abstractive, shown as a dash) · `~tokens` ≈ ctx_chars/4 (cost axis) ·
+`retr_ms` / `ans_ms` = retrieval / answer latency · `n` = questions in that cell.
 """
+
+
+def _decode(system: str, lane: str) -> tuple[str, str, str, str]:
+    """Explode a lane codename into (chunker, retrieval, packing, knobs).
+
+    Every stele lane is a full recipe; the name only spells out what varied, so the
+    rest fall back to the promoted defaults (sentence_aware + hybrid + raw + hnsw +
+    neighbor-on + k=10). Competitors run their own pipeline, so they get dashes.
+    Values repeat a lot across rows by design — that's the point of the columns.
+    """
+    KN = "hnsw·nb1·k=10"  # default knobs (index·neighbor·k)
+    if not system.startswith("stele"):
+        return ("—", "—", "—", "—")
+    if lane == "raw_fetch":
+        return ("sentence_aware", "(whole doc)", "raw", "—")
+    if lane == "keyword":
+        return ("sentence_aware", "keyword", "raw", KN)
+    if lane.startswith("hybrid_"):
+        _, pk, idx = lane.split("_")            # hybrid_raw_hnsw -> raw, hnsw
+        return ("sentence_aware", "hybrid", pk, f"{idx}·nb1·k=10")
+    if lane == "cascade_b_hnsw":
+        return ("sentence_aware", "cascade_b", "raw", KN)
+    if lane.startswith(("nb1_k=", "nb0_k=")):
+        nbr, k = lane.split("_k=")              # nb0_k=5 -> nb0, 5
+        return ("sentence_aware", "hybrid", "raw", f"hnsw·{nbr}·k={k}")
+    if lane == "digest_mix":
+        return ("sentence_aware", "hybrid", "digest_mix", "hnsw·nb1·k=20")
+    if lane == "digest_expanded":
+        return ("sentence_aware", "hybrid", "digest (expanded hints)", KN)
+    if lane.startswith("enriching_"):
+        return ("enriching", "hybrid", lane.split("_", 1)[1], KN)
+    if lane.startswith("A:"):
+        ch, pk = lane[2:].rsplit("+", 1)
+        return (ch, "hybrid", pk, KN)
+    if lane.startswith("B:"):
+        rt, pk = lane[2:].rsplit("+", 1)
+        return ("sentence_aware", rt, pk, KN)
+    if lane.startswith("C:"):
+        hints, pk = lane[2:].rsplit("+", 1)
+        return ("sentence_aware", "hybrid", f"{pk} ({hints.replace('hints-', '')} hints)", KN)
+    return ("—", "—", "—", "—")                # (memory), (no context), unknown
 
 
 def _latest(pattern: str) -> str | None:
@@ -182,21 +250,25 @@ def main() -> None:
                 grid.append({"system": system, "lane": "(memory)", "corpus": corpus, **agg})
 
     # --- CSV ---
-    cols = ["system", "lane", "corpus", "jscore", "mrr", "tokens", "retr_ms", "ans_ms", "n"]
+    cols = ["system", "lane", "chunker", "retrieval", "packing", "knobs", "corpus",
+            "jscore", "mrr", "tokens", "retr_ms", "ans_ms", "n"]
     with open(_ROOT / "MEGA-GRID.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols)
         w.writeheader()
         for row in sorted(grid, key=lambda r: (r["corpus"], -r["jscore"])):
-            w.writerow({c: row.get(c, "") for c in cols})
+            ch, rt, pk, kn = _decode(row["system"], row["lane"])
+            w.writerow({**{c: row.get(c, "") for c in cols},
+                        "chunker": ch, "retrieval": rt, "packing": pk, "knobs": kn})
 
     # --- Markdown ---
     md = ["# Mega benchmark grid — every lane x corpus (post-fix)\n", _KEY]
     for corpus in _CORPORA:
         md.append(f"\n## {corpus}\n")
-        md.append("| system | lane | jscore | mrr | ~tokens | retr_ms | ans_ms | n |")
-        md.append("|---|---|---|---|---|---|---|---|")
+        md.append("| system | lane | chunker | retrieval | packing | knobs | jscore | mrr | ~tokens | retr_ms | ans_ms | n |")
+        md.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
         for r in sorted([g for g in grid if g["corpus"] == corpus], key=lambda r: -r["jscore"]):
-            md.append(f"| {r['system']} | {r['lane']} | {r['jscore']:.2f} | "
+            ch, rt, pk, kn = _decode(r["system"], r["lane"])
+            md.append(f"| {r['system']} | {r['lane']} | {ch} | {rt} | {pk} | {kn} | {r['jscore']:.2f} | "
                       f"{r['mrr'] if r['mrr'] is not None else '—'} | "
                       f"{r['tokens'] if r['tokens'] is not None else '—'} | "
                       f"{r['retr_ms'] if r['retr_ms'] is not None else '—'} | "
