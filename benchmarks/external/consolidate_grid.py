@@ -21,6 +21,57 @@ from statistics import mean
 _ROOT = Path("benchmarks/runs/cross-corpus")
 _CORPORA = ["locomo", "ragbench-hotpotqa", "ragbench-covidqa"]
 
+# Lexicon prepended to MEGA-GRID.md so the codenames are self-explaining (a jr dev
+# should be able to read a row without spelunking the scripts). Keep in sync with
+# testing/results/MEGA-GRID.md and testing/results/reading-the-grid.md.
+_KEY = """## How to read this grid
+
+Each row is one **recipe** (a "lane") run against one **corpus**, scored on the same
+questions by the same judge. Higher `jscore` = more right answers; lower `~tokens` =
+cheaper context. The only hard part is decoding the lane name — it's shorthand for a
+few choices.
+
+### `system` — who produced the row
+
+| name | what it is |
+|---|---|
+| `stele-highN` | stele, the **confident** runs (n≈250). These are the numbers to trust. |
+| `stele-sweep` | stele, a wide **exploratory** sweep (n=40). Directional only — small samples flip. |
+| `letta-archival` | Letta (a competitor) in its archival-memory mode. |
+| `letta-agent` | Letta in agent mode — an **interrupted** n=20 run that scored 0.00. Kept as a record, *not* a fair number. |
+| `mem0-local` | Mem0 (a competitor), using a local LLM to boil docs down to atomic facts. |
+| `PARAMETRIC-FLOOR` | The control: answer with **no memory at all**. Whatever the model scores here it already knew — subtract it before believing any row. |
+
+### `lane` — the recipe
+
+A lane name encodes **chunker -> retrieval -> packing** (plus a couple of knobs).
+
+**Chunker** (how a doc is sliced before indexing): `sentence_aware` = sentence boundaries,
+~1000 chars (default) · `fixed_overlap` = blind fixed windows · `consolidation` /
+`enriching` = squeeze the doc into extracted facts.
+
+**Retrieval** (how chunks are picked per question): `hybrid` = vector + keyword fused via
+RRF (default) · `keyword` = full-text only (the *old* default — note how close it sits to
+the floor) · `cascade_a` = keyword-first then vector re-rank · `cascade_b` = vector-first
+then keyword re-rank · `raw_fetch` = skip retrieval, feed the whole document (ceiling).
+
+**Packing** (how chunks are formatted for the model): `raw` = verbatim · `digest` =
+query-focused summary + top-5 chunks · `facts` = digest + extracted fact list ·
+`digest_mix` = digest + facts + top-3 raw chunks (kitchen sink).
+
+**Knobs:** `hnsw` = approximate vector index (default) vs `exact` = brute-force scan ·
+`nb1`/`nb0` = neighbor window on/off · `k=N` = how many chunks were fed. So
+`hybrid_raw_hnsw` = the default recipe, `nb0_k=10` = neighbor off / top-10,
+`A:sentence_aware+facts` = sweep family A, `(memory)` = a competitor's own single lane.
+
+### Columns
+
+`jscore` = fraction the judge marked correct (gemma-4-26B, **abstention = wrong**), 0-1 ·
+`mrr` = how near the top the right chunk ranked, 1/rank averaged (stele-only; competitor
+memories are abstractive -> `—`) · `~tokens` ≈ ctx_chars/4 (cost axis) · `retr_ms` /
+`ans_ms` = retrieval / answer latency · `n` = questions in that cell.
+"""
+
 
 def _latest(pattern: str) -> str | None:
     fs = sorted(glob.glob(str(_ROOT / pattern)))
@@ -139,9 +190,7 @@ def main() -> None:
             w.writerow({c: row.get(c, "") for c in cols})
 
     # --- Markdown ---
-    md = ["# Mega benchmark grid — every lane x corpus (post-fix)\n",
-          "jscore = Mem0 jscore (gemma@133, abstention=wrong) · mrr = recip. rank of first chunk with gold "
-          "(stele only; competitor memories are abstractive) · tokens ≈ ctx_chars/4 · retr/ans_ms = latency.\n"]
+    md = ["# Mega benchmark grid — every lane x corpus (post-fix)\n", _KEY]
     for corpus in _CORPORA:
         md.append(f"\n## {corpus}\n")
         md.append("| system | lane | jscore | mrr | ~tokens | retr_ms | ans_ms | n |")
