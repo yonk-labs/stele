@@ -43,6 +43,7 @@ overrides:
 | `A:<chunker>+<packing>` | **chunker x packing** (sweep family A); retrieval stays hybrid | `A:sentence_aware+facts` |
 | `B:<retrieval>+<packing>` | **retrieval x packing** (sweep family B); chunker stays sentence_aware | `B:cascade_b+raw` |
 | `C:hints-<none\|expanded>+<packing>` | **hints x packing** (sweep family C) | `C:hints-expanded+digest` |
+| `D:<chunker>+<retrieval>+<packing>` | the **factorial fill** of the missing interaction cells (n=40) | `D:enriching+cascade_b+digest` |
 | `(memory)` | a competitor's own end-to-end pipeline; not comparable axis-by-axis | |
 
 The building blocks those names draw from:
@@ -113,32 +114,59 @@ memories are abstractive, shown as a dash) · `~tokens` ≈ ctx_chars/4 (cost ax
 
 | system | lane | chunker | retrieval | packing | knobs | jscore | mrr | ~tokens | retr_ms | ans_ms | n |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| stele-sweep | D:enriching+cascade_a+facts | enriching | cascade_a | facts | hnsw·nb1·k=10 | 0.82 | 0.229 | 26026 | 49.6 | 1650.2 | 40 |
 | stele-sweep | raw_fetch | sentence_aware | (whole doc) | raw | — | 0.80 | 0.275 | 17869 | 0.0 | 1740.7 | 40 |
+| stele-sweep | D:enriching+cascade_a+raw | enriching | cascade_a | raw | hnsw·nb1·k=10 | 0.78 | 0.229 | 23895 | 49.6 | 4198.5 | 40 |
 | stele-sweep | A:sentence_aware+facts | sentence_aware | hybrid | facts | hnsw·nb1·k=10 | 0.75 | 0.138 | 4550 | 33.9 | 989.8 | 40 |
 | stele-sweep | B:cascade_b+raw | sentence_aware | cascade_b | raw | hnsw·nb1·k=10 | 0.75 | 0.13 | 7020 | 62.6 | 2420.3 | 40 |
 | stele-sweep | B:cascade_b+facts | sentence_aware | cascade_b | facts | hnsw·nb1·k=10 | 0.75 | 0.13 | 4824 | 62.6 | 832.8 | 40 |
+| stele-sweep | D:enriching+cascade_b+raw | enriching | cascade_b | raw | hnsw·nb1·k=10 | 0.75 | 0.275 | 23920 | 52.1 | 1398.1 | 40 |
+| stele-sweep | D:enriching+cascade_b+digest | enriching | cascade_b | digest | hnsw·nb1·k=10 | 0.75 | 0.275 | 25677 | 52.1 | 3159.9 | 40 |
+| stele-sweep | D:enriching+cascade_b+facts | enriching | cascade_b | facts | hnsw·nb1·k=10 | 0.75 | 0.275 | 26056 | 52.1 | 1230.8 | 40 |
 | stele-sweep | C:hints-none+facts | sentence_aware | hybrid | facts (none hints) | hnsw·nb1·k=10 | 0.72 | 0.138 | 4550 | 33.9 | 865.3 | 40 |
+| stele-sweep | D:enriching+cascade_a+digest | enriching | cascade_a | digest | hnsw·nb1·k=10 | 0.72 | 0.229 | 25649 | 49.6 | 6022.9 | 40 |
 | stele-sweep | A:fixed_overlap+raw | fixed_overlap | hybrid | raw | hnsw·nb1·k=10 | 0.70 | 0.131 | 4338 | 28.9 | 1577.2 | 40 |
 | stele-sweep | A:fixed_overlap+facts | fixed_overlap | hybrid | facts | hnsw·nb1·k=10 | 0.68 | 0.131 | 3559 | 28.9 | 765.8 | 40 |
 | stele-sweep | A:sentence_aware+raw | sentence_aware | hybrid | raw | hnsw·nb1·k=10 | 0.68 | 0.138 | 6044 | 33.9 | 1997.2 | 40 |
 | stele-sweep | B:cascade_a+raw | sentence_aware | cascade_a | raw | hnsw·nb1·k=10 | 0.68 | 0.114 | 7009 | 62.8 | 2481.6 | 40 |
 | stele-sweep | B:cascade_b+digest | sentence_aware | cascade_b | digest | hnsw·nb1·k=10 | 0.68 | 0.13 | 4479 | 62.6 | 1733.5 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_b+facts | fixed_overlap | cascade_b | facts | hnsw·nb1·k=10 | 0.68 | 0.106 | 3685 | 53.6 | 788.3 | 40 |
 | stele-sweep | B:cascade_a+facts | sentence_aware | cascade_a | facts | hnsw·nb1·k=10 | 0.65 | 0.114 | 4763 | 62.8 | 892.3 | 40 |
 | stele-sweep | C:hints-none+digest | sentence_aware | hybrid | digest (none hints) | hnsw·nb1·k=10 | 0.65 | 0.138 | 4225 | 33.9 | 668.2 | 40 |
 | stele-sweep | C:hints-expanded+digest | sentence_aware | hybrid | digest (expanded hints) | hnsw·nb1·k=10 | 0.65 | 0.138 | 4231 | 33.9 | 1789.6 | 40 |
 | stele-sweep | C:hints-expanded+facts | sentence_aware | hybrid | facts (expanded hints) | hnsw·nb1·k=10 | 0.65 | 0.138 | 4556 | 33.9 | 836.0 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_a+facts | fixed_overlap | cascade_a | facts | hnsw·nb1·k=10 | 0.65 | 0.12 | 3696 | 47.9 | 791.5 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_b+digest | fixed_overlap | cascade_b | digest | hnsw·nb1·k=10 | 0.65 | 0.106 | 3351 | 53.6 | 1397.2 | 40 |
 | stele-sweep | A:fixed_overlap+digest | fixed_overlap | hybrid | digest | hnsw·nb1·k=10 | 0.62 | 0.131 | 3226 | 28.9 | 1303.9 | 40 |
 | stele-sweep | A:sentence_aware+digest | sentence_aware | hybrid | digest | hnsw·nb1·k=10 | 0.62 | 0.138 | 4225 | 33.9 | 1802.1 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_a+raw | fixed_overlap | cascade_a | raw | hnsw·nb1·k=10 | 0.62 | 0.12 | 4881 | 47.9 | 1788.1 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_b+raw | fixed_overlap | cascade_b | raw | hnsw·nb1·k=10 | 0.60 | 0.106 | 4908 | 53.6 | 1751.5 | 40 |
 | stele-sweep | B:cascade_a+digest | sentence_aware | cascade_a | digest | hnsw·nb1·k=10 | 0.57 | 0.114 | 4419 | 62.8 | 1995.9 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_a+digest | fixed_overlap | cascade_a | digest | hnsw·nb1·k=10 | 0.53 | 0.12 | 3364 | 47.9 | 1252.3 | 40 |
+| stele-sweep | D:consolidation+cascade_a+raw | consolidation | cascade_a | raw | hnsw·nb1·k=10 | 0.45 | 0.062 | 285 | 45.4 | 560.3 | 40 |
+| stele-sweep | D:consolidation+cascade_b+raw | consolidation | cascade_b | raw | hnsw·nb1·k=10 | 0.45 | 0.048 | 337 | 40.3 | 558.9 | 40 |
 | stele-sweep | A:consolidation+digest | consolidation | hybrid | digest | hnsw·nb1·k=10 | 0.42 | 0.071 | 1136 | 26.5 | 881.8 | 40 |
+| stele-sweep | D:consolidation+cascade_a+digest | consolidation | cascade_a | digest | hnsw·nb1·k=10 | 0.42 | 0.062 | 1064 | 45.4 | 818.5 | 40 |
+| stele-sweep | D:consolidation+cascade_b+digest | consolidation | cascade_b | digest | hnsw·nb1·k=10 | 0.42 | 0.048 | 1206 | 40.3 | 820.2 | 40 |
+| stele-sweep | D:consolidation+cascade_b+facts | consolidation | cascade_b | facts | hnsw·nb1·k=10 | 0.42 | 0.048 | 1388 | 40.3 | 625.3 | 40 |
 | stele-sweep | A:consolidation+raw | consolidation | hybrid | raw | hnsw·nb1·k=10 | 0.40 | 0.071 | 304 | 26.5 | 488.4 | 40 |
 | stele-sweep | A:enriching+digest | enriching | hybrid | digest | hnsw·nb1·k=10 | 0.40 | 0.1 | 9423 | 28.3 | 2246.4 | 40 |
 | stele-sweep | A:enriching+facts | enriching | hybrid | facts | hnsw·nb1·k=10 | 0.40 | 0.1 | 9678 | 28.3 | 1014.9 | 40 |
 | stele-sweep | A:consolidation+facts | consolidation | hybrid | facts | hnsw·nb1·k=10 | 0.38 | 0.071 | 1308 | 26.5 | 585.7 | 40 |
 | stele-sweep | A:enriching+raw | enriching | hybrid | raw | hnsw·nb1·k=10 | 0.38 | 0.1 | 8440 | 28.3 | 1429.4 | 40 |
+| stele-sweep | D:consolidation+cascade_a+facts | consolidation | cascade_a | facts | hnsw·nb1·k=10 | 0.38 | 0.062 | 1229 | 45.4 | 581.9 | 40 |
 | stele-sweep | B:keyword+raw | sentence_aware | keyword | raw | hnsw·nb1·k=10 | 0.15 | 0.05 | 91 | 13.9 | 252.3 | 40 |
 | stele-sweep | B:keyword+digest | sentence_aware | keyword | digest | hnsw·nb1·k=10 | 0.15 | 0.05 | 228 | 13.9 | 291.9 | 40 |
 | stele-sweep | B:keyword+facts | sentence_aware | keyword | facts | hnsw·nb1·k=10 | 0.15 | 0.05 | 322 | 13.9 | 224.6 | 40 |
+| stele-sweep | D:fixed_overlap+keyword+raw | fixed_overlap | keyword | raw | hnsw·nb1·k=10 | 0.15 | 0.05 | 91 | 13.5 | 254.7 | 40 |
+| stele-sweep | D:fixed_overlap+keyword+digest | fixed_overlap | keyword | digest | hnsw·nb1·k=10 | 0.15 | 0.05 | 228 | 13.5 | 457.7 | 40 |
+| stele-sweep | D:fixed_overlap+keyword+facts | fixed_overlap | keyword | facts | hnsw·nb1·k=10 | 0.15 | 0.05 | 322 | 13.5 | 225.0 | 40 |
+| stele-sweep | D:consolidation+keyword+raw | consolidation | keyword | raw | hnsw·nb1·k=10 | 0.15 | 0.05 | 91 | 14.0 | 252.2 | 40 |
+| stele-sweep | D:consolidation+keyword+digest | consolidation | keyword | digest | hnsw·nb1·k=10 | 0.15 | 0.05 | 228 | 14.0 | 363.9 | 40 |
+| stele-sweep | D:consolidation+keyword+facts | consolidation | keyword | facts | hnsw·nb1·k=10 | 0.15 | 0.05 | 322 | 14.0 | 207.2 | 40 |
+| stele-sweep | D:enriching+keyword+raw | enriching | keyword | raw | hnsw·nb1·k=10 | 0.15 | 0.05 | 91 | 14.0 | 251.3 | 40 |
+| stele-sweep | D:enriching+keyword+digest | enriching | keyword | digest | hnsw·nb1·k=10 | 0.15 | 0.05 | 228 | 14.0 | 307.0 | 40 |
+| stele-sweep | D:enriching+keyword+facts | enriching | keyword | facts | hnsw·nb1·k=10 | 0.15 | 0.05 | 322 | 14.0 | 207.0 | 40 |
 | letta-agent | (memory) | — | — | — | — | 0.00 | — | — | — | — | 20 |
 
 
@@ -179,6 +207,9 @@ memories are abstractive, shown as a dash) · `~tokens` ≈ ctx_chars/4 (cost ax
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | stele-sweep | B:cascade_b+raw | sentence_aware | cascade_b | raw | hnsw·nb1·k=10 | 0.97 | 0.887 | 1228 | 52.6 | 558.8 | 40 |
 | stele-sweep | B:cascade_b+digest | sentence_aware | cascade_b | digest | hnsw·nb1·k=10 | 0.97 | 0.887 | 2768 | 52.6 | 578.4 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_b+raw | fixed_overlap | cascade_b | raw | hnsw·nb1·k=10 | 0.97 | 0.9 | 579 | 43.4 | 478.5 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_b+digest | fixed_overlap | cascade_b | digest | hnsw·nb1·k=10 | 0.97 | 0.9 | 1665 | 43.4 | 624.1 | 40 |
+| stele-sweep | D:enriching+cascade_a+raw | enriching | cascade_a | raw | hnsw·nb1·k=10 | 0.97 | 0.9 | 579 | 46.9 | 586.1 | 40 |
 | stele-sweep | A:fixed_overlap+raw | fixed_overlap | hybrid | raw | hnsw·nb1·k=10 | 0.95 | 0.9 | 579 | 62.5 | 593.1 | 40 |
 | stele-sweep | A:sentence_aware+raw | sentence_aware | hybrid | raw | hnsw·nb1·k=10 | 0.95 | 0.887 | 1094 | 24.4 | 702.0 | 40 |
 | stele-sweep | A:sentence_aware+digest | sentence_aware | hybrid | digest | hnsw·nb1·k=10 | 0.95 | 0.887 | 2513 | 24.4 | 1033.0 | 40 |
@@ -190,19 +221,43 @@ memories are abstractive, shown as a dash) · `~tokens` ≈ ctx_chars/4 (cost ax
 | stele-sweep | C:hints-none+digest | sentence_aware | hybrid | digest (none hints) | hnsw·nb1·k=10 | 0.95 | 0.887 | 2513 | 24.4 | 491.4 | 40 |
 | stele-sweep | C:hints-expanded+digest | sentence_aware | hybrid | digest (expanded hints) | hnsw·nb1·k=10 | 0.95 | 0.887 | 2513 | 24.4 | 1026.9 | 40 |
 | stele-sweep | raw_fetch | sentence_aware | (whole doc) | raw | — | 0.95 | 0.9 | 526 | 0.0 | 676.8 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_a+raw | fixed_overlap | cascade_a | raw | hnsw·nb1·k=10 | 0.95 | 0.875 | 579 | 43.8 | 597.4 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_a+digest | fixed_overlap | cascade_a | digest | hnsw·nb1·k=10 | 0.95 | 0.875 | 1665 | 43.8 | 1012.1 | 40 |
+| stele-sweep | D:enriching+cascade_a+digest | enriching | cascade_a | digest | hnsw·nb1·k=10 | 0.95 | 0.9 | 1667 | 46.9 | 661.4 | 40 |
+| stele-sweep | D:enriching+cascade_b+raw | enriching | cascade_b | raw | hnsw·nb1·k=10 | 0.95 | 0.9 | 579 | 47.0 | 462.1 | 40 |
+| stele-sweep | D:enriching+cascade_b+digest | enriching | cascade_b | digest | hnsw·nb1·k=10 | 0.95 | 0.9 | 1667 | 47.0 | 539.3 | 40 |
 | stele-sweep | A:fixed_overlap+digest | fixed_overlap | hybrid | digest | hnsw·nb1·k=10 | 0.93 | 0.9 | 1665 | 62.5 | 848.8 | 40 |
 | stele-sweep | A:fixed_overlap+facts | fixed_overlap | hybrid | facts | hnsw·nb1·k=10 | 0.93 | 0.9 | 2033 | 62.5 | 637.9 | 40 |
 | stele-sweep | A:sentence_aware+facts | sentence_aware | hybrid | facts | hnsw·nb1·k=10 | 0.93 | 0.887 | 2884 | 24.4 | 636.0 | 40 |
 | stele-sweep | A:enriching+digest | enriching | hybrid | digest | hnsw·nb1·k=10 | 0.93 | 0.875 | 1622 | 26.9 | 742.4 | 40 |
 | stele-sweep | C:hints-none+facts | sentence_aware | hybrid | facts (none hints) | hnsw·nb1·k=10 | 0.93 | 0.887 | 2884 | 24.4 | 487.2 | 40 |
 | stele-sweep | C:hints-expanded+facts | sentence_aware | hybrid | facts (expanded hints) | hnsw·nb1·k=10 | 0.93 | 0.887 | 2884 | 24.4 | 604.9 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_a+facts | fixed_overlap | cascade_a | facts | hnsw·nb1·k=10 | 0.93 | 0.875 | 2034 | 43.8 | 634.6 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_b+facts | fixed_overlap | cascade_b | facts | hnsw·nb1·k=10 | 0.93 | 0.9 | 2033 | 43.4 | 497.1 | 40 |
+| stele-sweep | D:enriching+cascade_a+facts | enriching | cascade_a | facts | hnsw·nb1·k=10 | 0.93 | 0.9 | 2037 | 46.9 | 537.8 | 40 |
+| stele-sweep | D:enriching+cascade_b+facts | enriching | cascade_b | facts | hnsw·nb1·k=10 | 0.93 | 0.9 | 2037 | 47.0 | 475.5 | 40 |
 | stele-sweep | A:enriching+facts | enriching | hybrid | facts | hnsw·nb1·k=10 | 0.90 | 0.875 | 1985 | 26.9 | 542.6 | 40 |
+| stele-sweep | D:consolidation+cascade_a+raw | consolidation | cascade_a | raw | hnsw·nb1·k=10 | 0.80 | 0.566 | 453 | 50.4 | 710.5 | 40 |
 | stele-sweep | A:consolidation+raw | consolidation | hybrid | raw | hnsw·nb1·k=10 | 0.78 | 0.752 | 469 | 26.6 | 545.4 | 40 |
 | stele-sweep | A:consolidation+facts | consolidation | hybrid | facts | hnsw·nb1·k=10 | 0.75 | 0.752 | 1727 | 26.6 | 553.9 | 40 |
+| stele-sweep | D:consolidation+cascade_a+digest | consolidation | cascade_a | digest | hnsw·nb1·k=10 | 0.75 | 0.566 | 1380 | 50.4 | 775.5 | 40 |
+| stele-sweep | D:consolidation+cascade_b+raw | consolidation | cascade_b | raw | hnsw·nb1·k=10 | 0.75 | 0.734 | 472 | 45.3 | 771.7 | 40 |
 | stele-sweep | A:consolidation+digest | consolidation | hybrid | digest | hnsw·nb1·k=10 | 0.72 | 0.752 | 1422 | 26.6 | 745.3 | 40 |
+| stele-sweep | D:consolidation+cascade_a+facts | consolidation | cascade_a | facts | hnsw·nb1·k=10 | 0.72 | 0.566 | 1674 | 50.4 | 545.5 | 40 |
+| stele-sweep | D:consolidation+cascade_b+facts | consolidation | cascade_b | facts | hnsw·nb1·k=10 | 0.72 | 0.734 | 1749 | 45.3 | 884.6 | 40 |
+| stele-sweep | D:consolidation+cascade_b+digest | consolidation | cascade_b | digest | hnsw·nb1·k=10 | 0.65 | 0.734 | 1449 | 45.3 | 881.8 | 40 |
 | stele-sweep | B:keyword+facts | sentence_aware | keyword | facts | hnsw·nb1·k=10 | 0.17 | 0.2 | 245 | 2.1 | 310.9 | 40 |
+| stele-sweep | D:fixed_overlap+keyword+facts | fixed_overlap | keyword | facts | hnsw·nb1·k=10 | 0.17 | 0.2 | 245 | 4.1 | 312.8 | 40 |
+| stele-sweep | D:consolidation+keyword+facts | consolidation | keyword | facts | hnsw·nb1·k=10 | 0.17 | 0.2 | 245 | 2.1 | 271.3 | 40 |
+| stele-sweep | D:enriching+keyword+facts | enriching | keyword | facts | hnsw·nb1·k=10 | 0.17 | 0.2 | 245 | 2.1 | 272.1 | 40 |
 | stele-sweep | B:keyword+raw | sentence_aware | keyword | raw | hnsw·nb1·k=10 | 0.15 | 0.2 | 50 | 2.1 | 230.4 | 40 |
 | stele-sweep | B:keyword+digest | sentence_aware | keyword | digest | hnsw·nb1·k=10 | 0.15 | 0.2 | 194 | 2.1 | 312.1 | 40 |
+| stele-sweep | D:fixed_overlap+keyword+raw | fixed_overlap | keyword | raw | hnsw·nb1·k=10 | 0.15 | 0.2 | 50 | 4.1 | 231.1 | 40 |
+| stele-sweep | D:consolidation+keyword+raw | consolidation | keyword | raw | hnsw·nb1·k=10 | 0.15 | 0.2 | 50 | 2.1 | 240.0 | 40 |
+| stele-sweep | D:consolidation+keyword+digest | consolidation | keyword | digest | hnsw·nb1·k=10 | 0.15 | 0.2 | 194 | 2.1 | 268.1 | 40 |
+| stele-sweep | D:enriching+keyword+raw | enriching | keyword | raw | hnsw·nb1·k=10 | 0.15 | 0.2 | 50 | 2.1 | 229.3 | 40 |
+| stele-sweep | D:fixed_overlap+keyword+digest | fixed_overlap | keyword | digest | hnsw·nb1·k=10 | 0.12 | 0.2 | 194 | 4.1 | 282.4 | 40 |
+| stele-sweep | D:enriching+keyword+digest | enriching | keyword | digest | hnsw·nb1·k=10 | 0.12 | 0.2 | 194 | 2.1 | 251.8 | 40 |
 | letta-agent | (memory) | — | — | — | — | 0.00 | — | — | — | — | 20 |
 
 
@@ -241,10 +296,18 @@ memories are abstractive, shown as a dash) · `~tokens` ≈ ctx_chars/4 (cost ax
 
 | system | lane | chunker | retrieval | packing | knobs | jscore | mrr | ~tokens | retr_ms | ans_ms | n |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| stele-sweep | D:enriching+cascade_a+digest | enriching | cascade_a | digest | hnsw·nb1·k=10 | 0.80 | 0.85 | 2000 | 89.4 | 1130.0 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_a+digest | fixed_overlap | cascade_a | digest | hnsw·nb1·k=10 | 0.78 | 0.838 | 1984 | 43.0 | 1173.8 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_a+facts | fixed_overlap | cascade_a | facts | hnsw·nb1·k=10 | 0.78 | 0.838 | 2274 | 43.0 | 976.4 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_b+digest | fixed_overlap | cascade_b | digest | hnsw·nb1·k=10 | 0.78 | 0.85 | 1999 | 45.9 | 842.4 | 40 |
+| stele-sweep | D:enriching+cascade_b+digest | enriching | cascade_b | digest | hnsw·nb1·k=10 | 0.78 | 0.85 | 2000 | 41.4 | 993.7 | 40 |
 | stele-sweep | A:fixed_overlap+digest | fixed_overlap | hybrid | digest | hnsw·nb1·k=10 | 0.75 | 0.85 | 1999 | 43.0 | 1211.2 | 40 |
 | stele-sweep | A:fixed_overlap+facts | fixed_overlap | hybrid | facts | hnsw·nb1·k=10 | 0.75 | 0.85 | 2289 | 43.0 | 952.3 | 40 |
 | stele-sweep | A:enriching+digest | enriching | hybrid | digest | hnsw·nb1·k=10 | 0.75 | 0.85 | 2000 | 31.3 | 1212.5 | 40 |
 | stele-sweep | A:enriching+facts | enriching | hybrid | facts | hnsw·nb1·k=10 | 0.75 | 0.85 | 2292 | 31.3 | 1026.9 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_a+raw | fixed_overlap | cascade_a | raw | hnsw·nb1·k=10 | 0.75 | 0.838 | 648 | 43.0 | 859.7 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_b+facts | fixed_overlap | cascade_b | facts | hnsw·nb1·k=10 | 0.75 | 0.85 | 2290 | 45.9 | 839.6 | 40 |
+| stele-sweep | D:enriching+cascade_a+facts | enriching | cascade_a | facts | hnsw·nb1·k=10 | 0.75 | 0.85 | 2292 | 89.4 | 905.8 | 40 |
 | stele-sweep | A:sentence_aware+raw | sentence_aware | hybrid | raw | hnsw·nb1·k=10 | 0.72 | 0.825 | 1309 | 31.4 | 1096.2 | 40 |
 | stele-sweep | A:sentence_aware+facts | sentence_aware | hybrid | facts | hnsw·nb1·k=10 | 0.72 | 0.825 | 3178 | 31.4 | 921.7 | 40 |
 | stele-sweep | A:consolidation+raw | consolidation | hybrid | raw | hnsw·nb1·k=10 | 0.72 | 0.461 | 490 | 32.9 | 793.2 | 40 |
@@ -257,15 +320,34 @@ memories are abstractive, shown as a dash) · `~tokens` ≈ ctx_chars/4 (cost ax
 | stele-sweep | C:hints-expanded+digest | sentence_aware | hybrid | digest (expanded hints) | hnsw·nb1·k=10 | 0.72 | 0.825 | 2873 | 31.4 | 1375.8 | 40 |
 | stele-sweep | C:hints-expanded+facts | sentence_aware | hybrid | facts (expanded hints) | hnsw·nb1·k=10 | 0.72 | 0.825 | 3178 | 31.4 | 998.8 | 40 |
 | stele-sweep | raw_fetch | sentence_aware | (whole doc) | raw | — | 0.72 | 0.85 | 568 | 0.0 | 882.6 | 40 |
+| stele-sweep | D:enriching+cascade_a+raw | enriching | cascade_a | raw | hnsw·nb1·k=10 | 0.72 | 0.85 | 658 | 89.4 | 807.0 | 40 |
+| stele-sweep | D:enriching+cascade_b+facts | enriching | cascade_b | facts | hnsw·nb1·k=10 | 0.72 | 0.85 | 2292 | 41.4 | 891.1 | 40 |
 | stele-sweep | A:fixed_overlap+raw | fixed_overlap | hybrid | raw | hnsw·nb1·k=10 | 0.70 | 0.85 | 657 | 43.0 | 919.3 | 40 |
 | stele-sweep | A:sentence_aware+digest | sentence_aware | hybrid | digest | hnsw·nb1·k=10 | 0.70 | 0.825 | 2873 | 31.4 | 1474.7 | 40 |
 | stele-sweep | A:consolidation+facts | consolidation | hybrid | facts | hnsw·nb1·k=10 | 0.70 | 0.461 | 1546 | 32.9 | 745.2 | 40 |
+| stele-sweep | D:fixed_overlap+cascade_b+raw | fixed_overlap | cascade_b | raw | hnsw·nb1·k=10 | 0.70 | 0.85 | 658 | 45.9 | 746.9 | 40 |
+| stele-sweep | D:consolidation+cascade_a+digest | consolidation | cascade_a | digest | hnsw·nb1·k=10 | 0.70 | 0.397 | 1192 | 45.9 | 861.7 | 40 |
+| stele-sweep | D:consolidation+cascade_b+raw | consolidation | cascade_b | raw | hnsw·nb1·k=10 | 0.70 | 0.447 | 493 | 47.7 | 721.6 | 40 |
+| stele-sweep | D:enriching+cascade_b+raw | enriching | cascade_b | raw | hnsw·nb1·k=10 | 0.70 | 0.85 | 658 | 41.4 | 700.4 | 40 |
 | stele-sweep | B:cascade_b+facts | sentence_aware | cascade_b | facts | hnsw·nb1·k=10 | 0.68 | 0.812 | 3232 | 49.9 | 820.3 | 40 |
 | stele-sweep | C:hints-none+digest | sentence_aware | hybrid | digest (none hints) | hnsw·nb1·k=10 | 0.68 | 0.825 | 2873 | 31.4 | 824.7 | 40 |
 | stele-sweep | C:hints-none+facts | sentence_aware | hybrid | facts (none hints) | hnsw·nb1·k=10 | 0.68 | 0.825 | 3178 | 31.4 | 724.2 | 40 |
+| stele-sweep | D:consolidation+cascade_a+facts | consolidation | cascade_a | facts | hnsw·nb1·k=10 | 0.68 | 0.397 | 1405 | 45.9 | 706.6 | 40 |
+| stele-sweep | D:consolidation+cascade_b+digest | consolidation | cascade_b | digest | hnsw·nb1·k=10 | 0.68 | 0.447 | 1315 | 47.7 | 991.0 | 40 |
 | stele-sweep | A:consolidation+digest | consolidation | hybrid | digest | hnsw·nb1·k=10 | 0.65 | 0.461 | 1311 | 32.9 | 926.2 | 40 |
+| stele-sweep | D:consolidation+cascade_a+raw | consolidation | cascade_a | raw | hnsw·nb1·k=10 | 0.65 | 0.397 | 407 | 45.9 | 729.2 | 40 |
+| stele-sweep | D:consolidation+cascade_b+facts | consolidation | cascade_b | facts | hnsw·nb1·k=10 | 0.65 | 0.447 | 1545 | 47.7 | 703.3 | 40 |
+| stele-sweep | D:fixed_overlap+keyword+raw | fixed_overlap | keyword | raw | hnsw·nb1·k=10 | 0.35 | 0.25 | 55 | 4.5 | 342.5 | 40 |
+| stele-sweep | D:fixed_overlap+keyword+digest | fixed_overlap | keyword | digest | hnsw·nb1·k=10 | 0.35 | 0.25 | 233 | 4.5 | 419.1 | 40 |
+| stele-sweep | D:fixed_overlap+keyword+facts | fixed_overlap | keyword | facts | hnsw·nb1·k=10 | 0.35 | 0.25 | 288 | 4.5 | 421.8 | 40 |
+| stele-sweep | D:consolidation+keyword+raw | consolidation | keyword | raw | hnsw·nb1·k=10 | 0.35 | 0.25 | 55 | 2.1 | 326.2 | 40 |
+| stele-sweep | D:consolidation+keyword+digest | consolidation | keyword | digest | hnsw·nb1·k=10 | 0.35 | 0.25 | 233 | 2.1 | 403.9 | 40 |
+| stele-sweep | D:consolidation+keyword+facts | consolidation | keyword | facts | hnsw·nb1·k=10 | 0.35 | 0.25 | 288 | 2.1 | 378.2 | 40 |
+| stele-sweep | D:enriching+keyword+raw | enriching | keyword | raw | hnsw·nb1·k=10 | 0.35 | 0.25 | 55 | 2.1 | 322.6 | 40 |
+| stele-sweep | D:enriching+keyword+digest | enriching | keyword | digest | hnsw·nb1·k=10 | 0.35 | 0.25 | 233 | 2.1 | 405.1 | 40 |
 | stele-sweep | B:keyword+raw | sentence_aware | keyword | raw | hnsw·nb1·k=10 | 0.33 | 0.25 | 55 | 2.2 | 353.6 | 40 |
 | stele-sweep | B:keyword+digest | sentence_aware | keyword | digest | hnsw·nb1·k=10 | 0.33 | 0.25 | 233 | 2.2 | 489.0 | 40 |
+| stele-sweep | D:enriching+keyword+facts | enriching | keyword | facts | hnsw·nb1·k=10 | 0.33 | 0.25 | 288 | 2.1 | 374.3 | 40 |
 | stele-sweep | B:keyword+facts | sentence_aware | keyword | facts | hnsw·nb1·k=10 | 0.30 | 0.25 | 288 | 2.2 | 423.6 | 40 |
 | letta-agent | (memory) | — | — | — | — | 0.00 | — | — | — | — | 20 |
 
