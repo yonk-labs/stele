@@ -1,0 +1,500 @@
+{
+  "system": "letta-agent",
+  "model": "openai/gpt-5-mini",
+  "tally": {
+    "locomo": {
+      "ok": 0,
+      "n": 20
+    },
+    "ragbench-hotpotqa": {
+      "ok": 0,
+      "n": 20
+    },
+    "ragbench-covidqa": {
+      "ok": 0,
+      "n": 20
+    }
+  },
+  "rows": [
+    {
+      "q": "When did Caroline go to the LGBTQ support group?",
+      "gold": "7 May 2023",
+      "answer": "I don't have enough information in my archival memory about when Caroline went to the LGBTQ support group.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "When did Melanie paint a sunrise?",
+      "gold": "2022",
+      "answer": "I don't have enough information in my archival memory about when Melanie painted a sunrise.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "What fields would Caroline be likely to pursue in her educaton?",
+      "gold": "Psychology, counseling certification",
+      "answer": "I don't have enough information in my archival memory to say which fields Caroline would likely pursue in her education.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "What did Caroline research?",
+      "gold": "Adoption agencies",
+      "answer": "I don't have enough information in my archival memory about what Caroline researched.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "What is Caroline's identity?",
+      "gold": "Transgender woman",
+      "answer": "I don't have enough information in my archival memory about Caroline's identity.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "When did Melanie run a charity race?",
+      "gold": "The sunday before 25 May 2023",
+      "answer": "I don't have enough information in my archival memory about when Melanie ran a charity race.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "When is Melanie planning on going camping?",
+      "gold": "June 2023",
+      "answer": "I don't have enough information in my archival memory about when Melanie is planning on going camping.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "What is Caroline's relationship status?",
+      "gold": "Single",
+      "answer": "I don't have enough information in my archival memory about Caroline's relationship status.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "When did Caroline give a speech at a school?",
+      "gold": "The week before 9 June 2023",
+      "answer": "I don't have enough information in my archival memory about when Caroline gave a speech at a school.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "When did Caroline meet up with her friends, family, and mentors?",
+      "gold": "The week before 9 June 2023",
+      "answer": "I don't have enough information in my archival memory about when Caroline met up with her friends, family, and mentors.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-26"
+    },
+    {
+      "q": "When Jon has lost his job as a banker?",
+      "gold": "19 January, 2023",
+      "answer": "I don't have enough information in my archival memory about when Jon lost his job as a banker.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "When Gina has lost her job at Door Dash?",
+      "gold": "January, 2023",
+      "answer": "I don't have enough information in my archival memory about when Gina lost her job at DoorDash.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "How do Jon and Gina both like to destress?",
+      "gold": "by dancing",
+      "answer": "I don't have enough information in my archival memory about how Jon and Gina like to destress.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "What do Jon and Gina both have in common?",
+      "gold": "They lost their jobs and decided to start their own businesses.",
+      "answer": "I don't have enough information in my archival memory about Jon and Gina to determine what they have in common.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "Why did Jon decide to start his dance studio?",
+      "gold": "He lost his job and decided to start his own business to share his passion.",
+      "answer": "I don't have enough information in my archival memory about why Jon decided to start his dance studio.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "What Jon thinks the ideal dance studio should look like?",
+      "gold": "By the water, with natural light and Marley flooring",
+      "answer": "I don't have enough information in my archival memory about what Jon thinks an ideal dance studio should look like.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "When is Jon's group performing at a festival?",
+      "gold": "February, 2023",
+      "answer": "I don't have enough information in my archival memory about when Jon's group is performing at a festival.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "When did Gina launch an ad campaign for her store?",
+      "gold": "29 January, 2023",
+      "answer": "I don't have enough information in my archival memory about when Gina launched an ad campaign for her store.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "When was Jon in Paris?",
+      "gold": "28 January 2023",
+      "answer": "I don't have enough information in my archival memory about when Jon was in Paris.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "Which city have both Jean and John visited?",
+      "gold": "Rome",
+      "answer": "I don't have enough information in my archival memory about which city both Jean and John visited.",
+      "correct": false,
+      "corpus": "locomo",
+      "unit": "conv-30"
+    },
+    {
+      "q": "Which university did one of the key figures in the American documentary film, released in 2015, directed by Malcolm Ingram, pay for, before being drafted 18th overall pick for the New Jersey Nets?",
+      "gold": "One of the key figures in the American documentary film, released in 2015, directed by Malcolm Ingram, played college basketball for Stanford University before being drafted 18th overall pick for the New Jersey Nets.",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5abe65e25542993f32c2a101"
+    },
+    {
+      "q": "Were both L\u00e9opold Eyharts and Ulrich Walter a General in the French Air Force? ",
+      "gold": "No, only L\u00e9opold Eyharts was a General in the French Air Force. Ulrich Walter was a German physicist/engineer and a former DFVLR astronaut, not a General in the French Air Force.",
+      "answer": "I don't have enough information in my archival memory to answer.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5a83093c55429966c78a6b01"
+    },
+    {
+      "q": "Which music group has the most members, DC Talk, or Manchester Orchestra?",
+      "gold": "DC Talk has three members, while Manchester Orchestra has four members, so Manchester Orchestra has the most members.",
+      "answer": "I don't have enough information in my archival memory.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5ae151985542990adbacf74d"
+    },
+    {
+      "q": "Eddie Jemison had a role in the television series \"IZombie\", which premiered on what date?",
+      "gold": "March 17, 2015",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5add813e5542992200553b46"
+    },
+    {
+      "q": "Consider the band formed in 2015 by JYP Entertainment through the reality show \"Sixteen\". How many tracks are on the reissue of their third album?",
+      "gold": "The band formed in 2015 by JYP Entertainment through the reality show \"Sixteen\" is Twice. The reissue of their third album, \"Twicecoaster: Lane 2\", contains 13 tracks.",
+      "answer": "I don't have enough information in my archival memory.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5a7af8fa55429927d897bf25"
+    },
+    {
+      "q": "What three categories does income get levied under the Parliament of Australia's tax code?",
+      "gold": "Income tax in Australia is levied upon three sources of income for individual taxpayers: \"personal earnings\" (such as salary and wages), \"business income\" and \"capital gains\".",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5ae28b76554299495565daa8"
+    },
+    {
+      "q": "What city did the author of \"Portraits and Prayers\" choose to live in after moving to France?",
+      "gold": "The author of \"Portraits and Prayers,\" Gertrude Stein, chose to live in Paris after moving to France.",
+      "answer": "I don't have enough information in my archival memory about the author of \"Portraits and Prayers\" or the city they chose to live in after moving to France.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5a8a484f5542996c9b8d5e94"
+    },
+    {
+      "q": "Are both Frank Lloyd and Olivier Assayas American film directors?",
+      "gold": "No, Frank Lloyd is an American film director, while Olivier Assayas is a French film director.",
+      "answer": "I don't have enough information in my archival memory to answer.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5ae3281a5542991a06ce9939"
+    },
+    {
+      "q": "Which founder of Alcatraz East was born on March 31, 1956?",
+      "gold": "John Morgan is the founder of Alcatraz East and was born on March 31, 1956.",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5ae76c625542997ec272763e"
+    },
+    {
+      "q": "Which magazine was first published earlier, The Chronicle of Philanthropy or Skeptic?",
+      "gold": "Skeptic magazine was first published earlier in the spring of 1992, while The Chronicle of Philanthropy was founded in 1988. Therefore, The Chronicle of Philanthropy was published earlier.",
+      "answer": "I don't have enough information in my archival memory to answer which was published earlier.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5a793ea55542994bb9456fce"
+    },
+    {
+      "q": "How many personnel does the Navy that had Gilliam-class atttack transports have on active duty?",
+      "gold": "The U.S. Navy has 322,421 personnel on active duty.",
+      "answer": "I don't have enough information in my archival memory.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5ac2c338554299657fa29039"
+    },
+    {
+      "q": "Are Billy and Barak both breeds of scenthound? (Barak is also known as a Bosnian Coarse-haired Hound)",
+      "gold": "Yes, both Billy and Barak (also known as Bosnian Coarse-haired Hound) are breeds of scenthounds.",
+      "answer": "I don't have enough information in my archival memory to answer whether both are scenthounds.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5a8173fa554299260e20a28e"
+    },
+    {
+      "q": "Socialist conferences were held with what countries that opposed the Central Powers in the First World War?",
+      "gold": "The socialist conferences were held with the socialist parties of the countries that opposed the Central Powers in the First World War, specifically the Entente or Allied powers.",
+      "answer": "I don't have enough information in my archival memory.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5add15d15542994ed6169c70"
+    },
+    {
+      "q": "What  unincorporated town along the Amargosa River is near the Sarcobatus Flat?",
+      "gold": "Beatty",
+      "answer": "I don't have enough information in my archival memory to answer.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5ab701395542991d3222373a"
+    },
+    {
+      "q": "What Manchester United and Portuguese national winger scored a goal in the 2009 FA Community Shield?",
+      "gold": "Nani scored a goal for Manchester United in the 2009 FA Community Shield.",
+      "answer": "I don't have enough information in my archival memory to answer.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5a82e36255429940e5e1a93b"
+    },
+    {
+      "q": "Manchester, New Hampshire is a part of the Northeast megalopolis which included what other major cities?",
+      "gold": "The Northeast megalopolis includes the major cities of Boston, Providence, Hartford, New York City, Philadelphia, Wilmington, Baltimore, and Washington, D.C.",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5ade450b5542997c77adedc5"
+    },
+    {
+      "q": "Telos was an album by a band who formed in what city?",
+      "gold": "Telos was an album by the band Forevermore, who formed in Indianapolis, Indiana.",
+      "answer": "I don't have enough information in my archival memory to answer.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5a8f0a01554299458435d539"
+    },
+    {
+      "q": "Which item spanned farther distances regarding sales, Interact Home Computer or Sord M5?",
+      "gold": "The Sord M5 spanned farther distances regarding sales, being sold in Japan, the United Kingdom, Czechoslovakia, and South Korea. The Interact Home Computer was only sold in the United States and Canada.",
+      "answer": "I don't have enough information in my archival memory to answer which spanned farther distances in sales between the Interact Home Computer and the Sord M5.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5ab73de755429928e1fe383b"
+    },
+    {
+      "q": "What national team has the brother of Arturas Javtokas been a member of since 2004?",
+      "gold": "The brother of Art\u016bras Javtokas, Robertas Javtokas, has been a member of the senior men's Lithuanian national basketball team since 2004.",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5ac1928655429964131be234"
+    },
+    {
+      "q": "What does Age of Chance and Vector share in common? ",
+      "gold": "Both Age of Chance and Vector are musical bands.",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-hotpotqa",
+      "unit": "5abd455c55429924427fcf5a"
+    },
+    {
+      "q": "Which viruses may not cause prolonged inflammation due to strong induction of antiviral clearance?",
+      "gold": "The viruses that may not cause prolonged inflammation due to strong induction of antiviral clearance are murine norovirus, human astrovirus, and murine cytomegalovirus.",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1421"
+    },
+    {
+      "q": "When was the first case of COVID-19 identified?",
+      "gold": "The first cases of COVID-19 were identified in the WHO European Region between 24 January and 21 February 2020.",
+      "answer": "I don't have enough information in my archival memory to answer.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "677"
+    },
+    {
+      "q": "How many antigens could be detected by Liew's multiplex ELISA test?",
+      "gold": "Liew's multiplex ELISA test could detect 9 antigens.",
+      "answer": "I don't have enough information in my archival memory about Liew's multiplex ELISA test.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "39"
+    },
+    {
+      "q": "What is the structure of Hantaan virus?",
+      "gold": "The structure of Hantaan virus is spherical or ovoid, composed of 20-30% fat, >50% protein, 7% carbohydrates, and 2% RNA. The genome comprises three negative sense, single-stranded RNAs that consist of the small, medium, and large segments encoding the nucleoprotein, envelope glycoproteins, and viral RNA-dependent RNA polymerase, respectively. The outer membrane of Hantaan virus is composed of Gn and Gc glycoproteins.",
+      "answer": "I don't have enough information in my archival memory about the structure of Hantaan virus.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1468"
+    },
+    {
+      "q": "How many people did SARS-CoV infect?",
+      "gold": "SARS-CoV infected 8098 reported cases and 774 deaths in 37 countries before the epidemic was controlled.",
+      "answer": "I don't have relevant archival memory about the total number infected by SARS-CoV.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "798"
+    },
+    {
+      "q": "What was the focus of the study?",
+      "gold": "The focus of the study was to investigate community responses to communication campaigns for influenza A (H1N1) and to provide evidence-based practical information to guide the development and delivery of key health messages for H1N1 and other health campaigns. The study specifically focused on the responses of different target groups, including M\u0101ori, Pacific Peoples, children, general population, and vulnerable people with chronic conditions, to the key health messages in the 2009 and 2010 H1N1 campaigns.",
+      "answer": "I don't have enough information in my archival memory to answer \u2014 no relevant records found about \"the study.\"",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1301"
+    },
+    {
+      "q": "What contributed to a large part of mammalian genomic sequence?",
+      "gold": "The syntenic whole-genome alignments produced by the MULTIZ program contributed to a large part of the mammalian genomic sequence.",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1047"
+    },
+    {
+      "q": "What is severe MARS noted for?",
+      "gold": "Severe ARDS (acute respiratory distress syndrome) is noted for requiring adjunctive therapies such as prone positioning, inhaled nitric oxide, and extracorporeal circulation membrane oxygenation.",
+      "answer": "I don't have enough information in my archival memory about \"severe MARS.\"",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1191"
+    },
+    {
+      "q": "What animal models exist for both the asymptomatic carriage of PUUV and SNV?",
+      "gold": "Animal models exist for both the asymptomatic carriage of PUUV and SNV in the bank vole Myodes glareolus and the deer mouse P. maniculatus.",
+      "answer": "I don't have enough information in my archival memory about animal models that show asymptomatic carriage for both Puumala virus (PUUV) and Sin Nombre virus (SNV).",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "635"
+    },
+    {
+      "q": "What does Clade A contain?",
+      "gold": "Clade A contains 1,889 viruses from 34 countries collected from 2010 to the present.",
+      "answer": "I don't have enough information in my archival memory about \"Clade A.\"",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1248"
+    },
+    {
+      "q": "What is  an example of anti-viral defense in bats?",
+      "gold": "One example of an anti-viral defense in bats is the interferon pathway, which is perpetually switched on in some bat species, helping to keep viral infections in check.",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1121"
+    },
+    {
+      "q": "What could be novel candidates as potent inhibitors of papain like cysteine proteases in resistant microorganisms?",
+      "gold": "1-substituted pyridylimidazopyridine derivatives could be novel candidates as potent inhibitors of papain like cysteine proteases in resistant microorganisms.",
+      "answer": "I don't have enough information in my archival memory to answer this. Would you like a concise literature-based summary (I can search current literature for novel candidate classes, e.g., vinyl sulfones, epoxysuccinyl inhibitors, peptidyl nitriles, aza-peptidyl ketones, reversible covalent inhibitors, small-molecule noncovalent scaffolds, natural product alkaloids/flavonoids) instead?",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "67"
+    },
+    {
+      "q": "What are exhibited in the two phases?",
+      "gold": "The RNA is exhibited in the bottom, complex-enriched phase in one of the two phases.",
+      "answer": "I don't have enough information in my archival memory to answer \u2014 there are no relevant records about \"the two phases.\" Please provide the full context or the passage/question you're referring to.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1077"
+    },
+    {
+      "q": "How was HFRS  first brought to the attention of western medicine ?",
+      "gold": "HFRS was first brought to the attention of western medicine in association with an outbreak that occurred among United Nations troops during the Korean conflict between 1951 and 1954, where more than 3,200 soldiers were afflicted.",
+      "answer": "I don't have enough information in my archival memory about how HFRS was first brought to the attention of Western medicine.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "585"
+    },
+    {
+      "q": "What has been the application of phage display technology?",
+      "gold": "The application of phage display technology has been the production of protein libraries, specific binder screening with biopanning, and the modification of the filamentous phage genome to display polypeptides as fusions to coat proteins on the virion surface.",
+      "answer": "I don't have enough information in my archival memory about the applications of phage display technology.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "736"
+    },
+    {
+      "q": "Are the modern day Influenza viruses related to the 1918 Spanish Influenza virus?",
+      "gold": "Based on the given context, it is suggested that modern day Influenza viruses may be related to the 1918 Spanish Influenza virus. The passages mention the origin and evolution of the 1918 influenza virus, and also discuss the possibility of a 1918-like virus circulating in Europe and North America in the 19th century. Furthermore, there is a question posed about whether a 1918-like pandemic could appear again, indicating a potential relation between the 1918 virus and modern day Influenza viruses.",
+      "answer": "I don't have enough information in my archival memory to answer.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1628"
+    },
+    {
+      "q": "In how many cases the symptoms at diagnosis were consistent with the case definition for acute respiratory infection?",
+      "gold": "The passage mentions that there were 323 persons who met the pneumonia case definition in the previous year, with almost all of them reporting self-reported cough and difficulty breathing for at least two days, and 2% reported only a physician's diagnosis of pneumonia. This means that in 98% of the cases (323 - 2), the symptoms at diagnosis were consistent with the case definition for acute respiratory infection.",
+      "answer": "I don't have enough information in my archival memory to answer that question.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1560"
+    },
+    {
+      "q": "Which may be an occupational group with significantly higher incidence of seropositivity to MERS-CoV ?",
+      "gold": "DCs (dromedary camels) may be an occupational group with significantly higher incidence of seropositivity to MERS-CoV.",
+      "answer": "I don't have enough information in my archival memory to answer that.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1227"
+    },
+    {
+      "q": "Is there an Influenza vaccine?",
+      "gold": "Yes, there is an Influenza vaccine, and there are also considerations for human influenza vaccination and approaches being taken to improve current limitations of influenza vaccines. You can find more information on Virus-Vectored Influenza Virus Vaccines at the provided link.",
+      "answer": "I don't have enough information in my archival memory.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "1756"
+    },
+    {
+      "q": "What is a future potential of filamentous phage?",
+      "gold": "A potential future use of filamentous phage is as elements of combination therapeutics against certain drug-resistant infections.",
+      "answer": "I don't have enough information in my archival memory about \"filamentous phage\" to answer.",
+      "correct": false,
+      "corpus": "ragbench-covidqa",
+      "unit": "766"
+    }
+  ]
+}
