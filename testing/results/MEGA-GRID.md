@@ -1,7 +1,64 @@
 # Mega benchmark grid — every lane x corpus (post-fix)
 
-jscore = Mem0 jscore (gemma@133, abstention=wrong) · mrr = recip. rank of first chunk with gold (stele only; competitor memories are abstractive) · tokens ≈ ctx_chars/4 · retr/ans_ms = latency.
+## How to read this grid
 
+Each row is one **recipe** (a "lane") run against one **corpus**, scored on the same
+questions by the same judge. Higher `jscore` = more right answers; lower `~tokens` =
+cheaper context. The only hard part is decoding the lane name — it's shorthand for a
+few choices.
+
+### `system` — who produced the row
+
+| name | what it is |
+|---|---|
+| `stele-highN` | stele, the **confident** runs (n≈250). These are the numbers to trust. |
+| `stele-sweep` | stele, a wide **exploratory** sweep (n=40). Directional only — small samples flip. |
+| `letta-archival` | [Letta](https://github.com/letta-ai/letta) (a competitor) in its archival-memory mode. |
+| `letta-agent` | Letta in agent mode — an **interrupted** n=20 run that scored 0.00. Kept as a record, *not* a fair number. |
+| `mem0-local` | [Mem0](https://github.com/mem0ai/mem0) (a competitor), using a local LLM to boil docs down to atomic facts. |
+| `PARAMETRIC-FLOOR` | The control: answer with **no memory at all**. Whatever the model scores here it already knew — subtract it before believing any row. |
+
+### `lane` — the recipe
+
+A lane name encodes **chunker → retrieval → packing** (plus a couple of knobs). The pieces:
+
+**Chunker** — how a document is sliced before indexing:
+- `sentence_aware` — split on sentence boundaries (~1000 chars) — the default
+- `fixed_overlap` — blind fixed-size windows with overlap
+- `consolidation` / `enriching` — squeeze the doc into extracted facts (aggressive)
+
+**Retrieval** — how chunks are picked for a question:
+- `hybrid` — vector + keyword fused via RRF — the default
+- `keyword` — keyword / full-text only (the *old* default — note how close it sits to the floor)
+- `cascade_a` — keyword-first, then re-rank survivors by vector similarity
+- `cascade_b` — vector-first, then re-rank survivors by keyword
+- `raw_fetch` — skip retrieval, feed the **whole document** (the ceiling)
+
+**Packing** — how the picked chunks are formatted for the model:
+- `raw` — the chunks, verbatim
+- `digest` — a query-focused summary + the top-5 chunks
+- `facts` — `digest` plus an extracted fact list
+- `digest_mix` — `digest` + facts + top-3 raw chunks (the kitchen sink)
+
+**Knobs:** `hnsw` = approximate vector index (default) vs `exact` = brute-force scan ·
+`nb1`/`nb0` = neighbor window on/off (whether each chunk drags its neighbors along) ·
+`k=N` = how many chunks were fed to the model.
+
+Putting it together: `hybrid_raw_hnsw` = hybrid retrieval + raw chunks + HNSW index (the
+default recipe) · `nb0_k=10` = neighbor off, top-10 chunks · `A:sentence_aware+facts` =
+sweep family A (chunker × packing) · `(memory)` = a competitor's own store (they only
+expose one lane).
+
+### Columns
+
+| column | meaning |
+|---|---|
+| `jscore` | fraction of answers the judge marked correct (gemma-4-26B, Mem0's prompt, **abstention = wrong**). The accuracy number, 0–1. |
+| `mrr` | how near the top the *right* chunk ranked (1/rank, averaged). stele-only — competitor memories are rewritten, so there's no chunk to rank (`—`). |
+| `~tokens` | context size fed to the model (chars ÷ 4). The cost axis. |
+| `retr_ms` | retrieval latency (ms). `0.0` for `raw_fetch` — nothing to retrieve. |
+| `ans_ms` | answer-generation latency (ms). |
+| `n` | number of questions in that cell. |
 
 ## locomo
 
