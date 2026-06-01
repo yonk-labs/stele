@@ -18,6 +18,7 @@ their documented ctor param into ``dsn``.
 from __future__ import annotations
 
 import logging
+import re
 from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -31,8 +32,24 @@ from stele.retrieval.rank import keyword_score, snippet_around
 if TYPE_CHECKING:
     import numpy as np
 
-_DEFAULT_DIM = 384
+_DEFAULT_DIM = 768  # bge-base-en-v1.5
 _PIP_HINT = "pip install 'stele-core[chunkshop]'"
+
+
+def _resolve_embed_dim(model_name: str) -> int:
+    """Native output dim for a fastembed model (so callers don't hand-set it)."""
+    try:
+        from fastembed import TextEmbedding
+
+        for m in TextEmbedding.list_supported_models():
+            if m["model"] == model_name:
+                return int(m["dim"])
+    except Exception:  # pragma: no cover - fastembed optional/env-dependent
+        pass
+    return _DEFAULT_DIM
+# A consolidator that resolves relative dates emits "[date: 2023-05-05]" (ISO,
+# or a bare year) in the fact span; we lift it into a filterable fact_date field.
+_FACT_DATE = re.compile(r"\[date:\s*(\d{4}(?:-\d{2}-\d{2})?)\]")
 
 _logger = logging.getLogger("stele.retrieval")
 
@@ -69,7 +86,8 @@ def _warn_vector_recall_shortfall(
 
 
 def _assert_no_pii(text: str) -> None:
-    """Defensive write-boundary check. Text must already be scrubbed."""
+    """Backstop: when the store expects scrubbed input, raw PII reaching the
+    write boundary is a bug upstream — fail loud."""
     for pattern in DEFAULT_PATTERNS:
         if pattern.pattern.search(text):
             raise BackendError(
@@ -98,18 +116,24 @@ class ChunkshopChunkStore:
             ConsolidationChunker,
             FastembedEmbedder,
             FixedOverlapChunker,
+            NeighborExpandChunker,
+            SentenceAwareChunker,
             TargetConfig,
         )
         from chunkshop.embedders import load_embedder
         from chunkshop.sinks import load_sink
 
         self._config = config
+        # Whether this store expects already-scrubbed text (so the no-PII
+        # backstop fires). The facade sets it to pii.enabled; raw direct
+        # construction defaults to expecting scrubbed (fail-loud) for safety.
+        self._expect_scrubbed = True
         self._sim: Literal["cosine", "ip", "l2"] = config.similarity
-        dim = config.vector_dim or _DEFAULT_DIM
+        dim = config.vector_dim or _resolve_embed_dim(config.embed_model)
         self._embedder = load_embedder(
             FastembedEmbedder(
                 type="fastembed",
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_name=config.embed_model,
                 dim=dim,
             )
         )
@@ -135,15 +159,37 @@ class ChunkshopChunkStore:
                     fact_max_chars=config.fact_max_chars,
                 )
             )
+        elif config.chunker == "sentence_aware":
+            # Full-sentence boundaries (never mid-sentence); optional ±N
+            # neighbor expansion gives each chunk surrounding-sentence context.
+            sent_cfg = SentenceAwareChunker(
+                type="sentence_aware",
+                max_chars=config.sentence_max_chars,
+                min_chars=config.sentence_min_chars,
+            )
+            if config.neighbor_window > 0:
+                self._chunker = load_chunker(
+                    NeighborExpandChunker(
+                        type="neighbor_expand",
+                        base=sent_cfg,
+                        window=config.neighbor_window,
+                    )
+                )
+            else:
+                self._chunker = load_chunker(sent_cfg)
         else:
             self._chunker = load_chunker(base_chunker_cfg)
+        # Wire the configured similarity to the sink (was silently ignored —
+        # the sink always used its 'cosine' default). stele 'ip' == 'inner_product'.
+        _metric = {"cosine": "cosine", "ip": "inner_product", "l2": "l2"}[self._sim]
         target = TargetConfig(
             type=self._target_type,
             dsn=dsn,
             database="stele",
             table=table,
-            hnsw=True,
+            hnsw=config.hnsw,
             mode="overwrite",
+            vector_metric=_metric,
         )
         self._sink = load_sink(target, self._embedder.dim)
         self._sink.create_table()
@@ -169,15 +215,20 @@ class ChunkshopChunkStore:
         )
         if not chunks:
             return 0
-        for chunk in chunks:
-            _assert_no_pii(chunk.original_content)
+        if self._expect_scrubbed:
+            for chunk in chunks:
+                _assert_no_pii(chunk.original_content)
         embeddings = self._embedder.embed([c.embedded_content for c in chunks])
         self._sink.write_document(
             artifact.artifact_id, chunks, embeddings, [[] for _ in chunks]
         )
         artifact_meta: dict[str, Any] = {
+            # artifact custom metadata first so reserved keys below take
+            # precedence; created_at enables time-range filtering on vector hits.
+            **(artifact.metadata or {}),
             "namespace": artifact.namespace,
             "session_id": artifact.session_id,
+            "created_at": artifact.created_at.isoformat(),
         }
         for chunk in chunks:
             cid = stele_chunk_id(artifact.artifact_id, chunk.seq_num)
@@ -195,6 +246,14 @@ class ChunkshopChunkStore:
                     if k.startswith("_"):
                         continue
                     chunk_meta.setdefault(k, v)
+            # Promote a resolved per-fact date ("[date: 2023-05-05]", emitted by
+            # a date-resolving consolidator) into a filterable fact_date field.
+            # chunkshop's fact schema doesn't propagate arbitrary keys, so the
+            # date rides in the span text; we lift it back out here so temporal
+            # range filters (metadata.fact_date__gte/__lte) work on facts.
+            fd = _FACT_DATE.search(chunk.embedded_content)
+            if fd:
+                chunk_meta.setdefault("fact_date", fd.group(1))
             self._chunks[cid] = (chunk.embedded_content, artifact.reference, chunk_meta)
         self._ref_docs.setdefault(artifact.reference, set()).add(
             artifact.artifact_id

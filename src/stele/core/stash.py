@@ -58,11 +58,12 @@ from stele.indexing.bakeoff import (
 )
 from stele.indexing.chunk_index import ChunkIndex
 from stele.indexing.dim_resolution import resolve_dim_and_similarity
-from stele.indexing.job import IndexResult
+from stele.indexing.job import IndexJob, IndexResult
 from stele.indexing.queue import NoOpIndexer, SyncChunkIndexer
 from stele.indexing.task_backend.base import IndexTask
 from stele.indexing.task_backend.in_process import InProcessTaskBackend
 from stele.pii.scrubber import build_pii_scrubber
+from stele.retrieval._filters import FilterableRow, record_matches_filters
 from stele.retrieval.base import RetrievalBackend
 from stele.retrieval.clickhouse import ClickHouseRetrievalBackend
 from stele.retrieval.hybrid import hybrid_search
@@ -260,6 +261,11 @@ class Stele:
             self.indexer = NoOpIndexer()
             return
         self._chunk_store = self._build_chunk_store()
+        # The chunk store's no-PII backstop only applies when we promise it
+        # scrubbed text — i.e. when PII handling is on. With PII off (default)
+        # raw content is indexed by design, so the guard must stand down.
+        if hasattr(self._chunk_store, "_expect_scrubbed"):
+            self._chunk_store._expect_scrubbed = self.config.pii.enabled
         # Keep the existing in-proc keyword path coherent for the memory
         # backend: expose the store's own ChunkIndex so search_reference /
         # delete stay consistent with what the indexer actually wrote.
@@ -326,14 +332,32 @@ class Stele:
 
     @staticmethod
     def _scope_namespace(
-        hits: list[SearchHit], namespace: str, session_id: str | None
+        hits: list[SearchHit],
+        namespace: str,
+        session_id: str | None,
+        filters: dict[str, Any] | None = None,
     ) -> list[SearchHit]:
+        # Vector/hybrid hits carry a flat metadata dict (namespace, session_id,
+        # created_at, plus artifact + chunk metadata). Apply created_at/metadata
+        # filters here via the shared predicate — the filter half of
+        # filter-then-rank for the vector path. SPO fact fields (subject/
+        # predicate/object) are filterable too since they're in the same dict.
         out: list[SearchHit] = []
+        seen_text: set[str] = set()  # select-distinct: never return the same chunk twice
         for h in hits:
             if h.metadata.get("namespace") != namespace:
                 continue
             if session_id is not None and h.metadata.get("session_id") != session_id:
                 continue
+            if filters:
+                shim = FilterableRow.from_sql(
+                    h.metadata.get("session_id"), h.metadata.get("created_at"), h.metadata
+                )
+                if not record_matches_filters(shim, filters):
+                    continue
+            if h.text in seen_text:  # dup from hybrid RRF merge / repeated spans
+                continue
+            seen_text.add(h.text)
             out.append(h)
         return out
 
@@ -381,9 +405,7 @@ class Stele:
             updated_at=now,
         )
         record = self.storage.store(artifact)
-        if isinstance(self.indexer, AsyncChunkIndexer):
-            self._pending_records[record.artifact_id] = record
-        index_result = self.indexer.submit(record)
+        index_result = self._submit_index(record)
         if self.revisor.active:
             # Project the already-PII-scrubbed summary — source-backed and
             # PII-safe; the artifact's stele:// ref round-trips on every hit.
@@ -477,9 +499,7 @@ class Stele:
         records = self.storage.store_many(artifacts)
         results: list[StoredResult] = []
         for record, raw_summary in zip(records, raw_summaries, strict=True):
-            if isinstance(self.indexer, AsyncChunkIndexer):
-                self._pending_records[record.artifact_id] = record
-            index_result = self.indexer.submit(record)
+            index_result = self._submit_index(record)
             if self.revisor.active:
                 self.revisor.ingest_evidence(
                     stele_ref=record.reference,
@@ -579,27 +599,75 @@ class Stele:
         session_id: str | None = None,
         filters: dict[str, Any] | None = None,
         raw: bool = False,
+        now: datetime | None = None,
     ) -> list[SearchHit]:
         raw_allowed = self._validate_raw_output(raw)
         merged_filters = dict(filters or {})
         if session_id is not None:
             merged_filters["session_id"] = session_id
+
+        # Opt-in temporal routing: parse a NL recency window out of the query,
+        # strip the phrase (sharpens the embed), add the date filter. `now`
+        # defaults to wall-clock; pass it explicitly for replay-safe runs.
+        window_keys: list[str] = []
+        if self.config.retrieval.temporal_routing:
+            from stele.retrieval.temporal import parse_temporal
+
+            cleaned, tf = parse_temporal(query, now or utc_now())
+            if tf is not None:
+                field = self.config.retrieval.temporal_date_field
+                window = tf.as_metadata_filters(field) if field else tf.as_filters()
+                for key, value in window.items():
+                    if key not in merged_filters:  # never override caller filters
+                        merged_filters[key] = value
+                        window_keys.append(key)
+                query = cleaned
+
+        hits = self._dispatch_query(
+            namespace, query, mode, merged_filters, session_id, limit, raw_allowed
+        )
+        # Empty under the parsed window → retry without it so a bad/over-tight
+        # parse can't silently hide the answer.
+        if not hits and window_keys:
+            for key in window_keys:
+                merged_filters.pop(key, None)
+            hits = self._dispatch_query(
+                namespace, query, mode, merged_filters, session_id, limit, raw_allowed
+            )
+        return hits
+
+    def _dispatch_query(
+        self,
+        namespace: str,
+        query: str,
+        mode: RetrievalMode | str | None,
+        merged_filters: dict[str, Any],
+        session_id: str | None,
+        limit: int,
+        raw_allowed: bool,
+    ) -> list[SearchHit]:
         effective_mode = mode or self.config.retrieval.default_mode
+        # Non-session filters need a larger candidate pool before post-filtering.
+        extra_filter = any(k != "session_id" for k in merged_filters)
+        scope_limit = limit * 16 if extra_filter else limit
         if effective_mode == "vector":
-            hits = self._vector_hits(query, limit=limit, reference=None)
-            hits = self._scope_namespace(hits, namespace, session_id)[:limit]
+            hits = self._vector_hits(query, limit=scope_limit, reference=None)
+            hits = self._scope_namespace(hits, namespace, session_id, merged_filters)[:limit]
             return self._prepare_hits(hits, raw=raw_allowed)
         if effective_mode == "hybrid" and self._chunk_store is not None:
-            hits = self._hybrid_hits(query, limit=limit, reference=None)
-            hits = self._scope_namespace(hits, namespace, session_id)[:limit]
+            hits = self._hybrid_hits(query, limit=scope_limit, reference=None)
+            hits = self._scope_namespace(hits, namespace, session_id, merged_filters)[:limit]
             return self._prepare_hits(hits, raw=raw_allowed)
         if self.chunk_index is not None and mode in {None, "keyword", "hybrid"}:
             chunk_hits = self.chunk_index.query_namespace(
                 namespace,
                 query,
-                limit=limit,
+                limit=scope_limit,
                 session_id=session_id,
             )
+            chunk_hits = self._scope_namespace(
+                chunk_hits, namespace, session_id, merged_filters
+            )[:limit]
             if chunk_hits:
                 return self._prepare_hits(chunk_hits, raw=raw_allowed)
         hits = self.retrieval.query_namespace(
@@ -997,6 +1065,31 @@ class Stele:
                 )
         return self._revisor
 
+    def _submit_index(self, record: ArtifactRecord) -> IndexResult | IndexJob:
+        """Index a record under the PII policy; the raw artifact is untouched.
+
+        PII off (default): index the raw record. PII on: a doc with no detected
+        PII indexes as-is; one with PII is either masked (index a scrubbed copy,
+        so no raw PII reaches the chunk index/embeddings) or skipped entirely,
+        per ``pii.index_on_pii``. Model-visible hits are scrubbed again at read.
+        """
+        index_record = record
+        if self.config.pii.enabled:
+            scrubbed = self._scrub_text(record.content_as_text())
+            if scrubbed.detections:
+                if self.config.pii.index_on_pii == "skip":
+                    return IndexResult(
+                        artifact_id=record.artifact_id,
+                        status="skipped",
+                        message="PII present; index_on_pii=skip",
+                    )
+                index_record = record.model_copy(
+                    update={"content": scrubbed.text, "content_encoding": "utf-8"}
+                )
+        if isinstance(self.indexer, AsyncChunkIndexer):
+            self._pending_records[index_record.artifact_id] = index_record
+        return self.indexer.submit(index_record)
+
     def _scrub_text(self, text: str) -> ScrubResult:
         if not self.config.pii.enabled:
             return ScrubResult(text=text, detections=[])
@@ -1020,6 +1113,16 @@ class Stele:
         *,
         raw: bool,
     ) -> builtins.list[SearchHit]:
+        # Select-distinct: never hand back the same chunk text twice (dups can
+        # arise from the hybrid RRF merge or repeated spans across artifacts).
+        # Order-preserving, so the highest-ranked instance is kept.
+        seen: set[str] = set()
+        distinct: builtins.list[SearchHit] = []
+        for h in hits:
+            if h.text not in seen:
+                seen.add(h.text)
+                distinct.append(h)
+        hits = distinct
         if raw or not self.config.pii.enabled:
             return [hit.model_copy(update={"scrubbed": False}) for hit in hits]
         prepared: builtins.list[SearchHit] = []

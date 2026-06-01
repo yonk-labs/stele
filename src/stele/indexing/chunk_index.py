@@ -38,8 +38,11 @@ class ChunkIndex:
                 text=chunk_text,
                 ordinal=ordinal,
                 metadata={
+                    # artifact metadata first so reserved keys below win.
+                    **(artifact.metadata or {}),
                     "namespace": artifact.namespace,
                     "session_id": artifact.session_id,
+                    "created_at": artifact.created_at.isoformat(),
                     "chunker": self.config.chunker,
                 },
             )

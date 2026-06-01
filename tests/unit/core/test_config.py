@@ -7,7 +7,7 @@ def test_minimal_config_defaults_to_memory() -> None:
     config = StashConfig.load(None)
 
     assert config.backend.type == "memory"
-    assert config.pii.enabled is True
+    assert config.pii.enabled is False  # PII scrubbing is opt-in
 
 
 def test_yaml_config_loads() -> None:

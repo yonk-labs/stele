@@ -14,7 +14,7 @@ def test_store_returns_compact_result() -> None:
 
 
 def test_fetch_defaults_to_scrubbed_content() -> None:
-    stash = Stele.from_config()
+    stash = Stele.from_config({"pii": {"enabled": True}})  # scrubbing is opt-in
     stored = stash.store("Email alice@example.com for details.")
 
     fetched = stash.fetch(stored.reference)
@@ -85,7 +85,7 @@ def test_default_mode_drives_dispatch() -> None:
 
 
 def test_vector_mode_without_chunk_store_raises() -> None:
-    stash = Stele.from_config()  # default: indexing.mode == "skip"
+    stash = Stele.from_config({"indexing": {"mode": "skip"}})  # no chunk store
     stored = stash.store("some text")
     with pytest.raises(CapabilityError):
         stash.search(stored.reference, "text", mode="vector")

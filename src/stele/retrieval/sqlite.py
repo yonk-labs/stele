@@ -7,7 +7,8 @@ from stele.core.capabilities import RetrievalCapabilities
 from stele.core.exceptions import CapabilityError
 from stele.core.reference import Reference
 from stele.core.types import RetrievalMode
-from stele.retrieval.rank import snippet_around
+from stele.retrieval._filters import FilterableRow, record_matches_filters
+from stele.retrieval.rank import content_terms, snippet_around
 from stele.storage.sqlite import SQLiteStorageBackend
 
 
@@ -59,7 +60,10 @@ class SQLiteRetrievalBackend:
         filters: dict[str, object] | None = None,
     ) -> list[SearchHit]:
         self._validate_mode(mode)
-        session_id = filters.get("session_id") if filters else None
+        # Over-fetch more when filters can reject candidates, so the post-filter
+        # still yields `limit` rows. Filtering reuses the shared predicate via a
+        # FilterableRow shim built from the joined created_at/metadata columns.
+        overfetch = limit * (16 if filters else 4)
         rows = self.storage.conn.execute(
             """
             SELECT
@@ -67,18 +71,23 @@ class SQLiteRetrievalBackend:
               artifact_fts.reference,
               artifact_fts.content,
               bm25(artifact_fts) AS rank,
-              artifacts.session_id
+              artifacts.session_id,
+              artifacts.created_at,
+              artifacts.metadata_json
             FROM artifact_fts
             JOIN artifacts ON artifacts.artifact_id = artifact_fts.artifact_id
             WHERE artifact_fts.namespace = ? AND artifact_fts MATCH ?
             ORDER BY rank
             LIMIT ?
             """,
-            (namespace, _fts_query(query), limit * 4),
+            (namespace, _fts_query(query), overfetch),
         ).fetchall()
         hits: list[SearchHit] = []
         for row in rows:
-            if session_id is not None and row["session_id"] != session_id:
+            shim = FilterableRow.from_sql(
+                row["session_id"], row["created_at"], row["metadata_json"]
+            )
+            if not record_matches_filters(shim, filters):
                 continue
             hits.append(
                 SearchHit(
@@ -87,7 +96,7 @@ class SQLiteRetrievalBackend:
                     text=snippet_around(row["content"], query),
                     score=float(-row["rank"]),
                     retrieval_mode="keyword",
-                    metadata={"namespace": namespace},
+                    metadata={"namespace": namespace, **shim.metadata},
                 )
             )
             if len(hits) >= limit:
@@ -104,7 +113,9 @@ class SQLiteRetrievalBackend:
 
 
 def _fts_query(query: str) -> str:
-    terms = [term.replace('"', '""') for term in query.split() if term.strip()]
+    # content_terms strips stopwords + punctuation, so the OR-join only carries
+    # high-signal terms ("friends" not "friends,", no "when"/"with"/"and").
+    terms = content_terms(query)
     if not terms:
         return '""'
     return " OR ".join(f'"{term}"' for term in terms)

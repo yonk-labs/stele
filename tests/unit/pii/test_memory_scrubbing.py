@@ -11,7 +11,10 @@ from stele.core.memory_record import MemoryQuery, MemoryScope
 @pytest.fixture
 def stele(tmp_path: Path) -> Stele:
     return Stele.from_config(
-        {"backend": {"type": "sqlite", "path": str(tmp_path / "stele.db")}}
+        {
+            "backend": {"type": "sqlite", "path": str(tmp_path / "stele.db")},
+            "pii": {"enabled": True},  # scrubbing is opt-in; this suite tests it
+        }
     )
 
 

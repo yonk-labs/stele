@@ -40,6 +40,12 @@ Strategy = Literal[
 ]
 JudgeMode = Literal["deterministic", "openai"]
 
+# How many chunks the consolidation lanes RETRIEVE (distinct from how many
+# facts the consolidator STORED at index time via max_facts). Decoupling these
+# is the point: store a rich pool, retrieve a tight top-k so hybrid search
+# selects the best-fitting few. Overridable per-run via STELE_CONS_RETRIEVE_K.
+CONS_RETRIEVE_K = int(os.environ.get("STELE_CONS_RETRIEVE_K", "25"))
+
 # Iterative loop budget: stop after this many LLM rounds OR when accumulated
 # context exceeds the byte cap, whichever first.
 ITERATIVE_MAX_ROUNDS = 5
@@ -905,7 +911,7 @@ def _run_strategy(
         # the support_span text directly. The chunkshop SPO triples carry
         # signal when the consolidator is an LLM, but as plaintext tokens
         # they don't help the answerer beyond what the span already says.
-        hits = stash.search(reference, scenario.query, limit=25, mode="hybrid")
+        hits = stash.search(reference, scenario.query, limit=CONS_RETRIEVE_K, mode="hybrid")
         summary_lines: list[str] = []
         fact_lines: list[str] = []
         for h in hits:
@@ -941,7 +947,7 @@ def _run_strategy(
         # of raw chunks. Keeps the episode summary verbatim as an anchor.
         import lede
 
-        hits = stash.search(reference, scenario.query, limit=25, mode="hybrid")
+        hits = stash.search(reference, scenario.query, limit=CONS_RETRIEVE_K, mode="hybrid")
         summary_lines = [h.text for h in hits if (h.metadata or {}).get("kind") == "episode"]
         fact_lines = [h.text for h in hits if (h.metadata or {}).get("kind") != "episode"]
         if fact_lines:

@@ -75,6 +75,38 @@ def test_bind_handlers_wires_store() -> None:
     assert result == {"ref": "stele://x/abc"}
 
 
+def test_query_handler_passes_filters_and_parses_dates() -> None:
+    import datetime as dt
+
+    fake_stele = MagicMock()
+    fake_stele.query.return_value = []
+    bound = bind_handlers(fake_stele)
+    handler = next(b for b in bound if b.name == "stele_query").handler
+    assert handler is not None
+    handler(
+        query="auth bug last week",
+        namespace="sess",
+        session_id="s1",
+        filters={
+            "metadata.git_branch": "auth",
+            "created_after": "2026-05-18T00:00:00Z",
+        },
+        now="2026-05-29T12:00:00Z",
+    )
+    _args, kwargs = fake_stele.query.call_args
+    assert kwargs["session_id"] == "s1"
+    # ISO date strings on created_* / now are coerced to datetimes for the facade.
+    assert isinstance(kwargs["filters"]["created_after"], dt.datetime)
+    assert kwargs["filters"]["metadata.git_branch"] == "auth"
+    assert isinstance(kwargs["now"], dt.datetime)
+
+
+def test_query_tool_schema_exposes_filters() -> None:
+    spec = next(t for t in TOOLS if t.name == "stele_query")
+    props = spec.input_schema["properties"]
+    assert {"filters", "session_id", "now"} <= set(props)
+
+
 def test_bind_handlers_wires_memory_add() -> None:
     fake_stele = MagicMock()
     fake_record = MagicMock()

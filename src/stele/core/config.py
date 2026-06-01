@@ -27,9 +27,19 @@ class SummaryConfig(BaseModel):
 
 
 class PIIConfig(BaseModel):
-    enabled: bool = True
+    # PII scrubbing is OPT-IN. Off by default: stele's premise is exact bytes,
+    # and the common deployment is single-user/local where scrubbing only costs
+    # recall. Turn this on for shared/multi-tenant stores. When enabled,
+    # model-visible surfaces (summaries, fetch, search hits, memory text) are
+    # masked; raw content still round-trips via the artifact store.
+    enabled: bool = False
     default_surface_policy: Literal["scrub", "raw", "block"] = "scrub"
     raw_fetch_enabled: bool = False
+    # When enabled, how a PII-bearing document is handled for chunk indexing:
+    #   "mask" — index it; model-visible hits are scrubbed at read time (default)
+    #   "skip" — leave the document out of the chunk index entirely (the artifact
+    #            is still stored for exact-byte fetch / keyword retrieval)
+    index_on_pii: Literal["mask", "skip"] = "mask"
     providers: list[str] = Field(default_factory=lambda: ["regex"])
     replacement_style: str = "typed_token"
 
@@ -43,15 +53,38 @@ class InterceptionConfig(BaseModel):
 
 
 class RetrievalConfig(BaseModel):
-    default_mode: RetrievalMode = "keyword"
+    default_mode: RetrievalMode = "hybrid"
+    # Opt-in: route natural-language temporal queries ("last week") through
+    # parse_temporal into a created_at/metadata date filter (filter-then-rank).
+    # Off by default — changes retrieval semantics and needs a clock.
+    temporal_routing: bool = False
+    # When set, the parsed window targets metadata[<field>] (ISO date strings);
+    # when None, it targets the artifact's created_at.
+    temporal_date_field: str | None = None
 
 
 class IndexingConfig(BaseModel):
-    mode: Literal["async", "sync", "skip"] = "skip"
-    provider: Literal["none", "chunkshop"] = "none"
-    chunker: Literal["fixed_overlap", "consolidation"] = "fixed_overlap"
-    chunk_words: int = 220
-    chunk_overlap_words: int = 60
+    mode: Literal["async", "sync", "skip"] = "sync"
+    provider: Literal["none", "chunkshop"] = "chunkshop"
+    chunker: Literal["fixed_overlap", "sentence_aware", "consolidation"] = "sentence_aware"
+    # Embedding model for the chunkshop vector index. Default matches chunkshop's
+    # de-facto default — Xenova/bge-base-en-v1.5-int8 (768-dim, int8-quantized) —
+    # a far stronger retriever than the old all-MiniLM-L6-v2 (384). dim is
+    # auto-derived from the model unless vector_dim is set explicitly.
+    embed_model: str = "Xenova/bge-base-en-v1.5-int8"
+    # Chunk sizes are tuned to bge-base's 512-token window (~2x MiniLM's 256).
+    # 220 words (~290 tokens) wasted half that capacity and produced too many
+    # tiny chunks — hurting coverage and recall. ~350 words (~460 tokens) fills
+    # the window with headroom under 512 before the embedder truncates.
+    chunk_words: int = 350
+    chunk_overlap_words: int = 80
+    # sentence_aware chunker (used iff chunker == "sentence_aware"): split on
+    # full-sentence boundaries (never mid-sentence), packing up to
+    # sentence_max_chars. neighbor_window > 0 wraps each chunk with ±N adjacent
+    # chunks for context (chunkshop NeighborExpandChunker).
+    sentence_max_chars: int = 1000
+    sentence_min_chars: int = 300
+    neighbor_window: int = 1
     # Consolidation chunker fields (used iff chunker == "consolidation").
     # The consolidator is loaded by import path on the chunkshop side via
     # CallableConsolidator(module=..., function=..., kwargs=...). API keys
@@ -64,6 +97,10 @@ class IndexingConfig(BaseModel):
     # Phase 4 fields
     bakeoff_path: str | None = None
     similarity: Literal["cosine", "ip", "l2"] = "cosine"
+    # Vector index for the chunk sink. HNSW (approximate ANN) is the default, but
+    # on small reference-filtered stores its seed can miss candidates (see the
+    # "vector recall shortfall" path); set False for an exact/brute-force scan.
+    hnsw: bool = True
     vector_dim: int | None = None
     hybrid_method: Literal["rrf", "weighted_sum"] = "rrf"
     hybrid_weights: dict[str, float] = Field(

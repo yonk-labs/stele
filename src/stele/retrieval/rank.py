@@ -2,13 +2,47 @@
 
 import re
 
+# Function words carry no retrieval signal. In an OR-joined keyword query they
+# only let off-topic chunks match (every chunk contains "the"/"with"/"and"), so
+# they're stripped from the QUERY side (never the document side) before scoring
+# and before building the FTS expression. Both keyword paths share this set.
+STOPWORDS = frozenset(
+    {
+        "a", "an", "and", "are", "as", "at", "be", "been", "but", "by", "can",
+        "could", "did", "do", "does", "for", "from", "had", "has", "have", "he",
+        "her", "him", "his", "how", "i", "if", "in", "into", "is", "it", "its",
+        "me", "my", "of", "on", "or", "our", "out", "she", "should", "so",
+        "that", "the", "their", "them", "then", "they", "this", "to", "up",
+        "was", "we", "were", "what", "when", "where", "which", "who", "whom",
+        "why", "will", "with", "would", "you", "your",
+    }
+)
+
 
 def tokenize(value: str) -> list[str]:
     return re.findall(r"[A-Za-z0-9_]+", value.lower())
 
 
+def content_terms(query: str) -> list[str]:
+    """Query tokens with stopwords removed, order-preserving and de-duplicated.
+
+    Falls back to the full token list when the query is *all* stopwords
+    (e.g. "who are they") so such queries still retrieve something.
+    """
+    tokens = tokenize(query)
+    content = [t for t in tokens if t not in STOPWORDS]
+    chosen = content or tokens
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for t in chosen:
+        if t not in seen:
+            seen.add(t)
+            deduped.append(t)
+    return deduped
+
+
 def keyword_score(query: str, text: str) -> float:
-    query_tokens = set(tokenize(query))
+    query_tokens = set(content_terms(query))
     if not query_tokens:
         return 0.0
     text_tokens = set(tokenize(text))

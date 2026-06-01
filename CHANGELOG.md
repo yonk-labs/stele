@@ -5,6 +5,47 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.3.0] — 2026-06-01
+
+Batteries-included retrieval defaults, PII opt-in, and a large cross-corpus
+benchmark study (stele vs. Mem0 vs. Letta across LoCoMo / HotpotQA / CovidQA at
+n≈250). The defaults below change out-of-the-box behavior — hence the minor bump.
+
+### Changed — defaults now optimized for accuracy
+
+- **Hybrid retrieval is the default.** `RetrievalConfig.default_mode` is now
+  **`hybrid`** (RRF over vector + keyword). Pure-keyword retrieval was
+  catastrophic in the study (jscore 0.05–0.35 vs 0.70–0.94 for hybrid).
+- **Indexing is on and tuned by default.** `IndexingConfig` now defaults to
+  `mode="sync"`, `provider="chunkshop"`, `chunker="sentence_aware"`,
+  `sentence_max_chars=1000`, `neighbor_window=1` — the configuration that topped
+  the accuracy/token frontier. Set `mode="skip"` for the old zero-index behavior.
+- **PII scrubbing is opt-in.** `PIIConfig.enabled` now defaults to **`False`**.
+  When enabled, PII in indexed content is **masked** (not rejected) per the new
+  `index_on_pii: "mask" | "skip"` knob — closing the gate no longer fails the
+  store. Model-visible surfaces remain scrubbed when `enabled=True`; raw fetch
+  stays gated by `raw_fetch_enabled`.
+
+### Added
+
+- **`IndexingConfig.hnsw` knob** (default `True`). Toggles the chunk sink's
+  vector index between HNSW (approximate ANN) and an exact/brute-force scan —
+  useful on small reference-filtered stores where the HNSW seed can miss
+  predicate-matching candidates (the vector recall-shortfall path).
+- **Cross-corpus benchmark suite** under `benchmarks/external/` (stele lanes +
+  Mem0 and Letta competitor lanes, no-context parametric floor, grid
+  consolidation) and a self-contained study bundle under `testing/`
+  (write-up + curated run data + MEGA-GRID + scripts).
+
+### Fixed
+
+- **FTS no longer indexes stopwords or punctuation.** Keyword/hybrid queries are
+  reduced to content terms (stopwords + punctuation stripped, de-duplicated),
+  fixing matches on glued tokens like `"friends,"` and noise from common words.
+- **Hybrid representative-hit truncation.** Hybrid fusion returned 500-char
+  snippets instead of full chunk text for the representative hit, silently
+  shrinking the context fed to the model (and inflating some packing comparisons).
+
 ## [0.2.1] — 2026-05-26
 
 ### Added

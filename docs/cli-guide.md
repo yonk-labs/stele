@@ -229,6 +229,11 @@ stele search stele://default/abc123... "query" --mode hybrid --limit 5
 # Cross-artifact query against the chunk index
 stele query "postgres" --namespace prod --mode hybrid
 
+# Filter by time / metadata before ranking (filter-then-rank)
+stele query "what auth bug did I fix" --namespace sessions \
+  --created-after 2026-05-18T00:00:00 \
+  --filter metadata.git_branch=auth-refactor   # see docs/filtered-retrieval.md
+
 # List + delete
 stele list --namespace prod --limit 50
 stele delete stele://default/abc123...

@@ -92,7 +92,7 @@ def test_delete() -> None:
 def test_dim_similarity_name() -> None:
     store = _store()
     assert store.name == "postgres"
-    assert store.dim == 384
+    assert store.dim == 768  # bge-base-en-v1.5 default
     assert store.similarity == "cosine"
     store.close()
 

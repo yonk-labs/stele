@@ -30,7 +30,7 @@ def test_digest_is_default_when_indexing_enabled() -> None:
 
 
 def test_default_unchanged_when_indexing_skipped() -> None:
-    stele = _stash({"backend": {"type": "memory"}})
+    stele = _stash({"backend": {"type": "memory"}, "indexing": {"mode": "skip"}})
     try:
         assert stele.recall._deps.config.default_strategy == "adaptive"
     finally:

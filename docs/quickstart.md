@@ -158,6 +158,7 @@ The CLI and the MCP server share one engine — `bind_handlers()` in `src/stele/
 
 - **Tool reference:** [docs/mcp-tools.md](mcp-tools.md) — every tool, every schema, every example.
 - **CLI reference:** [docs/cli-guide.md](cli-guide.md) — every `stele` subcommand + troubleshooting.
+- **Filtered retrieval & "last week" queries:** [docs/filtered-retrieval.md](filtered-retrieval.md) — `query(filters=...)` by time/metadata/facts, plus opt-in temporal routing.
 - **Backend choices:** [docs/quickstart.md#backend-selection](#backend-selection) (below).
 - **Security model:** [docs/packaging-auth-model.md](packaging-auth-model.md) — why stdio-only + no auth in v1.
 - **Living knowledge (Phase 5):** [docs/living-knowledge-setup.md](living-knowledge-setup.md) — superseding facts, retracting, time-travel queries on a Postgres + pg-raggraph stack.

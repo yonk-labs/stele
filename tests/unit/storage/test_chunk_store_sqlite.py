@@ -90,9 +90,9 @@ def test_delete(tmp_path: Path) -> None:
 def test_dim_similarity_name(tmp_path: Path) -> None:
     store = _store(tmp_path)
     assert store.name == "sqlite"
-    assert store.dim == 384
+    assert store.dim == 768  # bge-base-en-v1.5 default
     assert store.similarity == "cosine"
-    assert len(store.embed("probe")) == 384
+    assert len(store.embed("probe")) == 768
     store.close()
 
 

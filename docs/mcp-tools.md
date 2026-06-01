@@ -119,6 +119,14 @@ Targeted query against the chunk index across a namespace. Cross-artifact.
 | `namespace` | string | | `"default"` |
 | `mode` | string (enum) | | config default |
 | `limit` | int | | `10` |
+| `session_id` | string | | — |
+| `filters` | object | | — |
+| `now` | string (ISO-8601) | | wall-clock |
+
+`filters` narrows by time/metadata before ranking: `session_id`,
+`created_after`/`created_before` (ISO-8601 strings), and `metadata.<key>` with
+optional `__in` / `__gte` / `__lte` suffixes. `now` sets the reference clock for
+`retrieval.temporal_routing`. See [filtered-retrieval.md](filtered-retrieval.md).
 
 **Response:** `{"hits": [<SearchHit>, ...]}`
 

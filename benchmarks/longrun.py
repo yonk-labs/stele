@@ -695,7 +695,7 @@ def _build_stashes(backends: list[str], temp_dir: Path) -> list[tuple[str, Stele
     stashes: list[tuple[str, Stele]] = []
     for backend in backends:
         config: dict[str, Any] = {
-            "pii": {"raw_fetch_enabled": False},
+            "pii": {"enabled": True, "raw_fetch_enabled": False},
             "interception": {
                 "min_chars": 1,
                 "min_estimated_tokens": 1,
