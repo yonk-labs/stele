@@ -141,6 +141,54 @@ def _decode(system: str, lane: str) -> tuple[str, str, str, str]:
     return ("—", "—", "—", "—")                # (memory), (no context), unknown
 
 
+def _write_by_retrieval(grid: list[dict]) -> None:
+    """Re-pivot the stele rows sorted by retrieval (then chunker/packing/knobs), with a
+    chunker x retrieval coverage matrix up top so the untested combos are obvious."""
+    dec = []
+    for r in grid:
+        ch, rt, pk, kn = _decode(r["system"], r["lane"])
+        if rt == "—":  # competitors / floor have no stele recipe to pivot on
+            continue
+        dec.append({**r, "chunker": ch, "retrieval": rt, "packing": pk, "knobs": kn})
+
+    chunkers = [c for c in ("sentence_aware", "fixed_overlap", "consolidation", "enriching")
+                if any(d["chunker"] == c for d in dec)]
+    chunkers += sorted({d["chunker"] for d in dec} - set(chunkers))
+    rets = [r for r in ("hybrid", "cascade_a", "cascade_b", "keyword", "(whole doc)")
+            if any(d["retrieval"] == r for d in dec)]
+    rets += sorted({d["retrieval"] for d in dec} - set(rets))
+    seen = {(d["chunker"], d["retrieval"]) for d in dec}
+
+    md = ["# Mega grid: sorted by retrieval (coverage view)\n",
+          "Same data as `MEGA-GRID.md`, re-pivoted so you can see which "
+          "**chunker x retrieval x packing x knobs** combos were actually run. A `·` in "
+          "the coverage matrix is a combo we never tested.\n",
+          "## Coverage: chunker x retrieval\n",
+          "| chunker \\ retrieval | " + " | ".join(rets) + " |",
+          "|---|" + "|".join("---" for _ in rets) + "|"]
+    for ch in chunkers:
+        md.append(f"| {ch} | " + " | ".join("✓" if (ch, rt) in seen else "·" for rt in rets) + " |")
+    md.append("\n> The sweep was a **star design**: vary one axis at a time from the "
+              "`sentence_aware + hybrid + raw` baseline. Alternate chunkers were only "
+              "paired with `hybrid` (sweep family A); the cascade and keyword retrievers "
+              "were only paired with `sentence_aware` (family B). The interaction cells "
+              "(e.g. `cascade_b` x `enriching`) were never run, which is why the grid is "
+              "an L, not a full square.\n")
+
+    order = {rt: i for i, rt in enumerate(rets)}
+    for corpus in _CORPORA:
+        md.append(f"\n## {corpus}\n")
+        md.append("| retrieval | chunker | packing | knobs | jscore | ~tokens | mrr | n | lane |")
+        md.append("|---|---|---|---|---|---|---|---|---|")
+        rows = sorted((d for d in dec if d["corpus"] == corpus),
+                      key=lambda d: (order.get(d["retrieval"], 99), d["chunker"], d["packing"], d["knobs"]))
+        for d in rows:
+            md.append(f"| {d['retrieval']} | {d['chunker']} | {d['packing']} | {d['knobs']} | "
+                      f"{d['jscore']:.2f} | {d['tokens'] if d['tokens'] is not None else '—'} | "
+                      f"{d['mrr'] if d['mrr'] is not None else '—'} | {d['n']} | {d['lane']} |")
+    (_ROOT / "MEGA-GRID-by-retrieval.md").write_text("\n".join(md) + "\n")
+
+
 def _latest(pattern: str) -> str | None:
     fs = sorted(glob.glob(str(_ROOT / pattern)))
     return fs[-1] if fs else None
@@ -274,8 +322,9 @@ def main() -> None:
                       f"{r['retr_ms'] if r['retr_ms'] is not None else '—'} | "
                       f"{r['ans_ms'] if r['ans_ms'] is not None else '—'} | {r['n']} |")
     (_ROOT / "MEGA-GRID.md").write_text("\n".join(md) + "\n")
+    _write_by_retrieval(grid)
 
-    print(f"wrote {_ROOT}/MEGA-GRID.md and MEGA-GRID.csv  ({len(grid)} rows)")
+    print(f"wrote {_ROOT}/MEGA-GRID.md, MEGA-GRID.csv, MEGA-GRID-by-retrieval.md  ({len(grid)} rows)")
     systems = sorted({g["system"] for g in grid})
     for s in systems:
         n_rows = len([g for g in grid if g["system"] == s])
