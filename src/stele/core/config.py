@@ -97,6 +97,10 @@ class IndexingConfig(BaseModel):
     # Phase 4 fields
     bakeoff_path: str | None = None
     similarity: Literal["cosine", "ip", "l2"] = "cosine"
+    # Vector index for the chunk sink. HNSW (approximate ANN) is the default, but
+    # on small reference-filtered stores its seed can miss candidates (see the
+    # "vector recall shortfall" path); set False for an exact/brute-force scan.
+    hnsw: bool = True
     vector_dim: int | None = None
     hybrid_method: Literal["rrf", "weighted_sum"] = "rrf"
     hybrid_weights: dict[str, float] = Field(

@@ -187,7 +187,7 @@ class ChunkshopChunkStore:
             dsn=dsn,
             database="stele",
             table=table,
-            hnsw=True,
+            hnsw=config.hnsw,
             mode="overwrite",
             vector_metric=_metric,
         )
