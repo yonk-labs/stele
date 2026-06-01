@@ -138,6 +138,9 @@ def _decode(system: str, lane: str) -> tuple[str, str, str, str]:
     if lane.startswith("C:"):
         hints, pk = lane[2:].rsplit("+", 1)
         return ("sentence_aware", "hybrid", f"{pk} ({hints.replace('hints-', '')} hints)", KN)
+    if lane.startswith("D:"):
+        ch, rt, pk = lane[2:].split("+")        # D:enriching+cascade_b+digest (factorial fill)
+        return (ch, rt, pk, KN)
     return ("—", "—", "—", "—")                # (memory), (no context), unknown
 
 
@@ -238,6 +241,16 @@ def main() -> None:
                              "jscore": m["jscore"], "mrr": m["mrr"], "tokens": _tok(m["ctx_chars"]),
                              "retr_ms": m["retr_ms"], "ans_ms": m["ans_ms"], "n": m["n"]})
 
+    # --- stele factorial fill (missing chunker x retriever x packing cells, n=40) ---
+    fac = _latest("factorial-fill-*.json")
+    if fac:
+        agg = json.load(open(fac))["agg"]
+        for corpus in _CORPORA:
+            for lane, m in agg.get(corpus, {}).items():
+                grid.append({"system": "stele-sweep", "lane": lane, "corpus": corpus,
+                             "jscore": m["jscore"], "mrr": m.get("mrr"), "tokens": m.get("tokens", 0),
+                             "retr_ms": m.get("retr_ms"), "ans_ms": m.get("ans_ms"), "n": m.get("n", 0)})
+
     # --- stele high-N (6 key lanes + exact-vs-HNSW, n=250) ---
     hn = _latest("high-n-matrix-*.json")
     if hn:
@@ -309,18 +322,34 @@ def main() -> None:
                         "chunker": ch, "retrieval": rt, "packing": pk, "knobs": kn})
 
     # --- Markdown ---
-    md = ["# Mega benchmark grid — every lane x corpus (post-fix)\n", _KEY]
+    header = "| system | lane | chunker | retrieval | packing | knobs | jscore | mrr | ~tokens | retr_ms | ans_ms | n |"
+    sep = "|---|---|---|---|---|---|---|---|---|---|---|---|"
+
+    def _table(sub: list[dict]) -> list[str]:
+        out = [header, sep]
+        for r in sorted(sub, key=lambda r: -r["jscore"]):
+            ch, rt, pk, kn = _decode(r["system"], r["lane"])
+            out.append(f"| {r['system']} | {r['lane']} | {ch} | {rt} | {pk} | {kn} | {r['jscore']:.2f} | "
+                       f"{r['mrr'] if r['mrr'] is not None else '—'} | "
+                       f"{r['tokens'] if r['tokens'] is not None else '—'} | "
+                       f"{r['retr_ms'] if r['retr_ms'] is not None else '—'} | "
+                       f"{r['ans_ms'] if r['ans_ms'] is not None else '—'} | {r['n']} |")
+        return out
+
+    md = ["# Mega benchmark grid: every lane x corpus (post-fix)\n", _KEY,
+          "\n> **Rows are split by sample size** so the comparison is apples to apples. "
+          "`n≈250` is the confident tier (trust these); `n≤40` is directional breadth "
+          "(small samples flip, treat as hints, not verdicts).\n"]
     for corpus in _CORPORA:
         md.append(f"\n## {corpus}\n")
-        md.append("| system | lane | chunker | retrieval | packing | knobs | jscore | mrr | ~tokens | retr_ms | ans_ms | n |")
-        md.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
-        for r in sorted([g for g in grid if g["corpus"] == corpus], key=lambda r: -r["jscore"]):
-            ch, rt, pk, kn = _decode(r["system"], r["lane"])
-            md.append(f"| {r['system']} | {r['lane']} | {ch} | {rt} | {pk} | {kn} | {r['jscore']:.2f} | "
-                      f"{r['mrr'] if r['mrr'] is not None else '—'} | "
-                      f"{r['tokens'] if r['tokens'] is not None else '—'} | "
-                      f"{r['retr_ms'] if r['retr_ms'] is not None else '—'} | "
-                      f"{r['ans_ms'] if r['ans_ms'] is not None else '—'} | {r['n']} |")
+        crows = [g for g in grid if g["corpus"] == corpus]
+        for label, sub in (("n≈250 (confident)", [r for r in crows if r["n"] >= 200]),
+                           ("n≤40 (directional)", [r for r in crows if r["n"] < 200])):
+            if not sub:
+                continue
+            md.append(f"### {label}\n")
+            md += _table(sub)
+            md.append("")
     (_ROOT / "MEGA-GRID.md").write_text("\n".join(md) + "\n")
     _write_by_retrieval(grid)
 
