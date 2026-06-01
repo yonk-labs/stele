@@ -196,6 +196,83 @@ What actually was wrong / worth shipping:
   `cascade_packing_matrix` harness as the engine; expose as `stele tune` CLI/MCP.
   Note: cascade_b already encodes "exact ranks, semantic recalls" (keyword is its
   rerank stage) — a different corpus could still favour FTS-first.
+## Session 2026-05-30 (cont.): cross-corpus + competitor benchmark (mega grid)
+
+Big multi-system run across three domains (LoCoMo conversational/temporal,
+RAGBench-hotpotqa multi-hop, RAGBench-covidqa biomedical). Harness: answerer
+qwen3-coder@193, judge gemma-4-26B@133 (verbatim Mem0 jscore). Postgres/pgvector,
+HNSW index. Output: `benchmarks/runs/cross-corpus/MEGA-GRID.{md,csv}` + per-run JSONs.
+
+**Methodology honesty (the headline caveat):** the 26-lane sweep was **n=40 per
+corpus, capped 10 Q/conversation, only 4 of 10 LoCoMo convs = 2.6% of LoCoMo's
+1,540 non-adversarial QA.** That's breadth, not statistical confidence — fine
+lane rankings (cascade_b vs hybrid, digest vs facts) are within noise; only large
+effects are trustworthy. A **high-N follow-up (n=250 stratified across all convs,
+ragbench full)** runs the lanes that matter for confident headline numbers + an
+**exact-vs-HNSW** comparison (`IndexingConfig.hnsw` is now a config knob; HNSW
+under-recalls on small reference-filtered stores — the "vector recall shortfall").
+
+**Robust findings (survive any N — large effects):**
+1. **keyword (old default) is catastrophic everywhere** (0.10/0.15/0.30) — the
+   promotion to hybrid is the biggest, most universal win.
+2. **hybrid ≈ raw_fetch ceiling on factoid/biomedical** (0.96/0.76 vs 0.97/0.76)
+   at a fraction of tokens; conversational keeps a gap (0.68 vs 0.80 ceiling).
+3. **The "fancy" chunkers LOSE.** consolidation/enriching underperform plain
+   sentence_aware/fixed_overlap; enriching bloats context to 9.7k tok for 0.40 on
+   LoCoMo (worst on both accuracy and tokens). Compression ≠ better.
+4. **facts-packing is a temporal specialist** — helps LoCoMo, neutral/hurts
+   factoid, and costs 2–3× tokens. raw is the safer default.
+5. **hints don't matter** (none ≈ query ≈ expanded, within noise) — confirmed
+   cross-domain.
+
+**Token/efficiency (sweep, est tokens=ctx_chars/4):** LoCoMo sentence_aware+facts
+0.75 @ 4.5k tok vs raw_fetch 0.80 @ 17.9k — **retrieval is a 4× token win on long
+conversational**. On small-doc factoid the doc is already ~530 tok, so raw_fetch
+is cheap+accurate and packing only ADDS tokens — facts' token cost is unjustified
+there.
+
+**Competitors (same corpora/answerer/judge; Path-A memory→retrieve→common qwen):**
+- **Mem0 (mem0ai 2.0.3, fastembed bge, faiss):** local-qwen extractor 0.15/0.83/0.64;
+  gpt-5-mini extractor 0.10/0.85/0.69. **Mem0's conversational ceiling is ~0.10–0.15
+  regardless of extractor** — its limiter is memory consolidation, not the LLM.
+  Modest factoid gain from a strong extractor. **stele 0.68 dominates conversational.**
+  Gotcha: gpt-5 family needs `max_completion_tokens` + `reasoning_effort="minimal"`
+  (reasoning tokens derail mem0's JSON extraction → silent 0/N); patched in the lane.
+- **Letta (0.16.8, docker, archival memory):** archival-direct 0.45/1.00/0.75 —
+  strong, beats stele on hotpotqa (+0.04). BUT uses openai/text-embedding-3-small,
+  not bge (embedder confound). **Agent-mode (full loop) is unusable: 0/20** — its
+  agentic retrieval (agent decides to search) is unreliable; archival-direct is the
+  real Letta number. Setup needs the docker image (pip wheel ships no migrations).
+- **Embedder controls (Letta@bge, stele@3-small):** blocked tonight — chunkshop was
+  fastembed-only (v0.8.1 adds an opt-in OpenAI embedder — future unlock), and Letta@bge
+  is blocked by a host firewall (container→host). Deferred; embedder caveat stands.
+
+## Measurement-integrity caveats (2026-05-30, high-N debugging)
+
+Two issues surfaced while scaling up — both must be in the writeup:
+
+1. **Parametric floor — MEASURED, and it's LOW (concern was overblown).** I worried
+   qwen answered factoid Qs from pretraining (one anecdotal n_mems=0 yet CORRECT).
+   The no-context baseline (answer with EMPTY context, n=250/corpus) disproves it:
+   **LoCoMo 0/250 = 0.00, hotpotqa ~0.025 (5/200), covidqa pending.** qwen *abstains*
+   without context (as the prompt instructs), so the factoid retrieval scores
+   (stele 0.95–0.97) ARE real retrieval, not parametric knowledge. The lone anecdote
+   was an outlier. **All deltas are clean.** (Floor rows are in MEGA-GRID for the record.)
+2. **Mem0 + local-qwen extraction is unreliable.** mem0's `add()` intermittently
+   returns 0 memory ops (qwen emits non-JSON the extractor can't parse) — `add_ops=0`
+   confirmed. So Mem0's numbers carry high variance from extraction flakiness, and
+   any "correct" with n_mems=0 is the parametric floor, not Mem0 retrieving. Mem0's
+   architecture is LLM-extraction-bound; a small local model makes it noisy. stele's
+   deterministic chunking has no such dependence — **stele's numbers are the reliable
+   ones; Mem0's are noisy by construction.**
+3. **Concurrency note:** running multiple LLM-heavy lanes against the local servers
+   is fine for latency (vLLM batches) but the high-N runs were re-run SOLO to keep
+   answer quality clean and isolate the above effects.
+
+## Open items / next
+
+- **NO-CONTEXT parametric floor baseline** per corpus (subtract from factoid scores).
+- High-N (n=250) results → confident headline table + exact-vs-HNSW verdict.
 - bge re-run results → append to ledger + Findings.
 - Decide: ship sentence_aware as the default chunker? (it's the biggest win).
 - digest_enriched done right (additive, inline coref/date annotation of digest's
