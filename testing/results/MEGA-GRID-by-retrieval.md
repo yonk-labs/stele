@@ -7,11 +7,11 @@ Same data as `MEGA-GRID.md`, re-pivoted so you can see which **chunker x retriev
 | chunker \ retrieval | hybrid | cascade_a | cascade_b | keyword | (whole doc) |
 |---|---|---|---|---|---|
 | sentence_aware | ✓ | ✓ | ✓ | ✓ | ✓ |
-| fixed_overlap | ✓ | · | · | · | · |
-| consolidation | ✓ | · | · | · | · |
-| enriching | ✓ | · | · | · | · |
+| fixed_overlap | ✓ | ✓ | ✓ | ✓ | · |
+| consolidation | ✓ | ✓ | ✓ | ✓ | · |
+| enriching | ✓ | ✓ | ✓ | ✓ | · |
 
-> The sweep was a **star design**: vary one axis at a time from the `sentence_aware + hybrid + raw` baseline. Alternate chunkers were only paired with `hybrid` (sweep family A); the cascade and keyword retrievers were only paired with `sentence_aware` (family B). The interaction cells (e.g. `cascade_b` x `enriching`) were never run, which is why the grid is an L, not a full square.
+> The original sweep was a **star design** (vary one axis from the `sentence_aware + hybrid + raw` baseline), so it only ran the L: alternate chunkers with `hybrid`, cascade/keyword with `sentence_aware`. The interaction cells were later filled by `factorial_fill.py` (n=40, the `D:` lanes). **Finding:** no interaction cell beats the baseline. `cascade` ties `hybrid`; the alternate chunkers still lose, or only 'win' by retaining near-whole-doc token counts (e.g. `enriching+cascade_a+facts` hits 0.82 on LoCoMo but at ~26k tokens, which is just `raw_fetch` in disguise). **Caveat:** the `keyword` column is chunker-invariant. After stopword stripping the FTS matches ~1 chunk, which neighbor-expansion pads to a near-constant span, so those cells measure sparse keyword retrieval, not the chunker. The `(whole doc)` column stays sparse by design (`raw_fetch` is chunker-independent).
 
 
 ## locomo
@@ -52,13 +52,40 @@ Same data as `MEGA-GRID.md`, re-pivoted so you can see which **chunker x retriev
 | hybrid | sentence_aware | raw | hnsw·nb1·k=20 | 0.74 | 13807 | 0.167 | 250 | nb1_k=20 |
 | hybrid | sentence_aware | raw | hnsw·nb1·k=3 | 0.60 | 2076 | 0.151 | 250 | nb1_k=3 |
 | hybrid | sentence_aware | raw | hnsw·nb1·k=5 | 0.63 | 3489 | 0.157 | 250 | nb1_k=5 |
+| cascade_a | consolidation | digest | hnsw·nb1·k=10 | 0.42 | 1064 | 0.062 | 40 | D:consolidation+cascade_a+digest |
+| cascade_a | consolidation | facts | hnsw·nb1·k=10 | 0.38 | 1229 | 0.062 | 40 | D:consolidation+cascade_a+facts |
+| cascade_a | consolidation | raw | hnsw·nb1·k=10 | 0.45 | 285 | 0.062 | 40 | D:consolidation+cascade_a+raw |
+| cascade_a | enriching | digest | hnsw·nb1·k=10 | 0.72 | 25649 | 0.229 | 40 | D:enriching+cascade_a+digest |
+| cascade_a | enriching | facts | hnsw·nb1·k=10 | 0.82 | 26026 | 0.229 | 40 | D:enriching+cascade_a+facts |
+| cascade_a | enriching | raw | hnsw·nb1·k=10 | 0.78 | 23895 | 0.229 | 40 | D:enriching+cascade_a+raw |
+| cascade_a | fixed_overlap | digest | hnsw·nb1·k=10 | 0.53 | 3364 | 0.12 | 40 | D:fixed_overlap+cascade_a+digest |
+| cascade_a | fixed_overlap | facts | hnsw·nb1·k=10 | 0.65 | 3696 | 0.12 | 40 | D:fixed_overlap+cascade_a+facts |
+| cascade_a | fixed_overlap | raw | hnsw·nb1·k=10 | 0.62 | 4881 | 0.12 | 40 | D:fixed_overlap+cascade_a+raw |
 | cascade_a | sentence_aware | digest | hnsw·nb1·k=10 | 0.57 | 4419 | 0.114 | 40 | B:cascade_a+digest |
 | cascade_a | sentence_aware | facts | hnsw·nb1·k=10 | 0.65 | 4763 | 0.114 | 40 | B:cascade_a+facts |
 | cascade_a | sentence_aware | raw | hnsw·nb1·k=10 | 0.68 | 7009 | 0.114 | 40 | B:cascade_a+raw |
+| cascade_b | consolidation | digest | hnsw·nb1·k=10 | 0.42 | 1206 | 0.048 | 40 | D:consolidation+cascade_b+digest |
+| cascade_b | consolidation | facts | hnsw·nb1·k=10 | 0.42 | 1388 | 0.048 | 40 | D:consolidation+cascade_b+facts |
+| cascade_b | consolidation | raw | hnsw·nb1·k=10 | 0.45 | 337 | 0.048 | 40 | D:consolidation+cascade_b+raw |
+| cascade_b | enriching | digest | hnsw·nb1·k=10 | 0.75 | 25677 | 0.275 | 40 | D:enriching+cascade_b+digest |
+| cascade_b | enriching | facts | hnsw·nb1·k=10 | 0.75 | 26056 | 0.275 | 40 | D:enriching+cascade_b+facts |
+| cascade_b | enriching | raw | hnsw·nb1·k=10 | 0.75 | 23920 | 0.275 | 40 | D:enriching+cascade_b+raw |
+| cascade_b | fixed_overlap | digest | hnsw·nb1·k=10 | 0.65 | 3351 | 0.106 | 40 | D:fixed_overlap+cascade_b+digest |
+| cascade_b | fixed_overlap | facts | hnsw·nb1·k=10 | 0.68 | 3685 | 0.106 | 40 | D:fixed_overlap+cascade_b+facts |
+| cascade_b | fixed_overlap | raw | hnsw·nb1·k=10 | 0.60 | 4908 | 0.106 | 40 | D:fixed_overlap+cascade_b+raw |
 | cascade_b | sentence_aware | digest | hnsw·nb1·k=10 | 0.68 | 4479 | 0.13 | 40 | B:cascade_b+digest |
 | cascade_b | sentence_aware | facts | hnsw·nb1·k=10 | 0.75 | 4824 | 0.13 | 40 | B:cascade_b+facts |
 | cascade_b | sentence_aware | raw | hnsw·nb1·k=10 | 0.75 | 7020 | 0.13 | 40 | B:cascade_b+raw |
 | cascade_b | sentence_aware | raw | hnsw·nb1·k=10 | 0.71 | 7039 | 0.149 | 250 | cascade_b_hnsw |
+| keyword | consolidation | digest | hnsw·nb1·k=10 | 0.15 | 228 | 0.05 | 40 | D:consolidation+keyword+digest |
+| keyword | consolidation | facts | hnsw·nb1·k=10 | 0.15 | 322 | 0.05 | 40 | D:consolidation+keyword+facts |
+| keyword | consolidation | raw | hnsw·nb1·k=10 | 0.15 | 91 | 0.05 | 40 | D:consolidation+keyword+raw |
+| keyword | enriching | digest | hnsw·nb1·k=10 | 0.15 | 228 | 0.05 | 40 | D:enriching+keyword+digest |
+| keyword | enriching | facts | hnsw·nb1·k=10 | 0.15 | 322 | 0.05 | 40 | D:enriching+keyword+facts |
+| keyword | enriching | raw | hnsw·nb1·k=10 | 0.15 | 91 | 0.05 | 40 | D:enriching+keyword+raw |
+| keyword | fixed_overlap | digest | hnsw·nb1·k=10 | 0.15 | 228 | 0.05 | 40 | D:fixed_overlap+keyword+digest |
+| keyword | fixed_overlap | facts | hnsw·nb1·k=10 | 0.15 | 322 | 0.05 | 40 | D:fixed_overlap+keyword+facts |
+| keyword | fixed_overlap | raw | hnsw·nb1·k=10 | 0.15 | 91 | 0.05 | 40 | D:fixed_overlap+keyword+raw |
 | keyword | sentence_aware | digest | hnsw·nb1·k=10 | 0.15 | 228 | 0.05 | 40 | B:keyword+digest |
 | keyword | sentence_aware | facts | hnsw·nb1·k=10 | 0.15 | 322 | 0.05 | 40 | B:keyword+facts |
 | keyword | sentence_aware | raw | hnsw·nb1·k=10 | 0.15 | 91 | 0.05 | 40 | B:keyword+raw |
@@ -104,13 +131,40 @@ Same data as `MEGA-GRID.md`, re-pivoted so you can see which **chunker x retriev
 | hybrid | sentence_aware | raw | hnsw·nb1·k=20 | 0.93 | 1010 | 0.889 | 250 | nb1_k=20 |
 | hybrid | sentence_aware | raw | hnsw·nb1·k=3 | 0.94 | 872 | 0.889 | 250 | nb1_k=3 |
 | hybrid | sentence_aware | raw | hnsw·nb1·k=5 | 0.94 | 1000 | 0.889 | 250 | nb1_k=5 |
+| cascade_a | consolidation | digest | hnsw·nb1·k=10 | 0.75 | 1380 | 0.566 | 40 | D:consolidation+cascade_a+digest |
+| cascade_a | consolidation | facts | hnsw·nb1·k=10 | 0.72 | 1674 | 0.566 | 40 | D:consolidation+cascade_a+facts |
+| cascade_a | consolidation | raw | hnsw·nb1·k=10 | 0.80 | 453 | 0.566 | 40 | D:consolidation+cascade_a+raw |
+| cascade_a | enriching | digest | hnsw·nb1·k=10 | 0.95 | 1667 | 0.9 | 40 | D:enriching+cascade_a+digest |
+| cascade_a | enriching | facts | hnsw·nb1·k=10 | 0.93 | 2037 | 0.9 | 40 | D:enriching+cascade_a+facts |
+| cascade_a | enriching | raw | hnsw·nb1·k=10 | 0.97 | 579 | 0.9 | 40 | D:enriching+cascade_a+raw |
+| cascade_a | fixed_overlap | digest | hnsw·nb1·k=10 | 0.95 | 1665 | 0.875 | 40 | D:fixed_overlap+cascade_a+digest |
+| cascade_a | fixed_overlap | facts | hnsw·nb1·k=10 | 0.93 | 2034 | 0.875 | 40 | D:fixed_overlap+cascade_a+facts |
+| cascade_a | fixed_overlap | raw | hnsw·nb1·k=10 | 0.95 | 579 | 0.875 | 40 | D:fixed_overlap+cascade_a+raw |
 | cascade_a | sentence_aware | digest | hnsw·nb1·k=10 | 0.95 | 2767 | 0.875 | 40 | B:cascade_a+digest |
 | cascade_a | sentence_aware | facts | hnsw·nb1·k=10 | 0.95 | 3138 | 0.875 | 40 | B:cascade_a+facts |
 | cascade_a | sentence_aware | raw | hnsw·nb1·k=10 | 0.95 | 1228 | 0.875 | 40 | B:cascade_a+raw |
+| cascade_b | consolidation | digest | hnsw·nb1·k=10 | 0.65 | 1449 | 0.734 | 40 | D:consolidation+cascade_b+digest |
+| cascade_b | consolidation | facts | hnsw·nb1·k=10 | 0.72 | 1749 | 0.734 | 40 | D:consolidation+cascade_b+facts |
+| cascade_b | consolidation | raw | hnsw·nb1·k=10 | 0.75 | 472 | 0.734 | 40 | D:consolidation+cascade_b+raw |
+| cascade_b | enriching | digest | hnsw·nb1·k=10 | 0.95 | 1667 | 0.9 | 40 | D:enriching+cascade_b+digest |
+| cascade_b | enriching | facts | hnsw·nb1·k=10 | 0.93 | 2037 | 0.9 | 40 | D:enriching+cascade_b+facts |
+| cascade_b | enriching | raw | hnsw·nb1·k=10 | 0.95 | 579 | 0.9 | 40 | D:enriching+cascade_b+raw |
+| cascade_b | fixed_overlap | digest | hnsw·nb1·k=10 | 0.97 | 1665 | 0.9 | 40 | D:fixed_overlap+cascade_b+digest |
+| cascade_b | fixed_overlap | facts | hnsw·nb1·k=10 | 0.93 | 2033 | 0.9 | 40 | D:fixed_overlap+cascade_b+facts |
+| cascade_b | fixed_overlap | raw | hnsw·nb1·k=10 | 0.97 | 579 | 0.9 | 40 | D:fixed_overlap+cascade_b+raw |
 | cascade_b | sentence_aware | digest | hnsw·nb1·k=10 | 0.97 | 2768 | 0.887 | 40 | B:cascade_b+digest |
 | cascade_b | sentence_aware | facts | hnsw·nb1·k=10 | 0.95 | 3138 | 0.887 | 40 | B:cascade_b+facts |
 | cascade_b | sentence_aware | raw | hnsw·nb1·k=10 | 0.97 | 1228 | 0.887 | 40 | B:cascade_b+raw |
 | cascade_b | sentence_aware | raw | hnsw·nb1·k=10 | 0.94 | 1157 | 0.885 | 250 | cascade_b_hnsw |
+| keyword | consolidation | digest | hnsw·nb1·k=10 | 0.15 | 194 | 0.2 | 40 | D:consolidation+keyword+digest |
+| keyword | consolidation | facts | hnsw·nb1·k=10 | 0.17 | 245 | 0.2 | 40 | D:consolidation+keyword+facts |
+| keyword | consolidation | raw | hnsw·nb1·k=10 | 0.15 | 50 | 0.2 | 40 | D:consolidation+keyword+raw |
+| keyword | enriching | digest | hnsw·nb1·k=10 | 0.12 | 194 | 0.2 | 40 | D:enriching+keyword+digest |
+| keyword | enriching | facts | hnsw·nb1·k=10 | 0.17 | 245 | 0.2 | 40 | D:enriching+keyword+facts |
+| keyword | enriching | raw | hnsw·nb1·k=10 | 0.15 | 50 | 0.2 | 40 | D:enriching+keyword+raw |
+| keyword | fixed_overlap | digest | hnsw·nb1·k=10 | 0.12 | 194 | 0.2 | 40 | D:fixed_overlap+keyword+digest |
+| keyword | fixed_overlap | facts | hnsw·nb1·k=10 | 0.17 | 245 | 0.2 | 40 | D:fixed_overlap+keyword+facts |
+| keyword | fixed_overlap | raw | hnsw·nb1·k=10 | 0.15 | 50 | 0.2 | 40 | D:fixed_overlap+keyword+raw |
 | keyword | sentence_aware | digest | hnsw·nb1·k=10 | 0.15 | 194 | 0.2 | 40 | B:keyword+digest |
 | keyword | sentence_aware | facts | hnsw·nb1·k=10 | 0.17 | 245 | 0.2 | 40 | B:keyword+facts |
 | keyword | sentence_aware | raw | hnsw·nb1·k=10 | 0.15 | 50 | 0.2 | 40 | B:keyword+raw |
@@ -156,13 +210,40 @@ Same data as `MEGA-GRID.md`, re-pivoted so you can see which **chunker x retriev
 | hybrid | sentence_aware | raw | hnsw·nb1·k=20 | 0.77 | 1368 | 0.841 | 246 | nb1_k=20 |
 | hybrid | sentence_aware | raw | hnsw·nb1·k=3 | 0.76 | 1144 | 0.84 | 246 | nb1_k=3 |
 | hybrid | sentence_aware | raw | hnsw·nb1·k=5 | 0.77 | 1368 | 0.841 | 246 | nb1_k=5 |
+| cascade_a | consolidation | digest | hnsw·nb1·k=10 | 0.70 | 1192 | 0.397 | 40 | D:consolidation+cascade_a+digest |
+| cascade_a | consolidation | facts | hnsw·nb1·k=10 | 0.68 | 1405 | 0.397 | 40 | D:consolidation+cascade_a+facts |
+| cascade_a | consolidation | raw | hnsw·nb1·k=10 | 0.65 | 407 | 0.397 | 40 | D:consolidation+cascade_a+raw |
+| cascade_a | enriching | digest | hnsw·nb1·k=10 | 0.80 | 2000 | 0.85 | 40 | D:enriching+cascade_a+digest |
+| cascade_a | enriching | facts | hnsw·nb1·k=10 | 0.75 | 2292 | 0.85 | 40 | D:enriching+cascade_a+facts |
+| cascade_a | enriching | raw | hnsw·nb1·k=10 | 0.72 | 658 | 0.85 | 40 | D:enriching+cascade_a+raw |
+| cascade_a | fixed_overlap | digest | hnsw·nb1·k=10 | 0.78 | 1984 | 0.838 | 40 | D:fixed_overlap+cascade_a+digest |
+| cascade_a | fixed_overlap | facts | hnsw·nb1·k=10 | 0.78 | 2274 | 0.838 | 40 | D:fixed_overlap+cascade_a+facts |
+| cascade_a | fixed_overlap | raw | hnsw·nb1·k=10 | 0.75 | 648 | 0.838 | 40 | D:fixed_overlap+cascade_a+raw |
 | cascade_a | sentence_aware | digest | hnsw·nb1·k=10 | 0.72 | 2923 | 0.812 | 40 | B:cascade_a+digest |
 | cascade_a | sentence_aware | facts | hnsw·nb1·k=10 | 0.72 | 3226 | 0.812 | 40 | B:cascade_a+facts |
 | cascade_a | sentence_aware | raw | hnsw·nb1·k=10 | 0.72 | 1350 | 0.812 | 40 | B:cascade_a+raw |
+| cascade_b | consolidation | digest | hnsw·nb1·k=10 | 0.68 | 1315 | 0.447 | 40 | D:consolidation+cascade_b+digest |
+| cascade_b | consolidation | facts | hnsw·nb1·k=10 | 0.65 | 1545 | 0.447 | 40 | D:consolidation+cascade_b+facts |
+| cascade_b | consolidation | raw | hnsw·nb1·k=10 | 0.70 | 493 | 0.447 | 40 | D:consolidation+cascade_b+raw |
+| cascade_b | enriching | digest | hnsw·nb1·k=10 | 0.78 | 2000 | 0.85 | 40 | D:enriching+cascade_b+digest |
+| cascade_b | enriching | facts | hnsw·nb1·k=10 | 0.72 | 2292 | 0.85 | 40 | D:enriching+cascade_b+facts |
+| cascade_b | enriching | raw | hnsw·nb1·k=10 | 0.70 | 658 | 0.85 | 40 | D:enriching+cascade_b+raw |
+| cascade_b | fixed_overlap | digest | hnsw·nb1·k=10 | 0.78 | 1999 | 0.85 | 40 | D:fixed_overlap+cascade_b+digest |
+| cascade_b | fixed_overlap | facts | hnsw·nb1·k=10 | 0.75 | 2290 | 0.85 | 40 | D:fixed_overlap+cascade_b+facts |
+| cascade_b | fixed_overlap | raw | hnsw·nb1·k=10 | 0.70 | 658 | 0.85 | 40 | D:fixed_overlap+cascade_b+raw |
 | cascade_b | sentence_aware | digest | hnsw·nb1·k=10 | 0.72 | 2925 | 0.812 | 40 | B:cascade_b+digest |
 | cascade_b | sentence_aware | facts | hnsw·nb1·k=10 | 0.68 | 3232 | 0.812 | 40 | B:cascade_b+facts |
 | cascade_b | sentence_aware | raw | hnsw·nb1·k=10 | 0.72 | 1350 | 0.812 | 40 | B:cascade_b+raw |
 | cascade_b | sentence_aware | raw | hnsw·nb1·k=10 | 0.77 | 1399 | 0.842 | 246 | cascade_b_hnsw |
+| keyword | consolidation | digest | hnsw·nb1·k=10 | 0.35 | 233 | 0.25 | 40 | D:consolidation+keyword+digest |
+| keyword | consolidation | facts | hnsw·nb1·k=10 | 0.35 | 288 | 0.25 | 40 | D:consolidation+keyword+facts |
+| keyword | consolidation | raw | hnsw·nb1·k=10 | 0.35 | 55 | 0.25 | 40 | D:consolidation+keyword+raw |
+| keyword | enriching | digest | hnsw·nb1·k=10 | 0.35 | 233 | 0.25 | 40 | D:enriching+keyword+digest |
+| keyword | enriching | facts | hnsw·nb1·k=10 | 0.33 | 288 | 0.25 | 40 | D:enriching+keyword+facts |
+| keyword | enriching | raw | hnsw·nb1·k=10 | 0.35 | 55 | 0.25 | 40 | D:enriching+keyword+raw |
+| keyword | fixed_overlap | digest | hnsw·nb1·k=10 | 0.35 | 233 | 0.25 | 40 | D:fixed_overlap+keyword+digest |
+| keyword | fixed_overlap | facts | hnsw·nb1·k=10 | 0.35 | 288 | 0.25 | 40 | D:fixed_overlap+keyword+facts |
+| keyword | fixed_overlap | raw | hnsw·nb1·k=10 | 0.35 | 55 | 0.25 | 40 | D:fixed_overlap+keyword+raw |
 | keyword | sentence_aware | digest | hnsw·nb1·k=10 | 0.33 | 233 | 0.25 | 40 | B:keyword+digest |
 | keyword | sentence_aware | facts | hnsw·nb1·k=10 | 0.30 | 288 | 0.25 | 40 | B:keyword+facts |
 | keyword | sentence_aware | raw | hnsw·nb1·k=10 | 0.33 | 55 | 0.25 | 40 | B:keyword+raw |

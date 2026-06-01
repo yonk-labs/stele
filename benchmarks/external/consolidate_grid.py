@@ -67,6 +67,7 @@ overrides:
 | `A:<chunker>+<packing>` | **chunker x packing** (sweep family A); retrieval stays hybrid | `A:sentence_aware+facts` |
 | `B:<retrieval>+<packing>` | **retrieval x packing** (sweep family B); chunker stays sentence_aware | `B:cascade_b+raw` |
 | `C:hints-<none\\|expanded>+<packing>` | **hints x packing** (sweep family C) | `C:hints-expanded+digest` |
+| `D:<chunker>+<retrieval>+<packing>` | the **factorial fill** of the missing interaction cells (n=40) | `D:enriching+cascade_b+digest` |
 | `(memory)` | a competitor's own end-to-end pipeline; not comparable axis-by-axis | |
 
 The building blocks those names draw from:
@@ -171,12 +172,19 @@ def _write_by_retrieval(grid: list[dict]) -> None:
           "|---|" + "|".join("---" for _ in rets) + "|"]
     for ch in chunkers:
         md.append(f"| {ch} | " + " | ".join("✓" if (ch, rt) in seen else "·" for rt in rets) + " |")
-    md.append("\n> The sweep was a **star design**: vary one axis at a time from the "
-              "`sentence_aware + hybrid + raw` baseline. Alternate chunkers were only "
-              "paired with `hybrid` (sweep family A); the cascade and keyword retrievers "
-              "were only paired with `sentence_aware` (family B). The interaction cells "
-              "(e.g. `cascade_b` x `enriching`) were never run, which is why the grid is "
-              "an L, not a full square.\n")
+    md.append("\n> The original sweep was a **star design** (vary one axis from the "
+              "`sentence_aware + hybrid + raw` baseline), so it only ran the L: alternate "
+              "chunkers with `hybrid`, cascade/keyword with `sentence_aware`. The "
+              "interaction cells were later filled by `factorial_fill.py` (n=40, the `D:` "
+              "lanes). **Finding:** no interaction cell beats the baseline. `cascade` ties "
+              "`hybrid`; the alternate chunkers still lose, or only 'win' by retaining "
+              "near-whole-doc token counts (e.g. `enriching+cascade_a+facts` hits 0.82 on "
+              "LoCoMo but at ~26k tokens, which is just `raw_fetch` in disguise). "
+              "**Caveat:** the `keyword` column is chunker-invariant. After stopword "
+              "stripping the FTS matches ~1 chunk, which neighbor-expansion pads to a "
+              "near-constant span, so those cells measure sparse keyword retrieval, not "
+              "the chunker. The `(whole doc)` column stays sparse by design (`raw_fetch` "
+              "is chunker-independent).\n")
 
     order = {rt: i for i, rt in enumerate(rets)}
     for corpus in _CORPORA:
