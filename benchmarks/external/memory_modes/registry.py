@@ -9,10 +9,12 @@ from __future__ import annotations
 from benchmarks.external.memory_modes.base import Mode
 from benchmarks.external.memory_modes.best_practice import BestPractice
 from benchmarks.external.memory_modes.guardrail_adherence import GuardrailAdherence
+from benchmarks.external.memory_modes.precedent_recall import PrecedentRecall
 from benchmarks.external.memory_modes.skill_adherence import SkillAdherence
 
 MODES: list[Mode] = [
     GuardrailAdherence(),
     SkillAdherence(),
     BestPractice(),
+    PrecedentRecall(),
 ]
