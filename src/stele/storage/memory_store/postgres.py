@@ -17,6 +17,10 @@ from stele.core.memory_record import (
     ScoredMemoryHit,
     memory_text_hash,
 )
+from stele.storage.memory_store._embedder import MemoryEmbedder, vec_literal
+
+# RRF constant for fusing the keyword and vector legs (matches the chunk side).
+_RRF_K = 60
 
 # Built from the model's Literal so the CHECK and MemoryKind never drift.
 _KINDS_SQL = ", ".join(f"'{k}'" for k in KIND_VALUES)
@@ -155,6 +159,14 @@ _INSERT_SQL = (
 )
 
 
+# Same as _INSERT_SQL but with the embedding column appended (used when the
+# store is configured with an embedder). Derived from _INSERT_SQL so the two
+# can't drift.
+_INSERT_SQL_VEC = (
+    _INSERT_SQL.replace(") VALUES (", ", embedding) VALUES (")[:-1] + ", %s::vector)"
+)
+
+
 def _insert_params(record: MemoryRecord) -> tuple[object, ...]:
     return (
         record.id, record.text, record.summary, record.detail, record.action,
@@ -207,14 +219,57 @@ def _to_record(row: dict[str, object]) -> MemoryRecord:
 
 
 class PostgresMemoryStore:
-    def __init__(self, dsn: str) -> None:
+    def __init__(self, dsn: str, *, embedder: MemoryEmbedder | None = None) -> None:
         self.dsn = dsn
         self.conn = psycopg.connect(dsn, row_factory=dict_row, autocommit=False)
+        # When an embedder is wired (retrieval.memory_vector), the store grows a
+        # pgvector column and search_with_score blends a semantic leg. Off ->
+        # byte-identical to the keyword-only path.
+        self._embedder = embedder
+        self._insert_sql = _INSERT_SQL_VEC if embedder is not None else _INSERT_SQL
 
     def initialize(self) -> None:
         with self.conn.cursor() as cur:
             cur.execute(_SCHEMA)
+            if self._embedder is not None:
+                # pgvector column + HNSW, added lazily (only for vector-enabled
+                # stores) and guarded so a current table runs zero DDL / no lock.
+                cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+                cur.execute(
+                    f"""
+                    DO $do$
+                    BEGIN
+                      IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'memories' AND column_name = 'embedding'
+                      ) THEN
+                        ALTER TABLE memories ADD COLUMN embedding vector({self._embedder.dim});
+                        CREATE INDEX IF NOT EXISTS idx_memories_embedding
+                          ON memories USING hnsw (embedding vector_cosine_ops);
+                      END IF;
+                    END
+                    $do$;
+                    """
+                )
         self.conn.commit()
+
+    def _row_params(self, record: MemoryRecord) -> tuple[object, ...]:
+        """Insert params, with the embedding of ``indexable_text`` appended
+        when the store is vector-enabled."""
+        params = _insert_params(record)
+        if self._embedder is not None:
+            return (*params, vec_literal(self._embedder.embed(record.indexable_text)))
+        return params
+
+    def _records_by_ids(self, ids: list[str]) -> dict[str, MemoryRecord]:
+        """Batched fetch (one round-trip) for a set of ids, replacing the
+        per-hit get() N+1 in the scored-search paths."""
+        if not ids:
+            return {}
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT * FROM memories WHERE id = ANY(%s)", (ids,))
+            rows = cur.fetchall()
+        return {str(r["id"]): _to_record(r) for r in rows}
 
     def add(
         self,
@@ -232,7 +287,7 @@ class PostgresMemoryStore:
                     ).rowcount
                     if affected == 0:
                         raise ArtifactNotFound(f"memory not found: {old_id}")
-                cur.execute(_INSERT_SQL, _insert_params(record))
+                cur.execute(self._insert_sql, self._row_params(record))
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -260,8 +315,8 @@ class PostgresMemoryStore:
                         ).rowcount
                         if affected == 0:
                             raise ArtifactNotFound(f"memory not found: {old_id}")
-                rows = [_insert_params(r) for r, _ in items]
-                cur.executemany(_INSERT_SQL, rows)
+                rows = [self._row_params(r) for r, _ in items]
+                cur.executemany(self._insert_sql, rows)
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -312,6 +367,12 @@ class PostgresMemoryStore:
     ) -> list[ScoredMemoryHit]:
         if not query.strip():
             return []
+        if self._embedder is not None:
+            # Vector-enabled store: blend a semantic leg via RRF. Falls back to
+            # this keyword body for any store without an embedder.
+            return self._search_hybrid(
+                query, scope, limit=limit, source_ref_filter=source_ref_filter
+            )
         # Newest-valid view (as_of = now, include_superseded = False) via
         # the shared predicate so this never diverges from search(). BUG-1.
         as_of = datetime.now(UTC)
@@ -353,26 +414,108 @@ class PostgresMemoryStore:
         with self.conn.cursor() as cur:
             cur.execute(sql, params)
             rows = cur.fetchall()
+        return self._finalize_hits(rows)
+
+    def _finalize_hits(
+        self, rows: list[dict[str, object]]
+    ) -> list[ScoredMemoryHit]:
+        """Shared tail for both scored-search paths: stamp last_queried
+        (batched, after ranking, never perturbs scores), normalize the raw
+        score into [0, 1], and hydrate records in ONE round-trip (no N+1)."""
         if not rows:
             return []
-        # Stamp last_queried on the rows recall surfaced. Batched and applied
-        # after ranking so it never perturbs scores. BUG-1 candidate set is
-        # already fixed; this is a pure evidence side-effect.
-        ids = [row["id"] for row in rows]
+        ids = [str(row["id"]) for row in rows]
         with self.conn.cursor() as cur:
             cur.execute(
                 "UPDATE memories SET last_queried = %s WHERE id = ANY(%s)",
                 (datetime.now(UTC), ids),
             )
         self.conn.commit()
-        max_score = max(row["raw_score"] for row in rows) or 1.0
-        records_by_id = {row["id"]: self.get(row["id"]) for row in rows}
+        max_score = max(float(row["raw_score"]) for row in rows) or 1.0  # type: ignore[arg-type]
+        records = self._records_by_ids(ids)
         result: list[ScoredMemoryHit] = []
         for row in rows:
-            rec = records_by_id[row["id"]]
+            rec = records.get(str(row["id"]))
             if rec is not None:
-                result.append(ScoredMemoryHit(record=rec, score=row["raw_score"] / max_score))
+                score = float(row["raw_score"]) / max_score  # type: ignore[arg-type]
+                result.append(ScoredMemoryHit(record=rec, score=score))
         return result
+
+    def _search_hybrid(
+        self,
+        query: str,
+        scope: MemoryScope,
+        *,
+        limit: int,
+        source_ref_filter: str | None = None,
+    ) -> list[ScoredMemoryHit]:
+        """RRF fusion of the tsvector keyword leg and a pgvector semantic leg.
+        Same newest-valid scope/temporal predicate as the keyword path (BUG-1),
+        applied to BOTH legs. Only reached when an embedder is configured."""
+        assert self._embedder is not None
+        as_of = datetime.now(UTC)
+        qvec = vec_literal(self._embedder.embed(query))
+        params: dict[str, object] = {
+            "q": query,
+            "qvec": qvec,
+            "as_of": as_of,
+            "ns": scope.namespace,
+            "lim": limit,
+            "cand": max(limit * 5, 50),
+        }
+        pred = [
+            "AND effective_from <= %(as_of)s",
+            "AND (effective_until IS NULL OR effective_until > %(as_of)s)",
+            "AND (status = 'active'"
+            " OR (status = 'superseded' AND effective_until > %(as_of)s))",
+            "AND namespace = %(ns)s",
+        ]
+        for field, value in (
+            ("user_id", scope.user_id),
+            ("agent_id", scope.agent_id),
+            ("app_id", scope.app_id),
+            ("session_id", scope.session_id),
+        ):
+            if value is not None:
+                pred.append(f"AND {field} = %({field})s")
+                params[field] = value
+        if source_ref_filter is not None:
+            pred.append(
+                "AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(source_refs) e"
+                " WHERE e = %(sref)s)"
+            )
+            params["sref"] = source_ref_filter
+        predicate = "\n          ".join(pred)
+        sql = f"""
+            WITH kw AS (
+              SELECT id, row_number() OVER (
+                ORDER BY ts_rank_cd(search_tsv, plainto_tsquery('english', %(q)s)) DESC
+              ) AS rk
+              FROM memories
+              WHERE search_tsv @@ plainto_tsquery('english', %(q)s)
+              {predicate}
+            ),
+            vec AS (
+              SELECT id, row_number() OVER (
+                ORDER BY embedding <=> %(qvec)s::vector
+              ) AS rk
+              FROM memories
+              WHERE embedding IS NOT NULL
+              {predicate}
+              ORDER BY embedding <=> %(qvec)s::vector
+              LIMIT %(cand)s
+            )
+            SELECT COALESCE(kw.id, vec.id) AS id,
+                   COALESCE(1.0 / ({_RRF_K} + kw.rk), 0)
+                 + COALESCE(1.0 / ({_RRF_K} + vec.rk), 0) AS raw_score
+            FROM kw FULL OUTER JOIN vec ON kw.id = vec.id
+            ORDER BY raw_score DESC
+            LIMIT %(lim)s
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(sql, params)
+            rows = cur.fetchall()
+        return self._finalize_hits(rows)
 
     def list(
         self,
