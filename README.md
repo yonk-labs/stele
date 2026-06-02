@@ -64,6 +64,17 @@ The current runnable slice includes:
 - `stele.memory` — scoped memory with supersession (`add(supersedes=[...])`),
   post-hoc `retract(...)`, soft delete, content-hash dedup, and
   `as_of=<datetime>` time-travel queries on SQLite + Postgres
+- **cq/Zep-shaped memory rows** (v0.4.0): optional **tripartite insight**
+  (`summary` / `detail` / `action`, indexed for search), an **evidence model**
+  where re-observing a fact *confirms* it (bumps `confirmations`, evolves
+  `confidence`, stamps `last_confirmed` / `last_queried`) instead of inserting a
+  twin, and **cq lifecycle kinds** (`pitfall` → `workaround` →
+  `tool_recommendation` → `tool_gap`). The asserted text stays immutable
+- **optional semantic memory recall** (v0.5.0, opt-in `retrieval.memory_vector`
+  on Postgres): a pgvector leg fused with the keyword leg via RRF, so a
+  paraphrase with no shared keywords still recalls the fact. Off by default and
+  byte-identical to keyword recall until enabled; advertised via
+  `capabilities().memory_vector_search`
 - `stele.extract` — deterministic extraction of memories from artifacts,
   message threads, or raw text (`from_artifact` / `from_messages` /
   `from_text`); no LLM, no embeddings

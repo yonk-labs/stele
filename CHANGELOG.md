@@ -5,6 +5,16 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.5.1] — 2026-06-01
+
+### Documentation
+
+- Documented the v0.4.0 cq/Zep memory features (tripartite insight, evidence
+  model + re-observation merge, lifecycle kinds) and the v0.5.0 optional
+  Postgres vector recall in the memory tutorial, README, and current-status.
+- New runnable demo `scripts/demo-cq-memory.sh` (tripartite + evidence +
+  lifecycle kinds; no network, SQLite).
+
 ## [0.5.0] — 2026-06-01
 
 Optional semantic recall over memories (stele#39, corrected design). Additive,
