@@ -61,6 +61,12 @@ class RetrievalConfig(BaseModel):
     # When set, the parsed window targets metadata[<field>] (ISO date strings);
     # when None, it targets the artifact's created_at.
     temporal_date_field: str | None = None
+    # Opt-in (Postgres only): give the memory store a vector embedding column so
+    # Memory.search_with_score blends semantic similarity (RRF) with the tsvector
+    # keyword leg. Off by default; when off, recall is byte-identical to today.
+    # The embedder is synthesized internally from the same fastembed model the
+    # chunk store uses (shared model), never injected. Requires chunkshop.
+    memory_vector: bool = False
 
 
 class IndexingConfig(BaseModel):

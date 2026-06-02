@@ -32,6 +32,10 @@ class StashCapabilities(BaseModel):
     ) = None
     vector_enabled: bool = False
     hybrid_enabled: bool = False
+    # Memory-store semantic recall (pgvector). True only when the Postgres
+    # memory store is configured with an embedder (retrieval.memory_vector +
+    # chunkshop). Other backends report False and fall back to keyword recall.
+    memory_vector_search: bool = False
     chunkshop_installed: bool = False
     chunkshop_version: str | None = None
     bakeoff_summary: BakeoffSummary | None = None

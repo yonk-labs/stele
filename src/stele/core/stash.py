@@ -922,6 +922,11 @@ class Stele:
             living_knowledge=graph_active,
             pg_raggraph_installed=pgrg_installed,
             pg_raggraph_version=pgrg_version,
+            memory_vector_search=(
+                self.config.backend.type == "postgres"
+                and self.config.retrieval.memory_vector
+                and find_spec("chunkshop") is not None
+            ),
         )
 
     def close(self) -> None:
@@ -968,7 +973,16 @@ class Stele:
 
                 if not self.config.backend.dsn:
                     raise ConfigError("Postgres memory store requires backend.dsn")
-                store = PostgresMemoryStore(self.config.backend.dsn)
+                embedder = None
+                if self.config.retrieval.memory_vector:
+                    from stele.storage.memory_store._embedder import (
+                        build_memory_embedder,
+                    )
+
+                    embedder = build_memory_embedder(self.config.indexing)
+                store = PostgresMemoryStore(
+                    self.config.backend.dsn, embedder=embedder
+                )
             elif self.config.backend.type == "mariadb":
                 from stele.storage.memory_store.mariadb import (
                     MariaDBMemoryStore,

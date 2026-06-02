@@ -5,6 +5,40 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.5.0] — 2026-06-01
+
+Optional semantic recall over memories (stele#39, corrected design). Additive,
+opt-in, Postgres-only. Off by default, so recall is byte-identical to 0.4.0
+until enabled. Builds on the `indexable_text` from 0.4.0.
+
+### Added
+
+- **`RetrievalConfig.memory_vector`** (default `False`). When `True` on a
+  Postgres backend, the memory store grows a pgvector `embedding` column +
+  HNSW (cosine) index, embeds each memory's `indexable_text` on write, and
+  `Memory.search_with_score` fuses a semantic leg with the tsvector keyword leg
+  via **RRF**. So a paraphrased query with no shared keywords can still recall
+  the right fact.
+- The embedder is **synthesized internally** from the same fastembed model the
+  chunk store uses (`IndexingConfig.embed_model`), so memory and chunk vectors
+  share a model. It is never injected and never reads `os.environ`, matching the
+  Phase-4 batteries-included invariant. Requires `chunkshop`.
+- **`StashCapabilities.memory_vector_search`** advertises support; SQLite and the
+  other backends report `False` and keep keyword recall.
+
+### Changed
+
+- `search_with_score` (Postgres) now hydrates result records in one batched
+  fetch instead of a per-hit `get()` (removes a pre-existing N+1). The
+  keyword-only body is unchanged when no embedder is configured.
+
+### Migration
+
+- The `embedding` column + HNSW index are added lazily, only for a
+  vector-enabled store, via the same guarded `DO` block pattern (zero DDL once
+  current). A store without `memory_vector` is never touched and needs no
+  pgvector extension.
+
 ## [0.4.0] — 2026-06-01
 
 cq/Zep-shaped memory rows. Additive, backward-compatible schema evolution of
