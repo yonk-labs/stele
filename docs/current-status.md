@@ -1,6 +1,40 @@
 # Current Status
 
-Date: 2026-05-26 · Version: **0.2.1**
+Date: 2026-06-01 · Version: **0.5.1**
+
+## 0.5.1 (2026-06-01)
+
+Documentation + demo for the v0.4.0/v0.5.0 memory features (memory tutorial,
+README, this status, and `scripts/demo-cq-memory.sh`). No code/API change. See
+[`CHANGELOG.md`](../CHANGELOG.md).
+
+## 0.5.0 (2026-06-01)
+
+Optional semantic recall over memories (stele#39). Opt-in
+`retrieval.memory_vector` on a Postgres backend adds a pgvector `embedding`
+column + HNSW and fuses a vector leg with the tsvector keyword leg via RRF in
+`search_with_score`, so a paraphrase with no shared keywords recalls the fact.
+The embedder is synthesized internally from the same fastembed model the chunk
+index uses (never injected). Off by default and byte-identical to keyword
+recall until enabled; advertised via `capabilities().memory_vector_search`.
+Proven in `tests/contract/test_memory_vector.py`. See [`CHANGELOG.md`](../CHANGELOG.md).
+
+## 0.4.0 (2026-06-01)
+
+cq/Zep-shaped memory rows (stele#37, stele#38), all additive and
+backward-compatible:
+
+- **Tripartite insight** — optional `summary` / `detail` / `action` on a
+  memory, indexed for search via `indexable_text`.
+- **Evidence model** — `confirmations` / `last_confirmed` / `last_queried`;
+  `confidence` evolves. Re-observing a fact now *confirms* it (single row, bumped
+  evidence) instead of inserting a twin; the asserted text stays immutable.
+- **cq lifecycle kinds** — `pitfall` / `workaround` / `tool_recommendation` /
+  `tool_gap`, CHECK constraints generated from the `MemoryKind` Literal.
+
+Postgres migrates in-place via a guarded `DO` block (zero DDL once current);
+SQLite adds columns via `PRAGMA` and recomposes its FTS triggers. Contract-tested
+across memory / sqlite / postgres. Demo: `scripts/demo-cq-memory.sh`.
 
 ## 0.2.1 (2026-05-26)
 

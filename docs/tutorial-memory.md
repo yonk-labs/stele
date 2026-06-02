@@ -280,7 +280,118 @@ single artifact: `memory_search` filters to memories whose `source_refs`
 include that artifact's reference, `artifact_search` scopes to it,
 `raw_fetch` fetches it.
 
-## 8. Clean up
+## 8. Richer memories: tripartite insight, evidence, and lifecycle kinds (v0.4.0)
+
+A memory no longer has to be one opaque blob. You can record the **observation**,
+the **supporting detail**, and the **action** separately, and the evidence
+behind a memory now *evolves* as the same fact is re-observed.
+
+### Tripartite insight
+
+`add` accepts three optional fields alongside `text`. They are PII-scrubbed like
+`text`, and search indexes the composed view, so a term that lives only in
+`detail` is still findable:
+
+```python
+r = stele.memory.add(
+    text="cooperative-sticky avoids the rebalancing storm",
+    summary="consumers rebalance on every deploy",
+    detail="the cooperative-sticky assignor keeps partitions put across restarts",
+    action="set partition.assignment.strategy=cooperative-sticky",
+    kind="fact",
+    source_refs=[stored.reference],
+    scope=scope,
+)
+got = stele.memory.get(r.record.id)
+print(got.summary, "|", got.action)
+
+# "assignor" appears only in `detail` — composed indexing still finds it:
+hits = stele.memory.search(MemoryQuery(query="assignor", scope=scope))
+assert r.record.id in {h.id for h in hits}
+```
+
+`record.indexable_text` is the composed view used for search/dedup; when the
+three fields are absent it falls back to `text`, so existing memories behave
+exactly as before.
+
+### Evidence that evolves — re-observation merges
+
+Re-asserting the *same* fact in the same scope no longer inserts a twin row. It
+**confirms** the existing memory: `confirmations` increments, `last_confirmed`
+is stamped, and `confidence` rises toward `1.0` (never above it, never down).
+The asserted text stays immutable — only the evidence about it moves.
+
+```python
+first = stele.memory.add(
+    text="prod runs in us-east-1", kind="fact",
+    source_refs=[stored.reference], scope=scope, confidence=0.5,
+)
+again = stele.memory.add(           # same text + scope, not superseding
+    text="prod runs in us-east-1", kind="fact",
+    source_refs=[stored.reference], scope=scope, confidence=0.5,
+)
+assert again.record.id == first.record.id      # same row, not a twin
+assert again.duplicate_of == first.record.id
+assert again.record.confirmations == 2
+assert again.record.confidence > 0.5           # evolved upward
+```
+
+This holds for `add_many` too (including duplicates within one batch), so it
+stays observably equal to N sequential `add` calls. Passing `supersedes=[...]`
+opts out of the merge — that is an intentional new assertion, not a
+re-observation.
+
+`search_with_score` stamps `last_queried` on the rows it surfaces, so you can
+tell which memories recall actually used:
+
+```python
+hits = stele.memory.search_with_score("prod region", scope)
+print(stele.memory.get(hits[0].record.id).last_queried)   # a timestamp now
+```
+
+### cq lifecycle kinds
+
+`kind` gained four lifecycle values for capturing agent friction:
+`pitfall` (L1) → `workaround` (L2) → `tool_recommendation` (L3) → `tool_gap`
+(L4). The L2→L3 transition is just supersession; clustering workarounds into an
+L4 signal is a consumer concern (stele only stores the kinds).
+
+```python
+wa = stele.memory.add(
+    text="pin the transitive dep to dodge the resolver bug",
+    kind="workaround", source_refs=[stored.reference], scope=scope,
+)
+stele.memory.add(
+    text="use the resolver's new --strict flag, which fixes it natively",
+    kind="tool_recommendation", source_refs=[stored.reference],
+    scope=scope, supersedes=[wa.record.id],
+)
+```
+
+## 9. Optional: semantic recall over memories (v0.5.0, Postgres)
+
+By default `memory.search` ranks by keyword (tsvector) + recency. On a
+**Postgres** backend you can opt into a vector leg so a paraphrase with no shared
+keywords still recalls the right fact:
+
+```python
+stele = Stele.from_config({
+    "backend": {"type": "postgres", "dsn": "postgresql://…/db"},
+    "retrieval": {"memory_vector": True},   # opt-in; Postgres-only; needs chunkshop
+})
+print(stele.capabilities().memory_vector_search)   # True
+```
+
+When enabled, each memory's `indexable_text` is embedded on write (the embedder
+is synthesized internally from the same fastembed model the chunk index uses —
+nothing to wire up), and `search_with_score` fuses the keyword and vector legs
+via RRF. When it is off — the default, and every non-Postgres backend — recall
+is byte-identical to before, so this costs nothing until you ask for it. See
+[vector-indexing-setup.md](vector-indexing-setup.md) for the embedding model
+knobs, and note the cheaper alternative of bridging facts into the existing
+chunk index if you already run it.
+
+## 10. Clean up
 
 ```python
 stele.close()
@@ -305,12 +416,19 @@ still returns the row for audit, but `search`/`list` exclude it.
 - Supersession is atomic — a mid-write failure leaves both rows in their
   pre-state.
 - `as_of` behaves identically on SQLite and Postgres (contract tests).
+- Re-observing a fact confirms (never duplicates) it; the asserted text is never
+  mutated; `update(text=...)` still raises. Covered by
+  `tests/contract/test_memory_contract.py` and `tests/unit/core/test_memory_duplicates.py`.
+- Composed-insight search, evidence evolution, and the lifecycle kinds are
+  contract-tested across the memory / sqlite / postgres backends; optional
+  Postgres vector recall is proven in `tests/contract/test_memory_vector.py`.
 - Recall imports no LLM client, no `pg_raggraph`, no `chunkshop` — verified by
   `tests/unit/recall/test_architecture.py`.
 
 ## Where to go next
 
-- Run the demos: `scripts/demo-supersession.sh`, `scripts/demo-extraction.sh`.
+- Run the demos: `scripts/demo-cq-memory.sh` (tripartite + evidence + lifecycle
+  kinds), `scripts/demo-supersession.sh`, `scripts/demo-extraction.sh`.
 - Read the design specs in `docs/superpowers/specs/` for the full contracts.
 - See [`docs/current-status.md`](current-status.md) for what's shipped and the
   Phase 4–8 roadmap.
