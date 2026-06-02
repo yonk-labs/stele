@@ -58,14 +58,17 @@ def _absent() -> list[dict[str, Any]]:
 
 def _classify_text(answer: str) -> str:
     a = answer.lower()
-    if re.search(r"\b(never|no record|did not|didn't|don't have|not built|no such|nothing)\b", a):
+    if re.search(r"\b(never|no record|don't have|not built|no such|nothing|haven'?t built)\b", a):
         return "absent"
     if re.search(r"\b(decided not|descope|abandon|won'?t build|cancel)\b", a):
         return "abandoned"
+    # in-progress (incl. negated-done: "not yet done") is checked BEFORE done,
+    # so "not yet done" / "not finished" do not get caught by the done keyword.
+    if re.search(r"\b(in progress|underway|still|pending|working|started)\b", a) \
+            or re.search(r"not\s+(yet|done|finished|complete|shipped)", a):
+        return "in_progress"
     if re.search(r"\b(shipped|done|finished|complete|deployed|merged)\b", a):
         return "done"
-    if re.search(r"\b(in progress|underway|still|pending|working|started|not yet)\b", a):
-        return "in_progress"
     return "absent"
 
 
