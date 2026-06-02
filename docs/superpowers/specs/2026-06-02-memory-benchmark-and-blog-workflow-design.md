@@ -462,6 +462,8 @@ guard = "\n".join(f"- {h.record.summary}: {h.record.action}" for h in hits)
 out = _answer_guarded(ans, guard, task.prompt)
 ```
 
+> **Finding from the first smoke (n=5), folded back in:** selecting guardrails by `search_with_score(task.prompt, ...)` does NOT work. A writing task ("write about benchmarks with a dramatic aside") shares almost no vocabulary with a rule ("never use em-dashes"), so keyword recall returns nothing and `memory_driven` degenerates to `no_memory`. This is itself on-thesis (enforcement is not similarity-recall). The fix for v1: select guardrails by **applicability domain**, not query similarity. Each rule declares the output domain it governs (`prose`, `markdown`, `python`, `sql`); a task declares its domain; `memory_driven` carries the rules whose domain matches (a small set) while `prompt_stuffed` carries every rule including out-of-domain distractors. The token-saving and adherence story then comes from domain selection, not lexical overlap. The optional `memory_vector` leg is measured as a second selection mechanism, but domain-applicability is the primary fix.
+
 The headline protocol (the brief's "violation rate before vs after ONE correction"):
 1. **Round 0:** recall + enforce; measure violation rate.
 2. For any rule that still fired, issue exactly **one correction**: `st.memory.add(text=..., kind="workaround", supersedes=[old_id], action=<sharper instruction>, ...)`. This exercises supersession. The corrected rule replaces the original, and `search_with_score` now surfaces the sharper `action`.
