@@ -5,6 +5,20 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.5.2] — 2026-06-02
+
+### Fixed
+
+- **Memory vector recall crashed with a real embedder (stele#39).** The
+  fastembed embedder returns a numpy array shaped `(1, dim)`; the v0.5.0 wrapper
+  called `list(...)` on it, so building the pgvector literal raised
+  `only 0-dimensional arrays can be converted to Python scalars` the first time
+  `retrieval.memory_vector=True` was used with a real model. The contract test
+  used a fake embedder returning a flat list and never exercised the numpy path.
+  Added `_to_vector()` to coerce ndarray / nested / flat outputs to
+  `list[float]`, plus `tests/unit/storage/test_memory_embedder.py` covering the
+  numpy shapes. Discovered while building the additive memory-recall benchmark.
+
 ## [0.5.1] — 2026-06-01
 
 ### Documentation

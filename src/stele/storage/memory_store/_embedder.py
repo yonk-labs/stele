@@ -12,8 +12,9 @@ either), so memory and chunk embedding stay consistent.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from importlib.util import find_spec
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 
 from stele.core.config import IndexingConfig
 
@@ -40,7 +41,25 @@ class _FastembedMemoryEmbedder:
         )
 
     def embed(self, text: str) -> list[float]:
-        return list(self._inner.embed(text))
+        return _to_vector(self._inner.embed(text))
+
+
+def _to_vector(raw: object) -> list[float]:
+    """Coerce an embedder's raw output into a flat ``list[float]`` for the
+    ``%s::vector`` bind. Real backends (fastembed) return a numpy array, often
+    shaped ``(1, dim)``; a fake/test embedder may already return a flat list.
+    Handle ndarray (any shape), one level of nesting, and flat sequences
+    without taking a hard numpy dependency."""
+    ravel = getattr(raw, "ravel", None)
+    if callable(ravel):  # numpy ndarray (incl. shape (1, dim))
+        return [float(x) for x in ravel().tolist()]
+    out: list[float] = []
+    for x in cast("Iterable[Any]", raw):
+        if hasattr(x, "__iter__") and not isinstance(x, (str, bytes)):
+            out.extend(float(y) for y in x)
+        else:
+            out.append(float(x))
+    return out
 
 
 def build_memory_embedder(config: IndexingConfig) -> MemoryEmbedder | None:
