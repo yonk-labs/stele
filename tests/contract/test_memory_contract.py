@@ -464,6 +464,147 @@ def test_add_many_empty_returns_empty(tmp_path: Path, backend: str) -> None:
 
 
 @pytest.mark.parametrize("backend", BACKENDS)
+def test_lifecycle_kinds_store_and_supersede(tmp_path: Path, backend: str) -> None:
+    """#38: the cq lifecycle kinds are storable, and an L2 workaround is
+    superseded by an L3 tool_recommendation via the existing supersession
+    plumbing (no new behavior needed upstream)."""
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    wa = s.memory.add(
+        text="pin transitive dep to dodge the resolver bug",
+        kind="workaround",
+        source_refs=["stele://default/a"],
+        scope=MemoryScope(user_id=user),
+    )
+    stored_wa = s.memory.get(wa.record.id)
+    assert stored_wa is not None and stored_wa.kind == "workaround"
+    rec = s.memory.add(
+        text="use the new resolver flag that fixes it natively",
+        kind="tool_recommendation",
+        source_refs=["stele://default/b"],
+        scope=MemoryScope(user_id=user),
+        supersedes=[wa.record.id],
+    )
+    assert rec.superseded_ids == [wa.record.id]
+    # The L4 signal is just another kind stele can store.
+    gap = s.memory.add(
+        text="no first-class tool exists for X",
+        kind="tool_gap",
+        source_refs=["stele://default/c"],
+        scope=MemoryScope(user_id=user),
+    )
+    stored_gap = s.memory.get(gap.record.id)
+    assert stored_gap is not None and stored_gap.kind == "tool_gap"
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_tripartite_round_trip_and_search(tmp_path: Path, backend: str) -> None:
+    """#37A: summary/detail/action round-trip, and a term living only in
+    `detail` is findable (search indexes the composed insight)."""
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    r = s.memory.add(
+        text="kafka consumer note",
+        summary="consumers rebalance on deploy",
+        detail="the cooperative-sticky assignor avoids the rebalancing storm",
+        action="set partition.assignment.strategy to cooperative-sticky",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=MemoryScope(user_id=user),
+    )
+    got = s.memory.get(r.record.id)
+    assert got is not None
+    assert got.summary == "consumers rebalance on deploy"
+    assert got.action == "set partition.assignment.strategy to cooperative-sticky"
+    # "assignor" appears only in `detail`, not in `text`.
+    hits = s.memory.search(
+        MemoryQuery(query="assignor", scope=MemoryScope(user_id=user))
+    )
+    assert r.record.id in {h.id for h in hits}
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_reobservation_evolves_evidence(tmp_path: Path, backend: str) -> None:
+    """#37B: re-observing an assertion bumps confirmations and raises
+    confidence (never above 1.0); the text is never mutated; one row."""
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    scope = MemoryScope(user_id=user)
+    first = s.memory.add(
+        text="prod runs in us-east-1",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=scope,
+        confidence=0.5,
+    )
+    assert first.record.confirmations == 1
+    assert first.record.confidence == pytest.approx(0.5)
+    again = s.memory.add(
+        text="prod runs in us-east-1",
+        kind="fact",
+        source_refs=["stele://default/b"],
+        scope=scope,
+        confidence=0.5,
+    )
+    assert again.record.id == first.record.id
+    assert again.record.confirmations == 2
+    assert again.record.confidence > 0.5
+    assert again.record.text == "prod runs in us-east-1"
+    assert len(s.memory.list(scope, limit=50)) == 1
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_search_with_score_stamps_last_queried(tmp_path: Path, backend: str) -> None:
+    """#37B: recall stamps last_queried on the rows it surfaces."""
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    scope = MemoryScope(user_id=user)
+    r = s.memory.add(
+        text="vault rotation cadence is 90 days",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=scope,
+    )
+    before = s.memory.get(r.record.id)
+    assert before is not None and before.last_queried is None
+    hits = s.memory.search_with_score("vault rotation", scope)
+    assert r.record.id in {h.record.id for h in hits}
+    after = s.memory.get(r.record.id)
+    assert after is not None and after.last_queried is not None
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_add_many_within_batch_dedup_merges(tmp_path: Path, backend: str) -> None:
+    """#37B: add_many stays observably equal to N adds — an identical row
+    later in the same batch confirms the first instead of inserting a twin."""
+    from stele.core.memory_record import AddRequest
+
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    scope = MemoryScope(user_id=user)
+    items = [
+        AddRequest(
+            text="same assertion",
+            kind="fact",
+            source_refs=["stele://x/1"],
+            scope=scope,
+        ),
+        AddRequest(
+            text="same assertion",
+            kind="fact",
+            source_refs=["stele://x/2"],
+            scope=scope,
+        ),
+    ]
+    results = s.memory.add_many(items)
+    assert results[0].duplicate_of is None
+    assert results[1].duplicate_of == results[0].record.id
+    assert results[1].record.id == results[0].record.id
+    assert results[1].record.confirmations == 2
+    assert len(s.memory.list(scope, limit=50)) == 1
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
 def test_add_many_with_supersession(tmp_path: Path, backend: str) -> None:
     """Per-row supersession works inside a batch."""
     from stele.core.memory_record import AddRequest

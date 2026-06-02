@@ -10,6 +10,7 @@ from psycopg.rows import dict_row
 
 from stele.core.exceptions import ArtifactNotFound
 from stele.core.memory_record import (
+    KIND_VALUES,
     MemoryQuery,
     MemoryRecord,
     MemoryScope,
@@ -17,18 +18,34 @@ from stele.core.memory_record import (
     memory_text_hash,
 )
 
-_SCHEMA = """
+# Built from the model's Literal so the CHECK and MemoryKind never drift.
+_KINDS_SQL = ", ".join(f"'{k}'" for k in KIND_VALUES)
+
+# tsvector over the composed insight (summary/detail/action/text). When the
+# tripartite fields are NULL this reduces to to_tsvector(text) modulo
+# whitespace, so existing rows index identically to before.
+_TSV_EXPR = (
+    "to_tsvector('english', "
+    "coalesce(summary,'') || ' ' || coalesce(detail,'') || ' ' || "
+    "coalesce(action,'') || ' ' || text)"
+)
+
+_SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS memories (
   id TEXT PRIMARY KEY,
   text TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (
-    kind IN ('fact','preference','decision','instruction','commitment','issue','summary')
-  ),
+  summary TEXT,
+  detail  TEXT,
+  action  TEXT,
+  kind TEXT NOT NULL CHECK (kind IN ({_KINDS_SQL})),
   user_id TEXT, agent_id TEXT, app_id TEXT, session_id TEXT,
   namespace TEXT NOT NULL DEFAULT 'default',
   source_refs JSONB NOT NULL,
   source_chunk_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
   confidence DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+  confirmations INTEGER NOT NULL DEFAULT 1,
+  last_confirmed TIMESTAMPTZ,
+  last_queried TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'active' CHECK (
     status IN ('active','superseded','retracted','disputed','deleted')
   ),
@@ -38,9 +55,9 @@ CREATE TABLE IF NOT EXISTS memories (
   updated_at TIMESTAMPTZ NOT NULL,
   effective_from TIMESTAMPTZ NOT NULL,
   effective_until TIMESTAMPTZ,
-  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  metadata JSONB NOT NULL DEFAULT '{{}}'::jsonb,
   pii_flags JSONB NOT NULL DEFAULT '[]'::jsonb,
-  search_tsv TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', text)) STORED
+  search_tsv TSVECTOR GENERATED ALWAYS AS ({_TSV_EXPR}) STORED
 );
 
 CREATE INDEX IF NOT EXISTS idx_memories_scope
@@ -52,6 +69,47 @@ CREATE INDEX IF NOT EXISTS idx_memories_text_hash
   ON memories(text_hash, namespace, user_id);
 CREATE INDEX IF NOT EXISTS idx_memories_search_tsv
   ON memories USING GIN(search_tsv);
+
+-- Idempotent forward-migration for tables created before this feature. Each
+-- arm is guarded by an existence check so a table that is ALREADY current
+-- runs ZERO DDL: no ALTER, no lock. (ALTER TABLE needs ACCESS EXCLUSIVE; on a
+-- busy live store an unconditional ALTER on every initialize() would block.)
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'memories' AND column_name = 'confirmations'
+  ) THEN
+    ALTER TABLE memories ADD COLUMN confirmations  INTEGER NOT NULL DEFAULT 1;
+    ALTER TABLE memories ADD COLUMN last_confirmed TIMESTAMPTZ;
+    ALTER TABLE memories ADD COLUMN last_queried   TIMESTAMPTZ;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'memories' AND column_name = 'summary'
+  ) THEN
+    ALTER TABLE memories ADD COLUMN summary TEXT;
+    ALTER TABLE memories ADD COLUMN detail  TEXT;
+    ALTER TABLE memories ADD COLUMN action  TEXT;
+    ALTER TABLE memories DROP COLUMN IF EXISTS search_tsv;
+    ALTER TABLE memories
+      ADD COLUMN search_tsv TSVECTOR GENERATED ALWAYS AS ({_TSV_EXPR}) STORED;
+    CREATE INDEX IF NOT EXISTS idx_memories_search_tsv
+      ON memories USING GIN(search_tsv);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'memories_kind_check'
+      AND pg_get_constraintdef(oid) LIKE '%tool_gap%'
+  ) THEN
+    ALTER TABLE memories DROP CONSTRAINT IF EXISTS memories_kind_check;
+    ALTER TABLE memories ADD CONSTRAINT memories_kind_check
+      CHECK (kind IN ({_KINDS_SQL}));
+  END IF;
+END
+$do$;
 """
 
 
@@ -79,10 +137,50 @@ def _temporal_sql(
     return " ".join(parts), params
 
 
+_INSERT_SQL = (
+    "INSERT INTO memories ("
+    "id, text, summary, detail, action, kind,"
+    "user_id, agent_id, app_id, session_id, namespace,"
+    "source_refs, source_chunk_ids, confidence, confirmations,"
+    "last_confirmed, last_queried, status, supersedes,"
+    "text_hash, created_at, updated_at, effective_from, effective_until,"
+    "metadata, pii_flags"
+    ") VALUES ("
+    "%s, %s, %s, %s, %s, %s,"
+    "%s, %s, %s, %s, %s,"
+    "%s::jsonb, %s::jsonb, %s, %s,"
+    "%s, %s, %s, %s::jsonb,"
+    "%s, %s, %s, %s, %s,"
+    "%s::jsonb, %s::jsonb)"
+)
+
+
+def _insert_params(record: MemoryRecord) -> tuple[object, ...]:
+    return (
+        record.id, record.text, record.summary, record.detail, record.action,
+        record.kind,
+        record.scope.user_id, record.scope.agent_id,
+        record.scope.app_id, record.scope.session_id, record.scope.namespace,
+        json.dumps(record.source_refs),
+        json.dumps(record.source_chunk_ids),
+        record.confidence, record.confirmations,
+        record.last_confirmed, record.last_queried,
+        record.status, json.dumps(record.supersedes),
+        memory_text_hash(record.text, record.scope),
+        record.created_at, record.updated_at,
+        record.effective_from, record.effective_until,
+        json.dumps(record.metadata),
+        json.dumps(record.pii_flags),
+    )
+
+
 def _to_record(row: dict[str, object]) -> MemoryRecord:
     return MemoryRecord(
         id=str(row["id"]),
         text=str(row["text"]),
+        summary=row["summary"],  # type: ignore[arg-type]
+        detail=row["detail"],  # type: ignore[arg-type]
+        action=row["action"],  # type: ignore[arg-type]
         kind=str(row["kind"]),  # type: ignore[arg-type]
         scope=MemoryScope(
             user_id=row["user_id"],  # type: ignore[arg-type]
@@ -94,6 +192,9 @@ def _to_record(row: dict[str, object]) -> MemoryRecord:
         source_refs=row["source_refs"],  # type: ignore[arg-type]
         source_chunk_ids=row["source_chunk_ids"],  # type: ignore[arg-type]
         confidence=float(row["confidence"]),  # type: ignore[arg-type]
+        confirmations=int(row["confirmations"]),  # type: ignore[call-overload]
+        last_confirmed=row["last_confirmed"],  # type: ignore[arg-type]
+        last_queried=row["last_queried"],  # type: ignore[arg-type]
         status=str(row["status"]),  # type: ignore[arg-type]
         supersedes=row["supersedes"],  # type: ignore[arg-type]
         created_at=row["created_at"],  # type: ignore[arg-type]
@@ -131,33 +232,7 @@ class PostgresMemoryStore:
                     ).rowcount
                     if affected == 0:
                         raise ArtifactNotFound(f"memory not found: {old_id}")
-                cur.execute(
-                    "INSERT INTO memories ("
-                    "id, text, kind, user_id, agent_id, app_id, session_id, namespace,"
-                    "source_refs, source_chunk_ids, confidence, status, supersedes,"
-                    "text_hash, created_at, updated_at, effective_from, effective_until,"
-                    "metadata, pii_flags"
-                    ") VALUES ("
-                    "%s, %s, %s, %s, %s, %s, %s, %s,"
-                    "%s::jsonb, %s::jsonb, %s, %s, %s::jsonb,"
-                    "%s, %s, %s, %s, %s,"
-                    "%s::jsonb, %s::jsonb)",
-                    (
-                        record.id, record.text, record.kind,
-                        record.scope.user_id, record.scope.agent_id,
-                        record.scope.app_id, record.scope.session_id,
-                        record.scope.namespace,
-                        json.dumps(record.source_refs),
-                        json.dumps(record.source_chunk_ids),
-                        record.confidence, record.status,
-                        json.dumps(record.supersedes),
-                        memory_text_hash(record.text, record.scope),
-                        record.created_at, record.updated_at,
-                        record.effective_from, record.effective_until,
-                        json.dumps(record.metadata),
-                        json.dumps(record.pii_flags),
-                    ),
-                )
+                cur.execute(_INSERT_SQL, _insert_params(record))
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -185,36 +260,8 @@ class PostgresMemoryStore:
                         ).rowcount
                         if affected == 0:
                             raise ArtifactNotFound(f"memory not found: {old_id}")
-                rows = [
-                    (
-                        r.id, r.text, r.kind,
-                        r.scope.user_id, r.scope.agent_id,
-                        r.scope.app_id, r.scope.session_id, r.scope.namespace,
-                        json.dumps(r.source_refs),
-                        json.dumps(r.source_chunk_ids),
-                        r.confidence, r.status,
-                        json.dumps(r.supersedes),
-                        memory_text_hash(r.text, r.scope),
-                        r.created_at, r.updated_at,
-                        r.effective_from, r.effective_until,
-                        json.dumps(r.metadata),
-                        json.dumps(r.pii_flags),
-                    )
-                    for r, _ in items
-                ]
-                cur.executemany(
-                    "INSERT INTO memories ("
-                    "id, text, kind, user_id, agent_id, app_id, session_id, namespace,"
-                    "source_refs, source_chunk_ids, confidence, status, supersedes,"
-                    "text_hash, created_at, updated_at, effective_from, effective_until,"
-                    "metadata, pii_flags"
-                    ") VALUES ("
-                    "%s, %s, %s, %s, %s, %s, %s, %s,"
-                    "%s::jsonb, %s::jsonb, %s, %s, %s::jsonb,"
-                    "%s, %s, %s, %s, %s,"
-                    "%s::jsonb, %s::jsonb)",
-                    rows,
-                )
+                rows = [_insert_params(r) for r, _ in items]
+                cur.executemany(_INSERT_SQL, rows)
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -308,6 +355,16 @@ class PostgresMemoryStore:
             rows = cur.fetchall()
         if not rows:
             return []
+        # Stamp last_queried on the rows recall surfaced. Batched and applied
+        # after ranking so it never perturbs scores. BUG-1 candidate set is
+        # already fixed; this is a pure evidence side-effect.
+        ids = [row["id"] for row in rows]
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "UPDATE memories SET last_queried = %s WHERE id = ANY(%s)",
+                (datetime.now(UTC), ids),
+            )
+        self.conn.commit()
         max_score = max(row["raw_score"] for row in rows) or 1.0
         records_by_id = {row["id"]: self.get(row["id"]) for row in rows}
         result: list[ScoredMemoryHit] = []
@@ -445,6 +502,29 @@ class PostgresMemoryStore:
             cur.execute(" ".join(sql), params)
             row = cur.fetchone()
         return str(row["id"]) if row else None
+
+    def confirm(
+        self,
+        memory_id: str,
+        *,
+        at: datetime,
+        new_confidence: float | None = None,
+    ) -> MemoryRecord:
+        floor = new_confidence if new_confidence is not None else 0.0
+        with self.conn.cursor() as cur:
+            affected = cur.execute(
+                "UPDATE memories SET confirmations = confirmations + 1, "
+                "last_confirmed = %s, updated_at = %s, "
+                "confidence = LEAST(1.0, GREATEST(confidence, %s)) "
+                "WHERE id = %s",
+                (at, at, floor, memory_id),
+            ).rowcount
+            if affected == 0:
+                raise ArtifactNotFound(f"memory not found: {memory_id}")
+        self.conn.commit()
+        updated = self.get(memory_id)
+        assert updated is not None
+        return updated
 
     def close(self) -> None:
         self.conn.close()
