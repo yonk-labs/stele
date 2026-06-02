@@ -11,6 +11,7 @@ from benchmarks.external.memory_modes.best_practice import BestPractice
 from benchmarks.external.memory_modes.fact_recall import FactRecall
 from benchmarks.external.memory_modes.guardrail_adherence import GuardrailAdherence
 from benchmarks.external.memory_modes.precedent_recall import PrecedentRecall
+from benchmarks.external.memory_modes.resume_task_state import ResumeTaskState
 from benchmarks.external.memory_modes.skill_adherence import SkillAdherence
 
 MODES: list[Mode] = [
@@ -19,4 +20,5 @@ MODES: list[Mode] = [
     BestPractice(),
     PrecedentRecall(),
     FactRecall(),
+    ResumeTaskState(),
 ]
