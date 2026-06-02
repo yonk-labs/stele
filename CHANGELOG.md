@@ -5,6 +5,56 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.4.0] — 2026-06-01
+
+cq/Zep-shaped memory rows. Additive, backward-compatible schema evolution of
+`MemoryRecord` and the memory store. Existing rows and callers behave
+identically until they opt into the new fields. Minor bump because the
+duplicate-write semantics change (see Changed). Implements stele#38 and both
+halves of stele#37.
+
+### Added
+
+- **Tripartite insight (stele#37A).** `MemoryRecord` and `AddRequest` gain
+  optional `summary` / `detail` / `action` fields plus an `indexable_text`
+  property. `Memory.add` / `add_many` accept and PII-scrub them. Search now
+  indexes the composed insight (Postgres `search_tsv`, SQLite FTS triggers,
+  in-process substring) so a term living only in `detail` is findable. When the
+  tripartite fields are absent, indexing reduces to the old `text`-only behavior.
+- **Evidence model (stele#37B).** New `confirmations` / `last_confirmed` /
+  `last_queried` columns; `confidence` may now evolve (it is no longer
+  write-time immutable). A new `MemoryStore.confirm()` primitive bumps
+  confirmations, stamps `last_confirmed`, and raises confidence toward a floor
+  (never lowering it, never exceeding 1.0) via the `evolved_confidence` helper.
+  `search_with_score` stamps `last_queried` on the rows it surfaces.
+- **cq lifecycle kinds (stele#38).** `MemoryKind` gains `pitfall`,
+  `workaround`, `tool_recommendation`, `tool_gap` (L1->L4). The L4 tool-gap
+  *synthesis* stays a consumer concern; stele only stores the kinds. Backend
+  `CHECK` constraints are generated from the `MemoryKind` Literal so schema and
+  model cannot drift.
+
+### Changed
+
+- **Re-observing a duplicate now merges instead of inserting a twin.** When an
+  `add` (or a row within `add_many`) hashes to an existing in-scope assertion
+  and is not superseding anything, the existing row is `confirm()`ed (bump +
+  confidence evolution) and returned, rather than inserting a second row. The
+  asserted `text` is never mutated; `update()` still rejects text edits. This
+  also fixes a latent wart where extraction silently inserted duplicate rows it
+  then reported as rejected. `MemoryAddResult.duplicate_of` is unchanged.
+
+### Migration
+
+- **Postgres** migrates existing tables in-place via a fully guarded `DO`
+  block (adds columns, recomposes the generated `search_tsv`, swaps the kind
+  `CHECK`). Each arm is existence-checked, so an already-current table runs zero
+  DDL and takes no `ACCESS EXCLUSIVE` lock on `initialize()`.
+- **SQLite** adds the new columns via `PRAGMA`-guided `ALTER TABLE ADD COLUMN`
+  and recreates the FTS triggers to index the composed text. SQLite cannot
+  alter a `CHECK` constraint, so the new lifecycle kinds are accepted on stores
+  created at or after this version; a pre-existing SQLite store keeps its
+  original kind `CHECK` until rebuilt.
+
 ## [0.3.0] — 2026-06-01
 
 Batteries-included retrieval defaults, PII opt-in, and a large cross-corpus

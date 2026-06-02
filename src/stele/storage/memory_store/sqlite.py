@@ -12,12 +12,28 @@ from pathlib import Path
 
 from stele.core.exceptions import ArtifactNotFound
 from stele.core.memory_record import (
+    KIND_VALUES,
     MemoryQuery,
     MemoryRecord,
     MemoryScope,
     ScoredMemoryHit,
     memory_text_hash,
 )
+
+# Built from the model's Literal so the CHECK and MemoryKind never drift.
+_KINDS_SQL = ", ".join(f"'{k}'" for k in KIND_VALUES)
+
+# Composed FTS text. ALL three triggers must use the SAME expression: for an
+# external-content FTS5 table the 'delete' command subtracts exactly the
+# tokens that were indexed, so insert/update/delete have to agree or the
+# index corrupts. When the tripartite fields are NULL this reduces to the raw
+# text (plus whitespace tokenization drops), so pre-feature rows are
+# unaffected and migrate cleanly.
+def _fts_text(alias: str) -> str:
+    return (
+        f"coalesce({alias}.summary,'')||' '||coalesce({alias}.detail,'')||' '||"
+        f"coalesce({alias}.action,'')||' '||{alias}.text"
+    )
 
 
 def _fts_query(query: str) -> str:
@@ -60,12 +76,20 @@ def _temporal_sql(
     return " ".join(parts), params
 
 
-_SCHEMA = """
+# Table + indexes. CHECK on `kind` is defense-in-depth (the MemoryKind
+# Literal is the authoritative validator). On a FRESH db this carries the new
+# tripartite/evidence columns; existing dbs are migrated by _migrate_columns
+# (SQLite cannot ALTER a CHECK, so an existing db keeps its original kind
+# CHECK — the new lifecycle kinds land on dbs created at/after this version).
+_SCHEMA_TABLE = f"""
 CREATE TABLE IF NOT EXISTS memories (
   id TEXT PRIMARY KEY,
   text TEXT NOT NULL,
+  summary TEXT,
+  detail TEXT,
+  action TEXT,
   kind TEXT NOT NULL
-    CHECK (kind IN ('fact','preference','decision','instruction','commitment','issue','summary')),
+    CHECK (kind IN ({_KINDS_SQL})),
   user_id TEXT,
   agent_id TEXT,
   app_id TEXT,
@@ -74,6 +98,9 @@ CREATE TABLE IF NOT EXISTS memories (
   source_refs TEXT NOT NULL,
   source_chunk_ids TEXT NOT NULL DEFAULT '[]',
   confidence REAL NOT NULL DEFAULT 1.0,
+  confirmations INTEGER NOT NULL DEFAULT 1,
+  last_confirmed TEXT,
+  last_queried TEXT,
   status TEXT NOT NULL DEFAULT 'active'
     CHECK (status IN ('active','superseded','retracted','disputed','deleted')),
   supersedes TEXT NOT NULL DEFAULT '[]',
@@ -82,7 +109,7 @@ CREATE TABLE IF NOT EXISTS memories (
   updated_at TEXT NOT NULL,
   effective_from TEXT NOT NULL,
   effective_until TEXT,
-  metadata TEXT NOT NULL DEFAULT '{}',
+  metadata TEXT NOT NULL DEFAULT '{{}}',
   pii_flags TEXT NOT NULL DEFAULT '[]'
 );
 
@@ -93,32 +120,71 @@ CREATE INDEX IF NOT EXISTS idx_memories_effective
   ON memories(effective_from, effective_until);
 CREATE INDEX IF NOT EXISTS idx_memories_text_hash
   ON memories(text_hash, namespace, user_id);
+"""
 
+# FTS vtable + triggers. Created AFTER the tripartite columns exist (the
+# trigger bodies reference new./old.summary etc). Triggers are dropped and
+# recreated so an existing db picks up the composed indexing on upgrade.
+_SCHEMA_FTS = f"""
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts
   USING fts5(text, content='memories', content_rowid='rowid');
 
-CREATE TRIGGER IF NOT EXISTS memories_fts_insert
+DROP TRIGGER IF EXISTS memories_fts_insert;
+DROP TRIGGER IF EXISTS memories_fts_delete;
+DROP TRIGGER IF EXISTS memories_fts_update;
+
+CREATE TRIGGER memories_fts_insert
   AFTER INSERT ON memories BEGIN
-    INSERT INTO memories_fts(rowid, text) VALUES (new.rowid, new.text);
+    INSERT INTO memories_fts(rowid, text) VALUES (new.rowid, {_fts_text("new")});
   END;
-CREATE TRIGGER IF NOT EXISTS memories_fts_delete
+CREATE TRIGGER memories_fts_delete
   AFTER DELETE ON memories BEGIN
     INSERT INTO memories_fts(memories_fts, rowid, text)
-      VALUES('delete', old.rowid, old.text);
+      VALUES('delete', old.rowid, {_fts_text("old")});
   END;
-CREATE TRIGGER IF NOT EXISTS memories_fts_update
+CREATE TRIGGER memories_fts_update
   AFTER UPDATE ON memories BEGIN
     INSERT INTO memories_fts(memories_fts, rowid, text)
-      VALUES('delete', old.rowid, old.text);
-    INSERT INTO memories_fts(rowid, text) VALUES (new.rowid, new.text);
+      VALUES('delete', old.rowid, {_fts_text("old")});
+    INSERT INTO memories_fts(rowid, text) VALUES (new.rowid, {_fts_text("new")});
   END;
 """
+
+_COLUMN_MIGRATIONS = (
+    ("summary", "TEXT"),
+    ("detail", "TEXT"),
+    ("action", "TEXT"),
+    ("confirmations", "INTEGER NOT NULL DEFAULT 1"),
+    ("last_confirmed", "TEXT"),
+    ("last_queried", "TEXT"),
+)
+
+_INSERT_SQL = (
+    "INSERT INTO memories ("
+    "id, text, summary, detail, action, kind,"
+    "user_id, agent_id, app_id, session_id, namespace,"
+    "source_refs, source_chunk_ids, confidence, confirmations,"
+    "last_confirmed, last_queried, status, supersedes,"
+    "text_hash, created_at, updated_at, effective_from, effective_until,"
+    "metadata, pii_flags"
+    ") VALUES ("
+    ":id, :text, :summary, :detail, :action, :kind,"
+    ":user_id, :agent_id, :app_id, :session_id, :namespace,"
+    ":source_refs, :source_chunk_ids, :confidence, :confirmations,"
+    ":last_confirmed, :last_queried, :status, :supersedes,"
+    ":text_hash, :created_at, :updated_at, :effective_from, :effective_until,"
+    ":metadata, :pii_flags"
+    ")"
+)
 
 
 def _record_to_row(r: MemoryRecord) -> dict[str, object]:
     return {
         "id": r.id,
         "text": r.text,
+        "summary": r.summary,
+        "detail": r.detail,
+        "action": r.action,
         "kind": r.kind,
         "user_id": r.scope.user_id,
         "agent_id": r.scope.agent_id,
@@ -129,6 +195,9 @@ def _record_to_row(r: MemoryRecord) -> dict[str, object]:
         "source_chunk_ids": json.dumps(r.source_chunk_ids),
         "confidence": r.confidence,
         "status": r.status,
+        "confirmations": r.confirmations,
+        "last_confirmed": r.last_confirmed.isoformat() if r.last_confirmed else None,
+        "last_queried": r.last_queried.isoformat() if r.last_queried else None,
         "supersedes": json.dumps(r.supersedes),
         "text_hash": memory_text_hash(r.text, r.scope),
         "created_at": r.created_at.isoformat(),
@@ -144,6 +213,9 @@ def _row_to_record(row: dict[str, object]) -> MemoryRecord:
     return MemoryRecord(
         id=str(row["id"]),
         text=str(row["text"]),
+        summary=row["summary"],  # type: ignore[arg-type]
+        detail=row["detail"],  # type: ignore[arg-type]
+        action=row["action"],  # type: ignore[arg-type]
         kind=str(row["kind"]),  # type: ignore[arg-type]
         scope=MemoryScope(
             user_id=row["user_id"],  # type: ignore[arg-type]
@@ -155,6 +227,17 @@ def _row_to_record(row: dict[str, object]) -> MemoryRecord:
         source_refs=json.loads(str(row["source_refs"])),
         source_chunk_ids=json.loads(str(row["source_chunk_ids"])),
         confidence=float(row["confidence"]),  # type: ignore[arg-type]
+        confirmations=int(row["confirmations"]),  # type: ignore[call-overload]
+        last_confirmed=(
+            datetime.fromisoformat(str(row["last_confirmed"]))
+            if row["last_confirmed"]
+            else None
+        ),
+        last_queried=(
+            datetime.fromisoformat(str(row["last_queried"]))
+            if row["last_queried"]
+            else None
+        ),
         status=str(row["status"]),  # type: ignore[arg-type]
         supersedes=json.loads(str(row["supersedes"])),
         created_at=datetime.fromisoformat(str(row["created_at"])),
@@ -180,8 +263,21 @@ class SQLiteMemoryStore:
     def initialize(self) -> None:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
-        self.conn.executescript(_SCHEMA)
+        self.conn.executescript(_SCHEMA_TABLE)
+        self._migrate_columns()
+        self.conn.executescript(_SCHEMA_FTS)
         self.conn.commit()
+
+    def _migrate_columns(self) -> None:
+        """Add tripartite/evidence columns to a pre-feature table. SQLite
+        supports ADD COLUMN (unlike altering a CHECK), so this is safe and
+        idempotent; the composed FTS triggers depend on these columns
+        existing, so it runs before _SCHEMA_FTS."""
+        cur = self.conn.execute("PRAGMA table_info(memories)")
+        existing = {str(row[1]) for row in cur.fetchall()}
+        for name, decl in _COLUMN_MIGRATIONS:
+            if name not in existing:
+                self.conn.execute(f"ALTER TABLE memories ADD COLUMN {name} {decl}")
 
     def close(self) -> None:
         self.conn.close()
@@ -204,20 +300,7 @@ class SQLiteMemoryStore:
                 if affected == 0:
                     raise ArtifactNotFound(f"memory not found: {old_id}")
             row = _record_to_row(record)
-            cur.execute(
-                "INSERT INTO memories ("
-                "id, text, kind, user_id, agent_id, app_id, session_id, namespace,"
-                "source_refs, source_chunk_ids, confidence, status, supersedes,"
-                "text_hash, created_at, updated_at, effective_from, effective_until,"
-                "metadata, pii_flags"
-                ") VALUES ("
-                ":id, :text, :kind, :user_id, :agent_id, :app_id, :session_id, :namespace,"
-                ":source_refs, :source_chunk_ids, :confidence, :status, :supersedes,"
-                ":text_hash, :created_at, :updated_at, :effective_from, :effective_until,"
-                ":metadata, :pii_flags"
-                ")",
-                row,
-            )
+            cur.execute(_INSERT_SQL, row)
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -247,20 +330,7 @@ class SQLiteMemoryStore:
                     if affected == 0:
                         raise ArtifactNotFound(f"memory not found: {old_id}")
             rows = [_record_to_row(r) for r, _ in items]
-            cur.executemany(
-                "INSERT INTO memories ("
-                "id, text, kind, user_id, agent_id, app_id, session_id, namespace,"
-                "source_refs, source_chunk_ids, confidence, status, supersedes,"
-                "text_hash, created_at, updated_at, effective_from, effective_until,"
-                "metadata, pii_flags"
-                ") VALUES ("
-                ":id, :text, :kind, :user_id, :agent_id, :app_id, :session_id, :namespace,"
-                ":source_refs, :source_chunk_ids, :confidence, :status, :supersedes,"
-                ":text_hash, :created_at, :updated_at, :effective_from, :effective_until,"
-                ":metadata, :pii_flags"
-                ")",
-                rows,
-            )
+            cur.executemany(_INSERT_SQL, rows)
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -296,6 +366,29 @@ class SQLiteMemoryStore:
         )
         row = cur.fetchone()
         return row["id"] if row else None
+
+    def confirm(
+        self,
+        memory_id: str,
+        *,
+        at: datetime,
+        new_confidence: float | None = None,
+    ) -> MemoryRecord:
+        floor = new_confidence if new_confidence is not None else 0.0
+        at_s = at.isoformat()
+        affected = self.conn.execute(
+            "UPDATE memories SET confirmations = confirmations + 1, "
+            "last_confirmed = ?, updated_at = ?, "
+            "confidence = MIN(1.0, MAX(confidence, ?)) "
+            "WHERE id = ?",
+            (at_s, at_s, floor, memory_id),
+        ).rowcount
+        if affected == 0:
+            raise ArtifactNotFound(f"memory not found: {memory_id}")
+        self.conn.commit()
+        updated = self.get(memory_id)
+        assert updated is not None
+        return updated
 
     def search(self, query: MemoryQuery) -> list[MemoryRecord]:
         as_of = (query.as_of or datetime.now(UTC)).isoformat()
@@ -377,6 +470,16 @@ class SQLiteMemoryStore:
         rows = self.conn.execute(sql, params).fetchall()
         if not rows:
             return []
+        # Stamp last_queried on surfaced rows (after ranking; never perturbs
+        # scores). The FTS update trigger re-emits identical composed tokens,
+        # so the index is unchanged.
+        ids = [row["id"] for row in rows]
+        placeholders = ",".join("?" * len(ids))
+        self.conn.execute(
+            f"UPDATE memories SET last_queried = ? WHERE id IN ({placeholders})",
+            (datetime.now(UTC).isoformat(), *ids),
+        )
+        self.conn.commit()
         max_score = max(row["raw_score"] for row in rows) or 1.0
         records_by_id = {row["id"]: self.get(row["id"]) for row in rows}
         result: list[ScoredMemoryHit] = []

@@ -102,7 +102,7 @@ class InProcessMemoryStore:
                 r, query.scope, as_of, include_superseded=query.include_superseded
             ):
                 continue
-            if q_lower not in r.text.lower():
+            if q_lower not in r.indexable_text.lower():
                 continue
             results.append(r)
         return results[: query.limit]
@@ -219,6 +219,28 @@ class InProcessMemoryStore:
                 return r.id
         return None
 
+    def confirm(
+        self,
+        memory_id: str,
+        *,
+        at: datetime,
+        new_confidence: float | None = None,
+    ) -> MemoryRecord:
+        existing = self._records.get(memory_id)
+        if existing is None:
+            raise ArtifactNotFound(f"memory not found: {memory_id}")
+        floor = new_confidence if new_confidence is not None else 0.0
+        updated = existing.model_copy(
+            update={
+                "confirmations": existing.confirmations + 1,
+                "last_confirmed": at,
+                "updated_at": at,
+                "confidence": min(1.0, max(existing.confidence, floor)),
+            }
+        )
+        self._records[memory_id] = updated
+        return updated
+
     def search_with_score(
         self,
         query: str,
@@ -241,7 +263,7 @@ class InProcessMemoryStore:
                 continue
             if source_ref_filter is not None and source_ref_filter not in record.source_refs:
                 continue
-            text_lower = record.text.lower()
+            text_lower = record.indexable_text.lower()
             score = sum(text_lower.count(t) for t in terms)
             if score > 0:
                 candidates.append((record, score))
@@ -249,6 +271,12 @@ class InProcessMemoryStore:
         top = candidates[:limit]
         if not top:
             return []
+        # Stamp last_queried on surfaced rows (evidence side-effect; the
+        # returned hits keep their pre-stamp snapshot, which is fine).
+        for rec, _ in top:
+            self._records[rec.id] = self._records[rec.id].model_copy(
+                update={"last_queried": as_of}
+            )
         max_score = max(s for _, s in top) or 1
         return [
             ScoredMemoryHit(record=rec, score=raw / max_score) for rec, raw in top

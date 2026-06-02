@@ -16,6 +16,7 @@ from stele.core.memory_record import (
     MemoryScope,
     MemoryStatus,
     ScoredMemoryHit,
+    evolved_confidence,
     memory_text_hash,
 )
 from stele.pii.regex import RegexPIIScrubber
@@ -54,6 +55,15 @@ class Memory:
             return record.source_refs[0]
         return Memory._mem_ref(record)
 
+    def _scrub_optional(self, value: str | None, flags: set[str]) -> str | None:
+        """Scrub an optional tripartite field, folding any PII entity types
+        into the shared flag set. None passes through untouched."""
+        if value is None:
+            return None
+        scrubbed = self._scrubber.scrub(value)
+        flags.update(d.entity_type for d in scrubbed.detections)
+        return scrubbed.text
+
     def add(
         self,
         *,
@@ -61,16 +71,26 @@ class Memory:
         kind: MemoryKind,
         source_refs: list[str],
         scope: MemoryScope,
+        summary: str | None = None,
+        detail: str | None = None,
+        action: str | None = None,
         supersedes: list[str] | None = None,
         confidence: float = 1.0,
         metadata: dict[str, object] | None = None,
     ) -> MemoryAddResult:
         scrubbed = self._scrubber.scrub(text)
+        flags: set[str] = {d.entity_type for d in scrubbed.detections}
+        s_summary = self._scrub_optional(summary, flags)
+        s_detail = self._scrub_optional(detail, flags)
+        s_action = self._scrub_optional(action, flags)
         now = datetime.now(UTC)
         supersedes_ids = supersedes or []
         record = MemoryRecord(
             id=uuid.uuid4().hex,
             text=scrubbed.text,
+            summary=s_summary,
+            detail=s_detail,
+            action=s_action,
             kind=kind,
             scope=scope,
             source_refs=source_refs,
@@ -80,11 +100,27 @@ class Memory:
             updated_at=now,
             effective_from=now,
             metadata=metadata or {},
-            pii_flags=sorted({d.entity_type for d in scrubbed.detections}),
+            pii_flags=sorted(flags),
         )
         dup_id = self._store.find_duplicate(
             scope, memory_text_hash(record.text, scope)
         )
+        # Re-observation: the exact assertion already exists in-scope and the
+        # caller isn't superseding anything, so confirm the existing row
+        # (bump confirmations, evolve confidence) instead of inserting a twin.
+        # The asserted text is immutable; only its evidence moves. The
+        # evidence doc was ingested into the revisor on first write, so we
+        # don't re-ingest here.
+        if dup_id is not None and not supersedes_ids:
+            existing = self._store.get(dup_id)
+            if existing is not None:
+                target = evolved_confidence(
+                    existing.confidence, existing.confirmations + 1
+                )
+                confirmed = self._store.confirm(
+                    dup_id, at=now, new_confidence=max(target, confidence)
+                )
+                return MemoryAddResult(record=confirmed, duplicate_of=dup_id)
         stored, superseded_ids = self._store.add(record, supersedes_ids)
         if self._revisor.active:
             self._revisor.ingest_evidence(
@@ -121,22 +157,31 @@ class Memory:
         )
 
     def add_many(self, items: list[AddRequest]) -> list[MemoryAddResult]:
-        """Insert N memories in one transaction. Returns per-row
-        :class:`MemoryAddResult` in input order.
+        """Insert N memories. Returns per-row :class:`MemoryAddResult` in
+        input order.
 
-        Same per-row text-hash dedup + scrub as :meth:`add`. Revisor
-        projection (when active) fires per-row in this slice; batching
-        that surface is a follow-up."""
+        Observably equivalent to N sequential :meth:`add` calls, including
+        the re-observation merge: a row whose exact assertion already exists
+        in-scope (pre-existing OR earlier in this same batch) confirms that
+        row instead of inserting a twin, unless it is superseding something.
+        Non-duplicate rows are inserted in one store transaction; confirms
+        are applied after (a duplicate of a within-batch row must wait for
+        that row to land). Revisor projection fires only for inserts."""
         if not items:
             return []
         now = datetime.now(UTC)
-        records: list[MemoryRecord] = []
-        dup_ids: list[str | None] = []
+        # Plan per row: either ("insert", record) or ("confirm", target_id).
+        plans: list[tuple[str, MemoryRecord | str]] = []
+        first_insert_by_hash: dict[str, str] = {}
         for item in items:
             scrubbed = self._scrubber.scrub(item.text)
+            flags: set[str] = {d.entity_type for d in scrubbed.detections}
             record = MemoryRecord(
                 id=uuid.uuid4().hex,
                 text=scrubbed.text,
+                summary=self._scrub_optional(item.summary, flags),
+                detail=self._scrub_optional(item.detail, flags),
+                action=self._scrub_optional(item.action, flags),
                 kind=item.kind,
                 scope=item.scope,
                 source_refs=item.source_refs,
@@ -146,20 +191,52 @@ class Memory:
                 updated_at=now,
                 effective_from=now,
                 metadata=dict(item.metadata),
-                pii_flags=sorted({d.entity_type for d in scrubbed.detections}),
+                pii_flags=sorted(flags),
             )
-            dup_ids.append(
-                self._store.find_duplicate(
-                    item.scope, memory_text_hash(record.text, item.scope)
+            text_hash = memory_text_hash(record.text, item.scope)
+            supersedes_ids = list(item.supersedes)
+            target = None
+            if not supersedes_ids:
+                target = first_insert_by_hash.get(text_hash) or (
+                    self._store.find_duplicate(item.scope, text_hash)
                 )
-            )
-            records.append(record)
-        store_items = [
-            (records[i], list(items[i].supersedes)) for i in range(len(items))
+            if target is not None:
+                plans.append(("confirm", target))
+            else:
+                plans.append(("insert", record))
+                first_insert_by_hash[text_hash] = record.id
+
+        # One transaction for the inserts; preserves the batch guarantee for
+        # the rows that actually create new assertions.
+        insert_items = [
+            (rec, list(rec.supersedes))
+            for kind, rec in plans
+            if kind == "insert" and isinstance(rec, MemoryRecord)
         ]
-        stored_pairs = self._store.add_many(store_items)
+        stored_pairs = self._store.add_many(insert_items)
+        stored_by_id = {rec.id: (rec, sup) for rec, sup in stored_pairs}
+
         results: list[MemoryAddResult] = []
-        for (stored, superseded_ids), dup_id in zip(stored_pairs, dup_ids, strict=True):
+        for kind, payload in plans:
+            if kind == "confirm" and isinstance(payload, str):
+                existing = self._store.get(payload)
+                conf = (
+                    existing.confidence if existing is not None else 1.0
+                )
+                confs = (
+                    existing.confirmations if existing is not None else 1
+                )
+                confirmed = self._store.confirm(
+                    payload,
+                    at=now,
+                    new_confidence=evolved_confidence(conf, confs + 1),
+                )
+                results.append(
+                    MemoryAddResult(record=confirmed, duplicate_of=payload)
+                )
+                continue
+            assert isinstance(payload, MemoryRecord)
+            stored, superseded_ids = stored_by_id[payload.id]
             if self._revisor.active:
                 self._revisor.ingest_evidence(
                     stele_ref=self._evidence_ref(stored),
@@ -183,7 +260,7 @@ class Memory:
                         )
             results.append(MemoryAddResult(
                 record=stored,
-                duplicate_of=dup_id,
+                duplicate_of=None,
                 superseded_ids=superseded_ids,
             ))
         return results

@@ -102,6 +102,20 @@ class MemoryStore(Protocol):
         """Return existing memory_id with matching (scope, text_hash) or None."""
         ...
 
+    def confirm(
+        self,
+        memory_id: str,
+        *,
+        at: datetime,
+        new_confidence: float | None = None,
+    ) -> MemoryRecord:
+        """Re-observation of an existing assertion: increment confirmations,
+        stamp last_confirmed/updated_at, and raise confidence toward
+        new_confidence (never lowering it, never exceeding 1.0). The
+        asserted text is NOT touched. Evidence evolves; the assertion does
+        not. Raises ArtifactNotFound if absent. Returns the updated record."""
+        ...
+
     def search_with_score(
         self,
         query: str,
