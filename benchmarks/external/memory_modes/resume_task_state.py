@@ -94,8 +94,24 @@ class ResumeTaskState:
         return Path("benchmarks/runs/cq-additive") / f"resume-wg-{source}.sqlite"
 
     def corpus(self, source: str, n: int, seed: int) -> list[Case]:
-        if source != "synthetic":
-            return []  # real_trace (mined WorkGraph logs) is a follow-up
+        if source == "real_trace":
+            # THIS session's real project state, mined from git: a feature is
+            # "done" iff a commit shipped it, "absent" otherwise (the honest
+            # record of what we left unbuilt, e.g. the benchmark-to-blog workflow).
+            from benchmarks.external.memory_modes._session_trace import (
+                SESSION_FEATURES,
+                session_commits,
+            )
+            subjects = [s for _, s in session_commits()]
+            rcases: list[Case] = []
+            for fid, kw in SESSION_FEATURES:
+                evs = [s for s in subjects if kw.split()[0].lower() in s.lower()]
+                gold = "done" if any(kw.lower() in s.lower() for s in subjects) else "absent"
+                rfeat = {"fid": fid, "gold": gold, "events": evs or ["(no commit yet)"]}
+                q = (f"Did we ever build {fid}?" if gold == "absent"
+                     else f"What is the current state of {fid}? Did we finish it, and what is next?")
+                rcases.append(Case(case_id=fid, question=q, gold=gold, source=source, payload=rfeat))
+            return rcases[:n] if n else rcases
         cases: list[Case] = []
         for feat in _built() + _absent():
             if feat["gold"] == "absent":

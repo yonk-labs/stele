@@ -68,8 +68,20 @@ class PrecedentRecall:
     )
 
     def corpus(self, source: str, n: int, seed: int) -> list[Case]:
-        if source != "synthetic":
-            return []  # real_trace not yet supplied for precedent (no honest gold miner)
+        if source == "real_trace":
+            # THIS session's real git commits as task episodes. The sha is an
+            # exact join key (hit@1); no gold is invented.
+            from benchmarks.external.memory_modes._session_trace import session_commits
+            rcases: list[Case] = []
+            for sha, subj in session_commits():
+                ep = {"ep_id": sha, "task_type": "commit", "verb": subj, "quarter": "",
+                      "tool": f"commit-{sha}", "result": subj[:48], "end_state": "committed"}
+                q = (f"Have I already committed work like: {subj}? Name the commit, "
+                     "what it changed, and its state.")
+                rcases.append(Case(case_id=sha, question=q,
+                                   gold=f"commit-{sha}; {subj[:48]}; committed",
+                                   source=source, payload=ep))
+            return rcases[:n] if n else rcases
         cases: list[Case] = []
         for ep in _episodes():
             q = (f"I am about to {ep['verb']} again for the {ep['quarter']} cycle. "
