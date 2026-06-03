@@ -58,9 +58,21 @@ store boundary when `pii.enabled`):
 ```bash
 # what the hook runs (transcript_path + session_id come from the hook's stdin JSON):
 stele-ingest "$transcript_path" --session-id "$session_id" --namespace sessions
-# -> {"ref": "stele://sessions/...", "turns": 5169, "chars": 1337962}
+# -> {"ref": "stele://sessions/...", "raw_ref": null, "turns": 5169, "chars": 1337962}
 ```
-Hook template: `packaging/templates/hooks/claude-code-ingest.sh.j2` (SessionEnd).
+Retention tiers (measured on a real 24MB session, % of raw stored):
+```bash
+stele-ingest s.jsonl                      # keep120 (default)  5.6%
+stele-ingest s.jsonl --result-chars 300   # keep300            6.4%
+stele-ingest s.jsonl --full               # full bodies        16.1%  (no signatures/meta)
+stele-ingest s.jsonl --keep-raw           # keep120 reduced + the EXACT raw bytes (raw_ref)
+```
+`--keep-raw` stores a second `source=session-raw` artifact for full-fidelity
+retention, so you can distill from the reduced form and still keep the verbatim
+original (re-distill later at a higher tier, audit, exact fetch-back). All tiers
+share the config defaults (`ExtractionConfig.reduce_*`; a char limit of `null` =
+the full tier). Hook template: `packaging/templates/hooks/claude-code-ingest.sh.j2`
+(SessionEnd).
 Programmatic equivalent (per-event live stream, or a path):
 ```python
 from stele.extraction.ingest import ingest_session, reduce_stream

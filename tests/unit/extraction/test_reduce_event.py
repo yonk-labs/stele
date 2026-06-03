@@ -34,6 +34,13 @@ def test_result_chars_is_configurable() -> None:
     assert len(t2.text) == 40
 
 
+def test_full_tier_keeps_untruncated_body() -> None:
+    # result_chars=None is the "full" tier: keep the whole body (signatures/
+    # metadata are still dropped; this is full *conversation*, not raw bytes).
+    [t] = reduce_event(_result("X" * 5000), ReduceConfig(result_chars=None))
+    assert len(t.text) == 5000
+
+
 def test_drop_success_results_is_opt_in_minify() -> None:
     assert reduce_event(_result("ok output"))                       # kept by default
     assert reduce_event(_result("ok output"), ReduceConfig(drop_success_results=True)) == []

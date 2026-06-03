@@ -54,11 +54,16 @@ class ReduceConfig:
     only for archive-only sessions you will never distill. keep120 is the
     default because storage is cheap (~70MB for the whole corpus) and recall is
     not.
+
+    Any char limit set to None means "no truncation" (keep the full body). So the
+    tiers are: keep120 (default), keep300 (result_chars=300), or full
+    (result_chars=None) -- all still drop signatures/snapshots/metadata. To also
+    retain the exact original bytes, see ingest_session(keep_raw=True).
     """
 
-    result_chars: int = 120
-    error_chars: int = 220
-    tool_chars: int = 200
+    result_chars: int | None = 120
+    error_chars: int | None = 220
+    tool_chars: int | None = 200
     drop_success_results: bool = False
 
 

@@ -216,11 +216,13 @@ class ExtractionConfig(BaseModel):
     # tool-result bodies are kept truncated to reduce_result_chars (the headline
     # fact: versions, test outcomes, discovered constraints); failures keep
     # reduce_error_chars (more, they are the rule signal); tool calls keep
-    # reduce_tool_chars of their input. reduce_drop_success_results=True is the
-    # older aggressive minify (loses ~30% of memories incl. rules; archive-only).
-    reduce_result_chars: int = 120
-    reduce_error_chars: int = 220
-    reduce_tool_chars: int = 200
+    # reduce_tool_chars of their input. Any of these set to None means "no
+    # truncation" (keep full bodies: the "full" tier). reduce_drop_success_results
+    # =True is the older aggressive minify (loses ~30% of memories incl. rules;
+    # archive-only). To also retain exact raw bytes, ingest with keep_raw=True.
+    reduce_result_chars: int | None = 120
+    reduce_error_chars: int | None = 220
+    reduce_tool_chars: int | None = 200
     reduce_drop_success_results: bool = False
 
 

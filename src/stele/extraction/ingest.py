@@ -64,18 +64,26 @@ def ingest_session(
     session_id: str | None = None,
     ttl_seconds: int = DEFAULT_TTL_SECONDS,
     cfg: ReduceConfig | None = None,
+    keep_raw: bool = False,
 ) -> dict[str, Any]:
     """Reduce a whole session (a ``.jsonl`` path, or an iterable of event dicts)
-    with the keep120 filter and store it as ONE artifact carrying a TTL. PII
-    scrubbing is inherited from the store boundary. Returns
-    ``{ref, turns, chars}`` (ref is None for an empty/thin session)."""
+    and store it as ONE reduced artifact carrying a TTL. The reduction tier is
+    `cfg` (keep120 default; result_chars=300 for keep300; None for the full,
+    untruncated tier). PII scrubbing is inherited from the store boundary.
+
+    keep_raw=True ALSO stores the exact original bytes as a second artifact
+    (source=session-raw) for full-fidelity retention, so you can keep both the
+    distill-ready reduced form and the verbatim raw. Returns
+    ``{ref, raw_ref, turns, chars}`` (refs are None for an empty/thin session)."""
     cfg = cfg or reduce_config_from(stele.config.extraction)
+    raw_path: Path | None = None
     if isinstance(transcript, str | Path):
-        turns = parse_claude_jsonl(Path(str(transcript)), cfg)
+        raw_path = Path(str(transcript))
+        turns = parse_claude_jsonl(raw_path, cfg)
     else:
         turns = reduce_stream(transcript, cfg)
     if not turns:
-        return {"ref": None, "turns": 0, "chars": 0}
+        return {"ref": None, "raw_ref": None, "turns": 0, "chars": 0}
     text = render(turns)
     stored = stele.store(
         text,
@@ -84,7 +92,18 @@ def ingest_session(
         ttl_seconds=ttl_seconds,
         metadata={"source": "session-ingest", "reduced": True},
     )
-    return {"ref": str(stored.reference), "turns": len(turns), "chars": len(text)}
+    raw_ref: str | None = None
+    if keep_raw and raw_path is not None:
+        raw_stored = stele.store(
+            raw_path.read_bytes(),
+            namespace=namespace,
+            session_id=session_id,
+            ttl_seconds=ttl_seconds,
+            metadata={"source": "session-raw", "reduced": False},
+        )
+        raw_ref = str(raw_stored.reference)
+    return {"ref": str(stored.reference), "raw_ref": raw_ref,
+            "turns": len(turns), "chars": len(text)}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -97,7 +116,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--namespace", default="sessions")
     ap.add_argument("--session-id", default=None)
     ap.add_argument("--ttl-days", type=float, default=30.0)
+    ap.add_argument("--result-chars", type=int, default=None,
+                    help="truncate successful results to N chars (e.g. 300 for keep300; "
+                    "default: config keep120)")
+    ap.add_argument("--full", action="store_true",
+                    help="keep full result/tool bodies (no truncation)")
+    ap.add_argument("--keep-raw", action="store_true",
+                    help="ALSO store the exact raw transcript bytes (full-fidelity retention)")
     args = ap.parse_args(argv)
+
+    import dataclasses
 
     from stele.mcp.config import config_path, load_raw_config
 
@@ -106,12 +134,19 @@ def main(argv: list[str] | None = None) -> int:
         load_raw_config(cfg_path) if cfg_path else {"backend": {"type": "memory"}}
     )
     stele = Stele.from_config(raw)
+    cfg = reduce_config_from(stele.config.extraction)
+    if args.full:
+        cfg = dataclasses.replace(cfg, result_chars=None, error_chars=None, tool_chars=None)
+    elif args.result_chars is not None:
+        cfg = dataclasses.replace(cfg, result_chars=args.result_chars)
     report = ingest_session(
         stele,
         transcript=args.transcript,
         namespace=args.namespace,
         session_id=args.session_id,
         ttl_seconds=int(args.ttl_days * 86_400),
+        cfg=cfg,
+        keep_raw=args.keep_raw,
     )
     sys.stdout.write(json.dumps(report, default=str) + "\n")
     return 0

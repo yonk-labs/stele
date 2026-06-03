@@ -13,6 +13,7 @@ from stele.extraction.ingest import (
     reduce_config_from,
     reduce_stream,
 )
+from stele.extraction.session import ReduceConfig
 
 
 def _events() -> list[dict]:
@@ -68,6 +69,35 @@ def test_thin_session_returns_no_ref() -> None:
     rep = ingest_session(s, transcript=[{"type": "file-history-snapshot", "x": 1}],
                          namespace="t-thin")
     assert rep["ref"] is None and rep["turns"] == 0
+
+
+def test_keep_raw_stores_exact_bytes_alongside_reduced(tmp_path: Path) -> None:
+    p = tmp_path / "s.jsonl"
+    p.write_text("\n".join(json.dumps(e) for e in _events()))
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    rep = ingest_session(s, transcript=p, namespace="t-raw", keep_raw=True)
+    assert rep["ref"] and rep["raw_ref"]
+    assert rep["ref"] != rep["raw_ref"]  # two distinct artifacts: reduced + raw
+    # without keep_raw there is no second artifact
+    rep2 = ingest_session(s, transcript=p, namespace="t-raw2")
+    assert rep2["raw_ref"] is None
+
+
+def test_keep_raw_is_a_noop_for_event_streams() -> None:
+    # raw bytes only exist for a path; a live event stream has no raw file
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    rep = ingest_session(s, transcript=_events(), namespace="t-raw-stream", keep_raw=True)
+    assert rep["ref"] and rep["raw_ref"] is None
+
+
+def test_full_tier_keeps_more_than_keep120() -> None:
+    big = [{"type": "assistant", "message": {"content": [
+        {"type": "tool_result", "content": "R" * 4000, "is_error": False}]}}]
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    keep120 = ingest_session(s, transcript=list(big), namespace="t-k120")
+    full = ingest_session(s, transcript=list(big), namespace="t-full",
+                          cfg=ReduceConfig(result_chars=None))
+    assert full["chars"] > keep120["chars"]  # full tier retains the whole body
 
 
 def test_reduce_config_threads_extraction_knobs() -> None:
