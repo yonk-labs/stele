@@ -299,6 +299,19 @@ TOOLS: list[ToolSpec] = [
             ["items"],
         ),
     ),
+    # ---- distill ----
+    ToolSpec(
+        "stele_distill",
+        "Distill a memory mode (facts|precedents|state|skills|best_practices|rules) "
+        "into a structured DistilledView.",
+        _obj(
+            {
+                "mode": _STR,
+                "namespace": _STR,
+            },
+            ["mode"],
+        ),
+    ),
     # ---- interception ----
     ToolSpec(
         "stele_stash_tool_result",
@@ -687,6 +700,25 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
         results = stele.memory.add_many(requests)
         return {"results": [_to_jsonable(r) for r in results]}
 
+    @guard
+    def distill(mode: str, namespace: str | None = None) -> dict[str, Any]:
+        valid = {"facts", "precedents", "state", "skills", "best_practices", "rules"}
+        if mode not in valid:
+            return {
+                "error": {
+                    "code": "VALIDATION",
+                    "message": (
+                        f"unknown distill mode {mode!r}; valid: {sorted(valid)}"
+                    ),
+                    "context": {"mode": mode},
+                }
+            }
+        from stele.distill.jobs import run_sync
+
+        method = getattr(stele.distill, mode)
+        view = run_sync(lambda: method(_build_scope(namespace)))
+        return {"view": view.model_dump()}
+
     by_name: dict[str, HandlerFn] = {
         "stele_store": store,
         "stele_fetch": fetch,
@@ -711,5 +743,6 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
         "stele_store_many": store_many,
         "stele_memory_add_many": memory_add_many,
         "stele_stash_tool_result": stash_tool_result,
+        "stele_distill": distill,
     }
     return [replace(t, handler=by_name[t.name]) for t in TOOLS]

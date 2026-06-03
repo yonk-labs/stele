@@ -21,6 +21,8 @@ def test_pattern_pack_declaration_order_is_stable() -> None:
     assert kinds == [
         "preference",
         "decision",
+        "pitfall",
+        "workaround",
         "commitment",
         "instruction",
         "issue",
@@ -38,7 +40,7 @@ def test_pattern_pack_declaration_order_is_stable() -> None:
         ("I'll send the report by Friday.", "commitment"),
         ("TODO: rewrite the auth middleware.", "commitment"),
         ("Please always use parameterized queries.", "instruction"),
-        ("Never commit the .env file.", "instruction"),
+        ("Never commit the .env file.", "pitfall"),
         ("The login page is broken on Safari.", "issue"),
         ("Crash on startup with empty config.", "issue"),
     ],

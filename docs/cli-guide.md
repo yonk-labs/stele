@@ -449,6 +449,37 @@ One Phase-5 control is still Python-only:
 |---|---|
 | `recall(..., supersession_behavior="hide" \| "prefer_new" \| "surface_both")` | Per-call override on `graph_search` (mirrors the per-call `retracted_behavior` shape). |
 
+## Session ingest (`stele-ingest`)
+
+A separate console script (not a `stele` subcommand) that reduces a Claude
+session transcript to its keep120 signal and stores it as ONE artifact. It is
+the entry point for the live conversation feed: a SessionEnd hook calls it with
+the transcript path, so the stored session is already reduced (signatures,
+file-history snapshots, metadata dropped; tool bodies truncated) and PII-scrubbed
+by the store boundary. The raw transcript never lands; distillation reads the
+reduced artifact later.
+
+```bash
+stele-ingest "$transcript_path" --session-id "$sid" --namespace sessions
+# -> {"ref": "stele://sessions/...", "raw_ref": null, "turns": 5169, "chars": 1337962}
+```
+
+Retention tiers (measured on a real 24MB session, percent of raw stored):
+
+| flag | tier | stored |
+|---|---|---|
+| *(none)* | keep120 (default) | 5.6% |
+| `--result-chars 300` | keep300 | 6.4% |
+| `--full` | full bodies (still no signatures/metadata) | 16.1% |
+| `--keep-raw` | keep120 reduced **plus** the exact raw bytes (`raw_ref`) | + the raw |
+
+`--ttl-days N` sets the artifact TTL (default 30). House defaults come from
+`ExtractionConfig.reduce_result_chars` / `reduce_error_chars` / `reduce_tool_chars`
+/ `reduce_drop_success_results` (a char limit of `null` is the full tier;
+`reduce_drop_success_results: true` is the old archive-only minify). See
+[`docs/distillation-flow.md`](distillation-flow.md) for the mechanics and the
+SessionEnd hook.
+
 ## See also
 
 - [`docs/quickstart.md`](quickstart.md) — 5-minute happy path.

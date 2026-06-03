@@ -192,6 +192,10 @@ class ExtractionConfig(BaseModel):
     min_confidence: float = 0.6
     max_candidates_per_doc: int = 50
     overlay_patterns_enabled: bool = True
+    # Surface behavioral rule/skill/practice sentences (a deterministic
+    # sentence/line scan) that lede's importance ranking drops. Required for
+    # distill_rules/skills/best_practices to work end-to-end from raw text.
+    extract_rules: bool = True
     summary_kind: Literal[
         "fact",
         "preference",
@@ -207,6 +211,24 @@ class ExtractionConfig(BaseModel):
     # names, ids — survive extraction. Stele's "exact evidence" thesis;
     # materially lifts conversational recall (LoCoMo).
     retain_message_text: bool = True
+    # Session-transcript reduction applied at the stream/parse boundary by
+    # extraction.session.reduce_event (the measured "keep120" filter). Successful
+    # tool-result bodies are kept truncated to reduce_result_chars (the headline
+    # fact: versions, test outcomes, discovered constraints); failures keep
+    # reduce_error_chars (more, they are the rule signal); tool calls keep
+    # reduce_tool_chars of their input. Any of these set to None means "no
+    # truncation" (keep full bodies: the "full" tier). reduce_drop_success_results
+    # =True is the older aggressive minify (loses ~30% of memories incl. rules;
+    # archive-only). To also retain exact raw bytes, ingest with keep_raw=True.
+    reduce_result_chars: int | None = 120
+    reduce_error_chars: int | None = 220
+    reduce_tool_chars: int | None = 200
+    reduce_drop_success_results: bool = False
+
+
+class DistillConfig(BaseModel):
+    overlay_patterns_enabled: bool = True  # rules must not collapse to fact
+    synthesis: str = "auto"  # "auto" uses injected LLM if present, else deterministic
 
 
 class GraphConfig(BaseModel):
@@ -295,6 +317,7 @@ class StashConfig(BaseModel):
     signing: SigningConfig = Field(default_factory=SigningConfig)
     extraction: ExtractionConfig = Field(default_factory=ExtractionConfig)
     recall: RecallConfig = Field(default_factory=RecallConfig)
+    distill: DistillConfig = Field(default_factory=DistillConfig)
     graph: GraphConfig = Field(default_factory=GraphConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
 

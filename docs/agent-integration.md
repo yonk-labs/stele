@@ -156,6 +156,34 @@ Same idea works as a Claude Code **skill** (a `/recall` skill that calls
 `stele.recall` and prints the block) if you prefer explicit invocation over
 automatic hooks.
 
+### Pattern 3b: SessionEnd ingest (the conversation feed)
+
+To capture whole sessions for later distillation (not just oversized tool
+output), add a **SessionEnd** hook that calls the `stele-ingest` console script.
+It reduces the session transcript to its keep120 signal (drops thinking
+signatures, file snapshots, metadata; truncates tool bodies; keeps failures) and
+stores ONE reduced artifact. The raw transcript never lands.
+
+```json
+{
+  "hooks": {
+    "SessionEnd": [
+      { "hooks": [{ "type": "command",
+                    "command": "stele-ingest \"$(jq -r .transcript_path)\" --session-id \"$(jq -r .session_id)\" --namespace sessions" }] }
+    ]
+  }
+}
+```
+
+A ready-made hook script that parses the stdin JSON itself ships at
+`packaging/templates/hooks/claude-code-ingest.sh.j2` (point the hook at the
+rendered `.sh` instead of the inline `jq` form if you prefer). Retention tiers
+are flags (`--result-chars 300`, `--full`, `--keep-raw`) or config defaults
+(`ExtractionConfig.reduce_*`). `stele install` does not yet wire this hook for
+you; add it to `settings.json` manually. The periodic distill (Phase B) then
+reads these reduced artifacts. See
+[`docs/distillation-flow.md`](distillation-flow.md).
+
 ## Pattern 4 — Codex / OpenAI-style agents
 
 Identical loop, OpenAI SDK:

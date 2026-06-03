@@ -95,15 +95,26 @@ class InProcessMemoryStore:
 
     def search(self, query: MemoryQuery) -> list[MemoryRecord]:
         as_of = query.as_of or datetime.now(UTC)
+        # Tokenized bag-of-terms match (any term present), mirroring
+        # search_with_score so the two text-match semantics cannot diverge.
+        # A whole-phrase substring test here once made multi-word queries miss
+        # evidence that search_with_score — and the FTS5/tsvector backends —
+        # surface ("kafka partitions" is not a substring of "kafka uses
+        # partitions for parallelism", but both terms are present). The MCP
+        # tool stele_memory_search and the CLI `memory search` both route
+        # through this method, so the divergence was agent-visible.
+        # Parity: tests/contract/test_memory_modes_surface_parity.py
+        terms = [t for t in query.query.lower().split() if t]
         results: list[MemoryRecord] = []
-        q_lower = query.query.lower()
         for r in self._records.values():
             if not _passes_scope_and_temporal(
                 r, query.scope, as_of, include_superseded=query.include_superseded
             ):
                 continue
-            if q_lower not in r.indexable_text.lower():
-                continue
+            if terms:
+                text_lower = r.indexable_text.lower()
+                if not any(term in text_lower for term in terms):
+                    continue
             results.append(r)
         return results[: query.limit]
 

@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 # follow-up, not a blocker for first publish.
 [project]
 name = "stele-core"
-version = "0.5.2"
+version = "0.6.0"
 description = "Sovereign, source-backed memory and living knowledge for LLM agents."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -70,6 +70,7 @@ dev = [
 [project.scripts]
 stele = "stele.cli:main"
 stele-mcp = "stele.mcp.server:main"
+stele-ingest = "stele.extraction.ingest:main"
 stele-showcase = "benchmarks.showcase:main"
 stele-recall = "benchmarks.recall:main"
 stele-longrun = "benchmarks.longrun:main"

@@ -31,6 +31,7 @@ PREFERENCE = PatternPack(
         r"(?i)\bi\s+(prefer|like|love|hate|dislike|enjoy)\b",
         r"(?i)\bmy\s+favou?rite\b",
         r"(?i)\bi(?:'m|\s+am)\s+(?:not\s+)?a\s+fan\s+of\b",
+        r"(?i)\b(prefer|recommend)\b",
     ),
 )
 
@@ -53,6 +54,25 @@ COMMITMENT = PatternPack(
         r"(?i)\b(TODO|FIXME)\b",
         r"(?i)\bi('ll|\s+will)\s+\w+",
         r"(?i)\bdue\s+(by|on)\b",
+    ),
+)
+
+PITFALL = PatternPack(
+    kind="pitfall",
+    kind_weight=0.86,
+    patterns=_compile(
+        r"(?i)\bnever\b.*\b(use|do|edit|call|import|run|commit|widen|bypass)\b",
+        r"(?i)\b(do\s+not|don'?t)\b.*\b(use|edit|call|import|run|widen|bypass|commit)\b",
+        r"(?i)\b(outdated|deprecated|forbidden|banned)\b",
+    ),
+)
+
+WORKAROUND = PatternPack(
+    kind="workaround",
+    kind_weight=0.80,
+    patterns=_compile(
+        r"(?i)\buse\b.+\binstead\b",
+        r"(?i)\b(instead\s+of|rather\s+than|in\s+place\s+of)\b",
     ),
 )
 
@@ -79,6 +99,8 @@ ISSUE = PatternPack(
 PATTERN_PACKS: tuple[PatternPack, ...] = (
     PREFERENCE,
     DECISION,
+    PITFALL,
+    WORKAROUND,
     COMMITMENT,
     INSTRUCTION,
     ISSUE,

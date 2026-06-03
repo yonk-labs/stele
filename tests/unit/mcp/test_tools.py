@@ -32,6 +32,8 @@ EXPECTED_TOOLS = {
     "stele_import_namespace",
     "stele_store_many",
     "stele_memory_add_many",
+    # distill (#11)
+    "stele_distill",
 }
 
 

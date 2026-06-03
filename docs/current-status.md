@@ -1,6 +1,22 @@
 # Current Status
 
-Date: 2026-06-01 · Version: **0.5.1**
+Date: 2026-06-03 · Version: **0.6.0**
+
+## 0.6.0 (2026-06-03)
+
+Session reduction at the ingestion boundary + the live conversation feed.
+`reduce_event` is one per-event filter shared by the live stream and the batch
+`.jsonl` parser (drops thinking signatures / snapshots / metadata, truncates tool
+bodies, keeps role + is_error). `stele.extraction.ingest.ingest_session` + the
+new `stele-ingest` console script reduce a whole session and store ONE artifact
+with a TTL; `keep_raw=True` also retains the exact bytes. Reduction is
+config-driven (`ExtractionConfig.reduce_*`) with retention tiers keep120
+(default), keep300, full, keep-raw. Behavior change: distillation now keeps
+successful tool-result headlines (keep120) instead of dropping them (+~30%
+memories; old drop is opt-in). A Claude Code SessionEnd hook template ships
+(`packaging/templates/hooks/claude-code-ingest.sh.j2`); `stele install` wiring
+for it is a follow-up. See [`docs/distillation-flow.md`](distillation-flow.md)
+and [`CHANGELOG.md`](../CHANGELOG.md).
 
 ## 0.5.1 (2026-06-01)
 
