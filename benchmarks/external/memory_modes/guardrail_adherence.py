@@ -92,13 +92,27 @@ class WriteTask:
 _TASKS: tuple[WriteTask, ...] = (
     WriteTask("t-aside", "Write two sentences about why benchmarks matter, using a dramatic aside in the middle.",
               "prose", ("G-EMDASH",)),
-    WriteTask("t-corp", "Write one sentence of corporate-sounding praise for a data platform.",
-              "prose", ("G-LEVERAGE", "G-UTILIZE")),
-    WriteTask("t-explain", "Write one sentence promising to examine a topic in great depth.",
-              "prose", ("G-DELVE",)),
     WriteTask("t-range", "Write one sentence giving a numeric range with a parenthetical clarification.",
               "prose", ("G-EMDASH",)),
+    WriteTask("t-interrupt", "Write a sentence that interrupts itself partway through to add a sudden caveat.",
+              "prose", ("G-EMDASH",)),
+    WriteTask("t-pause", "Write a punchy marketing line with a dramatic pause right before the payoff.",
+              "prose", ("G-EMDASH",)),
+    WriteTask("t-corp", "Write one sentence of corporate-sounding praise for a data platform.",
+              "prose", ("G-LEVERAGE", "G-UTILIZE")),
+    WriteTask("t-synergy", "Write a buzzword-heavy sentence about making the most of cloud resources.",
+              "prose", ("G-LEVERAGE", "G-UTILIZE")),
+    WriteTask("t-efficiency", "Write a sentence praising how a team makes full use of its existing tools.",
+              "prose", ("G-UTILIZE",)),
+    WriteTask("t-value", "Write a sentence about getting maximum value out of existing infrastructure.",
+              "prose", ("G-LEVERAGE",)),
+    WriteTask("t-explain", "Write one sentence promising to examine a topic in great depth.",
+              "prose", ("G-DELVE",)),
+    WriteTask("t-deepdive", "Write an intro sentence for an article promising a thorough exploration of a subject.",
+              "prose", ("G-DELVE",)),
     WriteTask("t-code", "Write a short Python function stub with a comment marking work left to do later.",
+              "python", ("G-TODO",)),
+    WriteTask("t-code2", "Write a Python function skeleton that flags an unfinished section to finish later.",
               "python", ("G-TODO",)),
 )
 
@@ -157,18 +171,49 @@ def guarded_write(store: Stele, ns: str, task: WriteTask, condition: Condition,
     return out, ctx.count_tokens(guard), carried
 
 
+def enforced_write(store: Stele, ns: str, task: WriteTask, ctx: RunCtx,
+                   rules_for: tuple[Rule, ...], *, max_rounds: int = 2) -> tuple[str, int, int]:
+    """memory_enforced: select rules by domain, generate, then run the SAME
+    deterministic detector the scorer uses and ask for a targeted rewrite when
+    it fires. This is the blog's thesis made real: injection alone does not
+    enforce; a check on the output plus a repair does. Memory's job is to select
+    WHICH checks apply (by domain); the check itself is deterministic."""
+    pairs = select_by_domain(store, ns, task.domain)
+    guard = "\n".join(f"- {s}: {a}" for s, a in pairs)
+    base = (
+        "Do the following writing task. Obey every rule listed under RULES exactly.\n\n"
+        f"RULES:\n{guard or '(none)'}\n\nTASK: {task.prompt}"
+    )
+    out = ctx.complete(base)
+    checks = [r for r in rules_for if r.domain == task.domain]
+    for _ in range(max_rounds):
+        fired = [(r, r.detect(out)) for r in checks if r.detect(out) > 0]
+        if not fired:
+            break
+        problems = "; ".join(f"{r.summary} (found {c})" for r, c in fired)
+        fixes = " ".join(r.action for r, _ in fired)
+        out = ctx.complete(
+            f"{base}\n\nYOUR PREVIOUS ANSWER:\n{out}\n\n"
+            f"That answer broke these rules: {problems}. Rewrite it so every rule "
+            f"holds. {fixes} Output only the corrected text."
+        )
+    return out, ctx.count_tokens(guard), len(pairs)
+
+
 class GuardrailAdherence:
     name = "guardrail_adherence"
-    conditions: tuple[Condition, ...] = ("no_memory", "prompt_stuffed", "memory_driven")
+    conditions: tuple[Condition, ...] = ("no_memory", "prompt_stuffed", "memory_driven", "memory_enforced")
     deterministic = True
     measured = (
-        "Whether stored 'never do X' rules, selected by applicability domain and "
-        "injected, lower a deterministic regex violation rate vs no memory and vs "
-        "stuffing the whole rulebook, and at what guard-token cost as the rulebook grows."
+        "Whether stored 'never do X' rules lower a deterministic regex violation "
+        "rate. Two memory conditions: memory_driven (select by domain + inject, the "
+        "inject-and-hope baseline) and memory_enforced (select by domain, then run "
+        "the deterministic check and repair on a hit). The gap between them is the "
+        "finding: selection is cheap, injection does not enforce, a checker does."
     )
     not_measured = (
-        "Semantic style rules a regex cannot judge; cross-session persistence of a "
-        "one-correction fix (a follow-up sub-protocol); task quality beyond compliance."
+        "Semantic style rules a regex cannot judge; task quality beyond compliance; "
+        "cross-session persistence of the enforced fix."
     )
 
     def corpus(self, source: str, n: int, seed: int) -> list[Case]:
@@ -194,7 +239,10 @@ class GuardrailAdherence:
     def run_case(self, store: Stele, case: Case, condition: Condition, ctx: RunCtx) -> CaseResult:
         ns = f"memmode-{self.name}-{case.source}"
         task = WriteTask(case.payload["task_id"], case.question, case.payload["domain"], tuple(case.payload["relevant"]))
-        out, guard_tokens, carried = guarded_write(store, ns, task, condition, ctx, _populate_set(case.source))
+        if condition == "memory_enforced":
+            out, guard_tokens, carried = enforced_write(store, ns, task, ctx, _rules_for(case.source))
+        else:
+            out, guard_tokens, carried = guarded_write(store, ns, task, condition, ctx, _populate_set(case.source))
         by_id = {r.rule_id: r for r in _rules_for(case.source)}
         viols = {rid: by_id[rid].detect(out) for rid in case.payload["relevant"] if rid in by_id}
         total = sum(viols.values())

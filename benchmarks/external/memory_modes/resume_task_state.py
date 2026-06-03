@@ -30,7 +30,11 @@ from stele.workgraph.sqlite_store import SQLiteWorkGraphStore
 
 _BASE = datetime(2024, 1, 1, tzinfo=UTC)
 _PROJECTS = ("cart-merge", "gift-wrap", "sso-login", "dark-mode", "csv-export",
-             "rate-limit", "audit-log", "webhooks", "search-v2", "billing-portal")
+             "rate-limit", "audit-log", "webhooks", "search-v2", "billing-portal",
+             "oauth-scopes", "bulk-import", "pdf-export", "live-chat", "feature-flags",
+             "api-keys", "saved-views", "email-digest", "mobile-push", "sla-alerts",
+             "tag-editor", "quota-meter", "soft-delete", "csv-import", "role-sync",
+             "geo-routing", "cache-warm", "diff-viewer", "retry-queue", "trace-export")
 _GOLDS = ("done", "in_progress", "abandoned")
 # gold state -> the NodeStatus the WorkGraph node carries (abandoned -> failed,
 # a valid NodeStatus; graph-level "abandoned" is a different vocabulary).
@@ -38,11 +42,23 @@ _NODE_STATUS: dict[str, NodeStatus] = {"done": "done", "in_progress": "active", 
 
 
 def _events(fid: str, gold: str) -> list[str]:
+    # Terse, commit-like subjects that do NOT state status in words. Current
+    # state is recoverable only from ordering/supersession: a loud early event
+    # (a prod deploy, a prototype) is later overturned. This mirrors real git
+    # logs (the dog-food lane), where an LLM reading raw history must INFER
+    # state and frequently anchors on the loudest stale event. The structured
+    # head + WorkGraph node carry the resolved current state directly.
     if gold == "done":
-        return [f"{fid}: design approved", f"{fid}: implemented", f"{fid}: shipped to prod"]
+        return [f"spec: {fid}", f"impl {fid} core",
+                f"deploy {fid} to prod", f"{fid}: add metrics + docs"]
     if gold == "in_progress":
-        return [f"{fid}: design approved", f"{fid}: implementation underway"]
-    return [f"{fid}: design approved", f"{fid}: decided NOT to build it, descoped"]
+        # shipped, then rolled back, now being reworked. "deploy to prod" is the
+        # loud stale event; the current truth is the reopen.
+        return [f"spec: {fid}", f"impl {fid}", f"deploy {fid} to prod",
+                f"revert {fid} (incident)", f"reopen {fid}: fix root cause"]
+    # abandoned: prototyped, then dropped. "impl prototype" looks like progress.
+    return [f"spec: {fid}", f"impl {fid} prototype",
+            f"{fid}: pause for review", f"drop {fid} from roadmap"]
 
 
 def _built() -> list[dict[str, Any]]:
@@ -53,7 +69,7 @@ def _built() -> list[dict[str, Any]]:
 def _absent() -> list[dict[str, Any]]:
     # queried but never built -> gold "absent"
     return [{"fid": f"{p}-widget", "gold": "absent", "events": []}
-            for p in _PROJECTS[:6]]
+            for p in _PROJECTS[:15]]
 
 
 def _classify_text(answer: str) -> str:
@@ -196,7 +212,10 @@ class ResumeTaskState:
             answer = f"{pred}"
         else:
             if condition == "no_memory":
-                ctx_text = (case.payload["events"] or ["(no record)"])[-1]
+                # Knows the feature was proposed (the spec line) but has no
+                # memory of its progress — the honest floor. Using the LAST
+                # event would leak the resolved state into the prompt.
+                ctx_text = (case.payload["events"] or ["(no record)"])[0]
             else:  # prompt_stuffed: the whole event log for this feature
                 ctx_text = "\n".join(case.payload["events"]) or "(no record)"
             answer = ctx.answer(ctx_text, case.question)
