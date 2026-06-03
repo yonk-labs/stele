@@ -99,6 +99,28 @@ def test_refine_drops_noise_and_falls_back_on_bad_json():
     assert len(view2.items) == 2               # fallback to deterministic candidates
 
 
+def test_cross_session_dedup_merges_evidence_refs():
+    # Same rule surfaced in two different sessions (different wording + refs).
+    # After the LLM normalizes both, dedup collapses them to one item that
+    # carries BOTH source refs (recurrence = stronger evidence).
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    ns = "t-xsession"
+    scope = MemoryScope(namespace=ns)
+    r1 = str(s.store("session 1", namespace=ns).reference)
+    r2 = str(s.store("session 2", namespace=ns).reference)
+    s.memory.add(text="you should read a file before editing it", kind="pitfall",
+                 source_refs=[r1], scope=scope, summary="edit-without-read variant A")
+    s.memory.add(text="always read before you edit", kind="pitfall",
+                 source_refs=[r2], scope=scope, summary="edit-without-read variant B")
+    s._distill_llm = lambda p: (
+        '[{"i":0,"dont":"never edit a file without reading it","do_instead":""},'
+        '{"i":1,"dont":"never edit a file without reading it","do_instead":""}]'
+    )
+    view = asyncio.run(s.distill.rules(MemoryScope(namespace=ns)))
+    assert len(view.items) == 1                          # collapsed across sessions
+    assert set(view.items[0].source_refs) == {r1, r2}    # both evidences merged
+
+
 def test_rules_reproduce_gold_gpt4o_pair():
     from benchmarks.external.memory_modes.distill_gold import GOLD
     s = Stele.from_config({"backend": {"type": "memory"}})

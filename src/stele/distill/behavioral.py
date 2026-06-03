@@ -5,7 +5,7 @@ import re
 from collections.abc import Sequence
 
 from stele.core.memory_record import MemoryRecord, MemoryScope
-from stele.distill.base import LLMSynthesizer, active_memories
+from stele.distill.base import LLMSynthesizer, active_memories, dedup_distilled
 from stele.distill.models import DistilledItem, DistilledView, Rule
 
 _VENDOR_TOKENS: dict[str, str] = {
@@ -47,16 +47,30 @@ def _extract_json_array(raw: str) -> list[dict[str, object]]:
     return [obj for obj in parsed if isinstance(obj, dict)]
 
 
+# Max candidates per LLM refine call. The refine prompt lists every candidate,
+# so an unbounded corpus would overflow the model context. Bucketing keeps each
+# call context-safe at any scale (small enough for even an 8k-context model).
+_REFINE_BUCKET = 60
+
+
 def _refine(
     llm: LLMSynthesizer, mode: str, items: Sequence[DistilledItem]
 ) -> list[DistilledItem]:
-    """LLM precision pass: the deterministic scan is high-recall and surfaces
-    doc prose; the LLM keeps only genuine rule/skill/practice items, normalizes
-    each to one line, and (for rules) supplies the in-family do_instead. Source
-    refs are carried over from the matched candidate by index (no fabrication).
-    On any parse failure the deterministic candidates are returned unchanged."""
+    """LLM precision pass, bucketed so it never overflows the model context.
+
+    The deterministic scan is high-recall and surfaces doc prose; the LLM keeps
+    only genuine rule/skill/practice items, normalizes each to one line, and (for
+    rules) supplies the in-family do_instead. Candidates are refined in buckets of
+    _REFINE_BUCKET and concatenated. Source refs carry over from the matched
+    candidate by index (no fabrication). On any parse failure a bucket falls back
+    to its deterministic candidates unchanged."""
     if not items:
         return list(items)
+    if len(items) > _REFINE_BUCKET:
+        out: list[DistilledItem] = []
+        for start in range(0, len(items), _REFINE_BUCKET):
+            out.extend(_refine(llm, mode, items[start : start + _REFINE_BUCKET]))
+        return out
     listing = "\n".join(f"{i}. {it.summary}" for i, it in enumerate(items))
     if mode == "rules":
         instr = (
@@ -134,6 +148,7 @@ def _plain_view(records: Sequence[MemoryRecord], mode: str, d: object) -> Distil
     llm, allowed = _llm_and_allowed(d)
     if allowed and llm is not None:
         items = _refine(llm, mode, items)
+    items = dedup_distilled(items)  # collapse cross-session duplicates, merge refs
     return DistilledView(mode=mode, items=items, used_llm=allowed,
                          stats={"n": float(len(items))})
 
@@ -177,5 +192,6 @@ async def distill_rules(d: object, scope: MemoryScope) -> DistilledView:
     items: list[DistilledItem] = candidates
     if allowed and llm is not None:
         items = _refine(llm, "rules", candidates)
+    items = dedup_distilled(items)  # collapse cross-session duplicates, merge refs
     return DistilledView(mode="rules", items=items, used_llm=allowed,
                          stats={"n": float(len(items))})
