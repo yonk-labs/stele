@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from stele.core.memory_record import MemoryScope
 from stele.distill.base import LLMSynthesizer
+from stele.distill.jobs import DistillJob, submit_job
 from stele.distill.models import DistilledView
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ class Distill:
         self._recall = recall
         self._config = config
         self._llm = llm
+        self._jobs: dict[str, DistillJob] = {}
 
     async def facts(self, scope: MemoryScope) -> DistilledView:
         from stele.distill.facts import distill_facts
@@ -60,3 +62,18 @@ class Distill:
         from stele.distill.behavioral import distill_rules
 
         return await distill_rules(self, scope)
+
+    def submit(self, mode: str, scope: MemoryScope, **kwargs: object) -> DistillJob:
+        """Kick off a distill run in the background. Returns a handle immediately."""
+        method = getattr(self, mode)  # one of the six async methods
+        job = submit_job(lambda: method(scope, **kwargs))
+        self._jobs[job.id] = job
+        return job
+
+    def result(self, job_id: str) -> DistilledView | None:
+        """The DistilledView if the job finished, else None (still running).
+        Raises KeyError for an unknown job id."""
+        job = self._jobs[job_id]
+        if not job.future.done():
+            return None
+        return job.future.result()
