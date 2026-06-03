@@ -208,6 +208,35 @@ WINDOW:
 """
 
 
+def minify_transcript(src: object, *, caveman: bool = False, max_chars: int = 200_000) -> str:
+    """Reduce a transcript to its signal, returning minified text.
+
+    Always: the structural reduction (drop successful tool-result bodies, compact
+    + collapse tool calls, keep failures verbatim) -- this is the dominant win
+    (~95% on real sessions; the bulk is tool noise, not words).
+
+    caveman=True: additionally run lede.clean_text (filler words, markdown,
+    boilerplate -- the "caveman" reduction proven to speed embeddings) on
+    NATURAL-LANGUAGE turns only. It is LOSSY (lowercases, strips markdown), so it
+    never touches [TOOL]/[RESULT] lines (code/commands/output) and is worth it
+    for the embedding path, not the exact-bytes raw store. Falls back to a no-op
+    if lede is unavailable."""
+    prose_clean = None
+    if caveman:
+        try:
+            from lede import clean_text as prose_clean  # type: ignore[no-redef]
+        except ModuleNotFoundError:
+            prose_clean = None
+    out: list[str] = []
+    for line, _is_err in _compact_lines(parse_transcript(src)):
+        if prose_clean is not None and line[:1] == "[" and "] " in line:
+            tag, body = line.split("] ", 1)
+            if tag in ("[USER", "[ASSISTANT"):  # prose only; never tools/results/code
+                line = f"{tag}] {prose_clean(body)}"
+        out.append(line)
+    return "\n".join(out)[:max_chars]
+
+
 def extract_session_memories(llm: LLM, window: str) -> list[SessionMemory]:
     """Ask the injected LLM to extract durable kinded memories from one window.
     Defensive JSON parsing; unknown kinds dropped. Returns [] on parse failure."""
