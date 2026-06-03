@@ -83,6 +83,7 @@ from stele.summary.lede_adapter import LedeSummaryProvider
 
 if TYPE_CHECKING:
     from stele.core.memory import Memory
+    from stele.distill.facade import Distill
     from stele.extraction.extractor import MemoryExtractor
     from stele.recall.facade import Recall
     from stele.revisor.base import Revisor
@@ -1047,6 +1048,21 @@ class Stele:
                 digest_packer=DigestPacker(),
             )
         return self._recall
+
+    @property
+    def distill(self) -> Distill:
+        if not hasattr(self, "_distill"):
+            from stele.distill.facade import Distill
+
+            self._distill = Distill(
+                stele=self,
+                memory=self.memory,
+                extract=self.extract,
+                recall=self.recall,
+                config=self.config.distill,
+                llm=getattr(self, "_distill_llm", None),
+            )
+        return self._distill
 
     @property
     def revisor(self) -> Revisor:

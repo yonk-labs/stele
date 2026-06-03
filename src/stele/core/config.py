@@ -209,6 +209,11 @@ class ExtractionConfig(BaseModel):
     retain_message_text: bool = True
 
 
+class DistillConfig(BaseModel):
+    overlay_patterns_enabled: bool = True  # rules must not collapse to fact
+    synthesis: str = "auto"  # "auto" uses injected LLM if present, else deterministic
+
+
 class GraphConfig(BaseModel):
     """Living-knowledge projection (Phase 5). Batteries-included: the DSN is
     reused from the Postgres artifact backend; users never set pg-raggraph
@@ -295,6 +300,7 @@ class StashConfig(BaseModel):
     signing: SigningConfig = Field(default_factory=SigningConfig)
     extraction: ExtractionConfig = Field(default_factory=ExtractionConfig)
     recall: RecallConfig = Field(default_factory=RecallConfig)
+    distill: DistillConfig = Field(default_factory=DistillConfig)
     graph: GraphConfig = Field(default_factory=GraphConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
 
