@@ -192,6 +192,10 @@ class ExtractionConfig(BaseModel):
     min_confidence: float = 0.6
     max_candidates_per_doc: int = 50
     overlay_patterns_enabled: bool = True
+    # Surface behavioral rule/skill/practice sentences (a deterministic
+    # sentence/line scan) that lede's importance ranking drops. Required for
+    # distill_rules/skills/best_practices to work end-to-end from raw text.
+    extract_rules: bool = True
     summary_kind: Literal[
         "fact",
         "preference",

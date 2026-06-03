@@ -77,6 +77,7 @@ class MemoryExtractor:
                 scrubber=self._scrubber,
                 overlay_enabled=self._config.overlay_patterns_enabled,
                 max_candidates=self._config.max_candidates_per_doc,
+                extract_rules=self._config.extract_rules,
             )
         except Exception as exc:
             raise SteleError("Extraction failed during lede pass") from exc
