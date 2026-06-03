@@ -140,22 +140,53 @@ def render(turns: list[Turn]) -> str:
     return "\n".join(lines)
 
 
-def windows(turns: list[Turn], max_chars: int = 4000, limit: int = 3) -> list[str]:
-    """Group turns into ~max_chars rendered windows; failure-bearing windows
-    first (richest memory signal), capped at `limit`."""
-    out: list[str] = []
-    buf: list[Turn] = []
-    size = 0
+def _compact_lines(turns: list[Turn]) -> list[tuple[str, bool]]:
+    """Reduce the transcript to the signal worth sending to the LLM, returning
+    (line, is_failure) pairs. What matters for durable memory: user turns,
+    assistant reasoning, and FAILURES + the surrounding work. What is noise:
+    successful tool-result bodies (ephemeral, and the source of junk facts) and
+    runs of repeated read-only calls. So: keep user/assistant/thinking in full,
+    keep failed results verbatim, shrink tool calls to name+short-arg, drop
+    successful result bodies, and collapse consecutive same-name tool calls.
+    This cuts tokens several-fold and improves precision."""
+    out: list[tuple[str, bool]] = []
+    prev_tool: str | None = None
     for t in turns:
-        buf.append(t)
-        size += len(t.text)
+        if t.role == "tool":
+            name = t.text.split("(", 1)[0]
+            if name == prev_tool:
+                continue  # collapse a run of the same tool (ls/grep/read spam)
+            prev_tool = name
+            out.append((f"[TOOL] {t.text[:90]}", False))
+            continue
+        prev_tool = None
+        if t.role == "result":
+            if t.is_error:
+                out.append((f"[RESULT ERROR] {t.text[:220]}", True))  # the signal
+            continue  # drop successful result bodies (noise + ephemeral facts)
+        out.append((f"[{t.role.upper()}] {t.text}", False))
+    return out
+
+
+def windows(turns: list[Turn], max_chars: int = 4000, limit: int = 3) -> list[str]:
+    """Reduce (see _compact_lines), then group into ~max_chars windows packed
+    with signal; failure-bearing windows first (richest), capped at `limit`."""
+    lines = _compact_lines(turns)
+    grouped: list[tuple[str, bool]] = []
+    buf: list[str] = []
+    size = 0
+    has_err = False
+    for line, is_err in lines:
+        buf.append(line)
+        size += len(line)
+        has_err = has_err or is_err
         if size >= max_chars:
-            out.append(render(buf))
-            buf, size = [], 0
+            grouped.append(("\n".join(buf), has_err))
+            buf, size, has_err = [], 0, False
     if buf:
-        out.append(render(buf))
-    out.sort(key=lambda w: ("[RESULT ERROR]" not in w, -len(w)))
-    return out[:limit]
+        grouped.append(("\n".join(buf), has_err))
+    grouped.sort(key=lambda w: (not w[1], -len(w[0])))  # failure windows first
+    return [text for text, _ in grouped[:limit]]
 
 
 _EXTRACT_PROMPT = """You are distilling DURABLE MEMORY from one window of an AI agent's
