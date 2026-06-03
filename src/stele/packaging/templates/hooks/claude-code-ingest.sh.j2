@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# stele session-ingest hook for Claude Code (SessionEnd).
+# Reduces the just-finished session transcript to its keep120 signal and stores
+# it as ONE stele artifact (raw bytes never land). Distillation runs later off
+# this reduced artifact. Never blocks; fails open.
+#
+# Claude Code delivers the hook payload as JSON on stdin, including
+# transcript_path and session_id.
+
+set -eu
+
+input="$(cat || true)"
+read_field() {
+  printf '%s' "$input" | python3 -c \
+    "import sys,json;
+try: print(json.load(sys.stdin).get('$1',''))
+except Exception: print('')" 2>/dev/null || true
+}
+
+transcript_path="$(read_field transcript_path)"
+session_id="$(read_field session_id)"
+
+[ -z "$transcript_path" ] && exit 0
+[ ! -f "$transcript_path" ] && exit 0
+
+# Only ingest where stele is configured (project or user config present).
+if [ ! -f ".stele/config.yaml" ] && [ ! -f "$HOME/.config/stele/config.yaml" ]; then
+  exit 0
+fi
+
+stele-ingest "$transcript_path" --session-id "$session_id" \
+  --namespace "{{ ingest_namespace | default('sessions') }}" >/dev/null 2>&1 || true
+exit 0

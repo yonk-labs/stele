@@ -38,6 +38,8 @@ Distillation is deliberately split from ingestion. They run on different clocks.
 | Ingest raw bytes + ref | `stele.store(payload, ttl_seconds=...)` / `stash_tool_result` | shipped |
 | Reduce one event (stream/parse filter) | `extraction.session.reduce_event(event, cfg)` | built |
 | Reduction knobs | `ExtractionConfig.reduce_*` (`result_chars=120`, ...) | built |
+| Ingest a session (reduce + store) | `extraction.ingest.ingest_session` / `stele-ingest` CLI | built |
+| Live conversation feed hook | `templates/hooks/claude-code-ingest.sh.j2` (SessionEnd) | built |
 | Chunk index for retrieval | `IndexingConfig(mode=sync/async)` + chunk store | shipped |
 | Raw retention GC | `stele.cleanup_expired()` | shipped |
 | Distill one transcript | `stele.extract.from_session(transcript=, scope=, llm=)` | built |
@@ -47,14 +49,28 @@ Distillation is deliberately split from ingestion. They run on different clocks.
 
 ## How to make it work (concrete)
 
-### 1. Continuous ingest (inside the agent, Phase A)
-Stash the raw transcript with a 30-day TTL and let it be chunk-indexed:
-```python
-ref = stele.store(transcript_text, namespace=project, ttl_seconds=30 * 86_400)
-# (or, for oversized tool output mid-session:)
-#   stash_tool_result(raw_output, stash=stele, namespace=project, tool_name=...)
+### 1. Continuous ingest (the conversation feed, Phase A)
+The session is reduced at the INGESTION boundary, so only the keep120 form is
+stored (never the raw bytes). A Claude Code SessionEnd hook calls `stele-ingest`
+with the transcript path; every event flows through `reduce_event` and the
+reduced session is stored as ONE artifact with a 30-day TTL (PII-scrubbed by the
+store boundary when `pii.enabled`):
+```bash
+# what the hook runs (transcript_path + session_id come from the hook's stdin JSON):
+stele-ingest "$transcript_path" --session-id "$session_id" --namespace sessions
+# -> {"ref": "stele://sessions/...", "turns": 5169, "chars": 1337962}
 ```
-The bytes are exact and retrievable now; they self-expire in 30 days.
+Hook template: `packaging/templates/hooks/claude-code-ingest.sh.j2` (SessionEnd).
+Programmatic equivalent (per-event live stream, or a path):
+```python
+from stele.extraction.ingest import ingest_session, reduce_stream
+ingest_session(stele, transcript=transcript_path, namespace="sessions")  # whole session
+turns = reduce_stream(events)   # or accumulate per event off a live feed
+```
+On a real 24MB session this stores ~1.3MB (5.6% of raw): signatures, snapshots,
+metadata, and oversized tool bodies are gone, successful results kept to their
+headline (keep120), failures kept longer. For oversized tool output mid-session
+the exact-bytes path is still `stash_tool_result(...)` (a different contract).
 
 ### 2. Periodic batch distill (Phase B, scheduled)
 Run the fleet across the local Sparks. It streams sessions, fans bounded
