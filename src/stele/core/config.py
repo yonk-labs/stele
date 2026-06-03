@@ -211,6 +211,17 @@ class ExtractionConfig(BaseModel):
     # names, ids — survive extraction. Stele's "exact evidence" thesis;
     # materially lifts conversational recall (LoCoMo).
     retain_message_text: bool = True
+    # Session-transcript reduction applied at the stream/parse boundary by
+    # extraction.session.reduce_event (the measured "keep120" filter). Successful
+    # tool-result bodies are kept truncated to reduce_result_chars (the headline
+    # fact: versions, test outcomes, discovered constraints); failures keep
+    # reduce_error_chars (more, they are the rule signal); tool calls keep
+    # reduce_tool_chars of their input. reduce_drop_success_results=True is the
+    # older aggressive minify (loses ~30% of memories incl. rules; archive-only).
+    reduce_result_chars: int = 120
+    reduce_error_chars: int = 220
+    reduce_tool_chars: int = 200
+    reduce_drop_success_results: bool = False
 
 
 class DistillConfig(BaseModel):

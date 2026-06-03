@@ -249,13 +249,22 @@ class MemoryExtractor:
         (PII scrubbing inherited); the transcript is stashed as the source ref."""
         self._check_enabled()
         from stele.extraction.session import (
+            ReduceConfig,
             extract_session_memories,
             parse_transcript,
             render,
             windows,
         )
 
-        turns = parse_transcript(transcript)
+        # The reduction (keep120 by default) is config-driven, so the stream and
+        # the backfill path stay in sync via the same knobs.
+        reduce_cfg = ReduceConfig(
+            result_chars=self._config.reduce_result_chars,
+            error_chars=self._config.reduce_error_chars,
+            tool_chars=self._config.reduce_tool_chars,
+            drop_success_results=self._config.reduce_drop_success_results,
+        )
+        turns = parse_transcript(transcript, reduce_cfg)
         empty = ExtractionReport(
             candidates=[], accepted=[], rejected=[], pii_flags=[], source_refs=[],
             stats=ExtractionStats(candidate_count=0, accepted_count=0, rejected_count=0),

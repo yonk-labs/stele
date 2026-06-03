@@ -17,6 +17,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from stele.core.memory_record import KIND_VALUES
 
@@ -37,6 +38,30 @@ class SessionMemory:
     detail: str
 
 
+@dataclass(frozen=True)
+class ReduceConfig:
+    """How hard to reduce ONE transcript event at the stream/parse boundary.
+
+    Defaults are the measured keep120 sweet spot: keep the headline of each
+    successful tool result (first `result_chars` chars, where the durable facts
+    live: versions, test outcomes, discovered constraints), keep more of
+    failures (the rule signal), and drop nothing that carries memory. The
+    reduction is per-event with no lookback, so the SAME filter runs live on the
+    ingest stream and batch over a stored .jsonl.
+
+    `drop_success_results=True` is the older, aggressive "minify" behavior: it
+    loses ~30% of memories (incl. rules) to save a few MB of storage, so it is
+    only for archive-only sessions you will never distill. keep120 is the
+    default because storage is cheap (~70MB for the whole corpus) and recall is
+    not.
+    """
+
+    result_chars: int = 120
+    error_chars: int = 220
+    tool_chars: int = 200
+    drop_success_results: bool = False
+
+
 def _block_text(content: object) -> str:
     if isinstance(content, str):
         return content
@@ -48,10 +73,56 @@ def _block_text(content: object) -> str:
     return ""
 
 
-def parse_claude_jsonl(path: Path) -> list[Turn]:
-    """Claude Code .jsonl -> turns, preserving tool calls and FAILURES (the
-    precedent/pitfall signal). Renders tool_use as a TOOL turn and tool_result
-    as a RESULT turn, flagging is_error."""
+def reduce_event(event: dict[str, Any], cfg: ReduceConfig | None = None) -> list[Turn]:
+    """One parsed transcript JSON event -> 0+ reduced Turns. This is the single
+    reduction filter for BOTH the live ingest stream and the batch file parser.
+
+    It drops the structural cruft the model never needs: non-conversation lines
+    (file-history-snapshot, attachment, metadata, system) -> []; the thinking
+    SIGNATURE (a base64 attestation, ~20% of raw bytes) -> dropped, keeping only
+    the thinking TEXT; tool bodies truncated per `cfg`. It preserves role and
+    is_error so distill-time windowing can still surface failures first. Pure and
+    streamable (no lookback), so on-disk and streamed sessions reduce identically.
+    """
+    cfg = cfg or ReduceConfig()
+    if event.get("type") not in ("user", "assistant"):
+        return []  # snapshots / attachments / metadata / system: not conversation
+    msg = event.get("message")
+    if not isinstance(msg, dict):
+        return []
+    content = msg.get("content")
+    if event.get("type") == "user" and isinstance(content, str):
+        t = content.strip()
+        return [Turn("user", t)] if t and not t.startswith("<") else []  # skip <reminders>
+    if not isinstance(content, list):
+        return []
+    out: list[Turn] = []
+    for b in content:
+        if not isinstance(b, dict):
+            continue
+        bt = b.get("type")
+        if bt in ("text", "thinking"):
+            t = str(b.get("text") or b.get("thinking") or "").strip()  # never the signature
+            if t:
+                out.append(Turn(str(event.get("type")), t))
+        elif bt == "tool_use":
+            args = json.dumps(b.get("input", {}))[: cfg.tool_chars]
+            out.append(Turn("tool", f"{b.get('name', 'tool')}({args})"))
+        elif bt == "tool_result":
+            if b.get("is_error"):
+                out.append(Turn("result", _block_text(b.get("content"))[: cfg.error_chars],
+                                is_error=True))
+            elif not cfg.drop_success_results:
+                out.append(Turn("result", _block_text(b.get("content"))[: cfg.result_chars]))
+    return out
+
+
+def parse_claude_jsonl(path: Path, cfg: ReduceConfig | None = None) -> list[Turn]:
+    """Claude Code .jsonl -> reduced turns (the BATCH / backfill path): read the
+    file, run `reduce_event` per line. Same filter the live stream applies, so a
+    session reduces identically whether it streamed in or is read off disk.
+    Preserves tool calls and FAILURES (the precedent/pitfall signal)."""
+    cfg = cfg or ReduceConfig()
     turns: list[Turn] = []
     for line in path.read_text(errors="replace").splitlines():
         line = line.strip()
@@ -61,33 +132,7 @@ def parse_claude_jsonl(path: Path) -> list[Turn]:
             obj = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if obj.get("type") not in ("user", "assistant"):
-            continue
-        msg = obj.get("message")
-        if not isinstance(msg, dict):
-            continue
-        content = msg.get("content")
-        if obj.get("type") == "user" and isinstance(content, str):
-            t = content.strip()
-            if t and not t.startswith("<"):
-                turns.append(Turn("user", t))
-            continue
-        if not isinstance(content, list):
-            continue
-        for b in content:
-            if not isinstance(b, dict):
-                continue
-            bt = b.get("type")
-            if bt in ("text", "thinking"):
-                t = str(b.get("text") or b.get("thinking") or "").strip()
-                if t:
-                    turns.append(Turn(str(obj.get("type")), t))
-            elif bt == "tool_use":
-                args = json.dumps(b.get("input", {}))[:200]
-                turns.append(Turn("tool", f"{b.get('name', 'tool')}({args})"))
-            elif bt == "tool_result":
-                turns.append(Turn("result", _block_text(b.get("content"))[:300],
-                                  is_error=bool(b.get("is_error"))))
+        turns.extend(reduce_event(obj, cfg))
     return turns
 
 
@@ -111,9 +156,10 @@ PARSERS: dict[str, Callable[[Path], list[Turn]]] = {
 }
 
 
-def parse_transcript(src: object) -> list[Turn]:
+def parse_transcript(src: object, cfg: ReduceConfig | None = None) -> list[Turn]:
     """Parse a transcript from a path (.jsonl -> Claude, else generic JSON), a
-    list[Turn], or a list[{role, content}] message dicts."""
+    list[Turn], or a list[{role, content}] message dicts. `cfg` applies to the
+    .jsonl path (the reduction); list/openai inputs are taken as-is."""
     if isinstance(src, list):
         if src and isinstance(src[0], Turn):
             return list(src)
@@ -125,61 +171,38 @@ def parse_transcript(src: object) -> list[Turn]:
                     out.append(Turn(str(m.get("role", "user")), text.strip()))
         return out
     p = Path(str(src))
-    return (parse_claude_jsonl if p.suffix == ".jsonl" else parse_openai_messages)(p)
+    if p.suffix == ".jsonl":
+        return parse_claude_jsonl(p, cfg)
+    return parse_openai_messages(p)
+
+
+def _line(t: Turn) -> str:
+    """Render one (already-reduced) turn to a window/evidence line."""
+    if t.role == "tool":
+        return f"[TOOL] {t.text}"
+    if t.role == "result":
+        return f"{'[RESULT ERROR]' if t.is_error else '[RESULT ok]'} {t.text}"
+    return f"[{t.role.upper()}] {t.text}"
 
 
 def render(turns: list[Turn]) -> str:
-    lines: list[str] = []
-    for t in turns:
-        if t.role == "tool":
-            lines.append(f"[TOOL] {t.text}")
-        elif t.role == "result":
-            lines.append(f"{'[RESULT ERROR]' if t.is_error else '[RESULT ok]'} {t.text[:200]}")
-        else:
-            lines.append(f"[{t.role.upper()}] {t.text}")
-    return "\n".join(lines)
-
-
-def _compact_lines(turns: list[Turn]) -> list[tuple[str, bool]]:
-    """Reduce the transcript to the signal worth sending to the LLM, returning
-    (line, is_failure) pairs. What matters for durable memory: user turns,
-    assistant reasoning, and FAILURES + the surrounding work. What is noise:
-    successful tool-result bodies (ephemeral, and the source of junk facts) and
-    runs of repeated read-only calls. So: keep user/assistant/thinking in full,
-    keep failed results verbatim, shrink tool calls to name+short-arg, drop
-    successful result bodies, and collapse consecutive same-name tool calls.
-    This cuts tokens several-fold and improves precision."""
-    out: list[tuple[str, bool]] = []
-    prev_tool: str | None = None
-    for t in turns:
-        if t.role == "tool":
-            name = t.text.split("(", 1)[0]
-            if name == prev_tool:
-                continue  # collapse a run of the same tool (ls/grep/read spam)
-            prev_tool = name
-            out.append((f"[TOOL] {t.text[:90]}", False))
-            continue
-        prev_tool = None
-        if t.role == "result":
-            if t.is_error:
-                out.append((f"[RESULT ERROR] {t.text[:220]}", True))  # the signal
-            continue  # drop successful result bodies (noise + ephemeral facts)
-        out.append((f"[{t.role.upper()}] {t.text}", False))
-    return out
+    return "\n".join(_line(t) for t in turns)
 
 
 def windows(turns: list[Turn], max_chars: int = 4000, limit: int = 3) -> list[str]:
-    """Reduce (see _compact_lines), then group into ~max_chars windows packed
-    with signal; failure-bearing windows first (richest), capped at `limit`."""
-    lines = _compact_lines(turns)
+    """Group already-reduced turns into ~max_chars windows, failure-bearing
+    windows first (richest), capped at `limit`. Turns arrive pre-reduced from
+    `reduce_event`, so windowing only packs and orders -- the drop/truncate
+    decisions live in ReduceConfig at the stream boundary, not here."""
     grouped: list[tuple[str, bool]] = []
     buf: list[str] = []
     size = 0
     has_err = False
-    for line, is_err in lines:
+    for t in turns:
+        line = _line(t)
         buf.append(line)
         size += len(line)
-        has_err = has_err or is_err
+        has_err = has_err or t.is_error
         if size >= max_chars:
             grouped.append(("\n".join(buf), has_err))
             buf, size, has_err = [], 0, False
@@ -208,19 +231,18 @@ WINDOW:
 """
 
 
-def minify_transcript(src: object, *, caveman: bool = False, max_chars: int = 200_000) -> str:
-    """Reduce a transcript to its signal, returning minified text.
+def minify_transcript(src: object, *, caveman: bool = False, max_chars: int = 200_000,
+                      cfg: ReduceConfig | None = None) -> str:
+    """Reduce a transcript to its signal, returning minified TEXT (the stored
+    evidence form). Uses the same `reduce_event` filter as ingestion (via
+    parse_transcript), so the stored bytes are exactly what distillation reads.
+    The reduction level is `cfg` (default keep120); pass
+    `ReduceConfig(drop_success_results=True)` for the older archive-only minify.
 
-    Always: the structural reduction (drop successful tool-result bodies, compact
-    + collapse tool calls, keep failures verbatim) -- this is the dominant win
-    (~95% on real sessions; the bulk is tool noise, not words).
-
-    caveman=True: additionally run lede.clean_text (filler words, markdown,
-    boilerplate -- the "caveman" reduction proven to speed embeddings) on
-    NATURAL-LANGUAGE turns only. It is LOSSY (lowercases, strips markdown), so it
-    never touches [TOOL]/[RESULT] lines (code/commands/output) and is worth it
-    for the embedding path, not the exact-bytes raw store. Falls back to a no-op
-    if lede is unavailable."""
+    caveman=True additionally runs lede.clean_text on NATURAL-LANGUAGE turns
+    only (filler/markdown/boilerplate). It is LOSSY (lowercases, strips
+    markdown), never touches [TOOL]/[RESULT] lines (code/commands/output), and
+    falls back to a no-op if lede is unavailable."""
     prose_clean = None
     if caveman:
         try:
@@ -228,11 +250,11 @@ def minify_transcript(src: object, *, caveman: bool = False, max_chars: int = 20
         except ModuleNotFoundError:
             prose_clean = None
     out: list[str] = []
-    for line, _is_err in _compact_lines(parse_transcript(src)):
-        if prose_clean is not None and line[:1] == "[" and "] " in line:
-            tag, body = line.split("] ", 1)
-            if tag in ("[USER", "[ASSISTANT"):  # prose only; never tools/results/code
-                line = f"{tag}] {prose_clean(body)}"
+    for t in parse_transcript(src, cfg):
+        line = _line(t)
+        if prose_clean is not None and t.role in ("user", "assistant"):
+            tag, body = line.split("] ", 1)  # "[USER] x" -> ("[USER", "x")
+            line = f"{tag}] {prose_clean(body)}"
         out.append(line)
     return "\n".join(out)[:max_chars]
 

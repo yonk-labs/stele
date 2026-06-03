@@ -36,6 +36,8 @@ Distillation is deliberately split from ingestion. They run on different clocks.
 | Role | API / tool | Status |
 |---|---|---|
 | Ingest raw bytes + ref | `stele.store(payload, ttl_seconds=...)` / `stash_tool_result` | shipped |
+| Reduce one event (stream/parse filter) | `extraction.session.reduce_event(event, cfg)` | built |
+| Reduction knobs | `ExtractionConfig.reduce_*` (`result_chars=120`, ...) | built |
 | Chunk index for retrieval | `IndexingConfig(mode=sync/async)` + chunk store | shipped |
 | Raw retention GC | `stele.cleanup_expired()` | shipped |
 | Distill one transcript | `stele.extract.from_session(transcript=, scope=, llm=)` | built |
@@ -123,12 +125,59 @@ report = stele.distill.consolidate(scope)   # {"clusters": n, "retracted": m}
 ```
 Requires an injected embedder; it is a maintenance pass, not on the hot path.
 
-### Minify (built)
-Reduce a transcript to signal before storing/embedding (`minify_transcript` /
-the `minify` CLI). Structural reduction (drop successful tool-result bodies,
-compact + collapse tool calls, keep failures) does ~96% on real sessions;
-`--caveman` adds `lede.clean_text` on prose for ~2% more (lossy; embedding path
-only). After-the-fact minify of a stored artifact re-chunks/re-embeds it.
+### Stream reduction filter: `reduce_event` / keep120 (built)
+The raw-to-stored reduction is a single per-event filter, `reduce_event(event,
+cfg)`, so it runs identically on the **live ingest stream** (event at a time, as
+Claude emits it) and on a stored **.jsonl backfill** (`parse_claude_jsonl` is just
+`reduce_event` per line). Per event it drops what carries no durable memory and
+the model never needs: non-conversation lines (file-history-snapshot, attachment,
+metadata, system), the thinking **signature** (a base64 attestation, ~20% of raw
+bytes; only the thinking *text* is kept), and oversized tool bodies. It preserves
+role + `is_error` so distill-time windowing can still surface failures first.
+
+The reduction level is config-driven (`ExtractionConfig.reduce_*`), defaulting to
+the measured **keep120** sweet spot:
+
+| knob | default | meaning |
+|---|---|---|
+| `reduce_result_chars` | 120 | successful tool-result kept, truncated to this (the headline fact: versions, test outcomes, constraints) |
+| `reduce_error_chars` | 220 | failed result kept longer (it is the rule signal) |
+| `reduce_tool_chars` | 200 | tool-call input truncation |
+| `reduce_drop_success_results` | False | True = the older "minify" (drop successful results entirely) |
+
+**Why keep120, not drop (measured, production budget, 8 sessions):** dropping
+successful results (`reduce_drop_success_results=True`, the old minify) loses
+~30% of memories, and it hits the rule-class kinds hardest (pitfall 19->12,
+workaround 17->11, instruction 15->10) because the fix/outcome context lives in
+the result. keep120 matches keeping the full result (90 vs 85 memories, within
+noise) while staying tiny. Raising the cap above ~120 buys no recall (the
+durable fact is in the first ~120 chars; the tail is ephemeral file/output bulk).
+So keep is binary against drop, and 120 is the floor that keeps recall.
+
+Storage is not a reason to drop: the full parsed corpus is ~70MB (5.7% of the
+1.22GB raw; the parse already removes 94%), and keep120 is smaller still. Drop
+would save ~47MB corpus-wide for a 30% memory loss. `minify_transcript` / the
+`minify` CLI still expose the aggressive drop (`ReduceConfig(drop_success_results
+=True)`) for archive-only sessions you will never distill; `--caveman` adds
+`lede.clean_text` on prose (lossy, embedding-path only).
+
+#### Impact by memory type (keep120 vs drop)
+The reduction does not hit the six distilled views evenly. What it costs depends
+on where each type's evidence lives (measured, production budget):
+
+| view (kinds) | where the evidence lives | keep120 vs full | drop (minify) vs full |
+|---|---|---|---|
+| **facts** (fact) | successful tool results (versions, test outcomes, constraints) | -14% | **-32%** |
+| **rules** (pitfall/workaround/instruction) | errors + the fix context in the following result | ~0% | **-35%** |
+| **skills** (instruction) | results + prose | ~0% | -33% |
+| **state/resume** (recent facts + file states) | successful Read/Bash/Write result bodies | small | **largest** (file states are dropped) |
+| **precedents** (decision) | assistant prose / user turns | ~0% (noisy) | small |
+| **best_practices** (preference) | stated prose / user turns | ~0% (noisy) | small |
+
+So the types whose signal lives in successful tool output (facts, rules, skills,
+and especially resume/state) are exactly the ones dropping results guts; keep120
+protects all of them. precedents and best_practices are prose-borne, so they are
+nearly immune to the reduction either way.
 
 ## Throughput (measured)
 
