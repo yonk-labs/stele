@@ -36,16 +36,68 @@ Distillation is deliberately split from ingestion. They run on different clocks.
 | Role | API / tool | Status |
 |---|---|---|
 | Ingest raw bytes + ref | `stele.store(payload, ttl_seconds=...)` / `stash_tool_result` | shipped |
-| Reduce one event (stream/parse filter) | `extraction.session.reduce_event(event, cfg)` | built |
-| Reduction knobs | `ExtractionConfig.reduce_*` (`result_chars=120`, ...) | built |
-| Ingest a session (reduce + store) | `extraction.ingest.ingest_session` / `stele-ingest` CLI | built |
-| Live conversation feed hook | `templates/hooks/claude-code-ingest.sh.j2` (SessionEnd) | built |
+| Reduce one event (stream/parse filter) | `extraction.session.reduce_event(event, cfg)` | shipped 0.6.0 |
+| Reduction knobs | `ExtractionConfig.reduce_*` (`result_chars=120`, ...) | shipped 0.6.0 |
+| Ingest a session (reduce + store) | `extraction.ingest.ingest_session` / `stele-ingest` CLI | shipped 0.6.0 |
+| Live conversation feed hook | `templates/hooks/claude-code-ingest.sh.j2` (SessionEnd) | shipped 0.6.0 (template; install is manual) |
 | Chunk index for retrieval | `IndexingConfig(mode=sync/async)` + chunk store | shipped |
 | Raw retention GC | `stele.cleanup_expired()` | shipped |
-| Distill one transcript | `stele.extract.from_session(transcript=, scope=, llm=)` | built |
-| Per-mode distilled views | `stele.distill.{facts,precedents,state,skills,best_practices,rules}` | built |
-| Batch over many sessions | `benchmarks/external/memory_modes/distill_fleet.py` | built |
+| Distill one transcript | `stele.extract.from_session(transcript=, scope=, llm=)` | shipped 0.6.0 |
+| Per-mode distilled views | `stele.distill.{facts,precedents,state,skills,best_practices,rules}` | shipped 0.5.x |
+| Batch over many sessions | `benchmarks/external/memory_modes/distill_fleet.py` | benchmark harness (not in the package) |
 | Distilled memory store | `stele.memory.add/list` (+ supersession, as_of) | shipped |
+
+## Reading an agent stream, step by step
+
+The conversation feed turns a live Claude session into one reduced, stored
+artifact. The filter (`reduce_event`) is per-event, so it works the same whether
+you process events as they arrive or read the finished transcript once at the
+end. The simplest wiring is the SessionEnd hook; the per-event form is there when
+you want true streaming.
+
+1. **Point a hook at the transcript.** Claude Code writes the session to a
+   `.jsonl` and hands a SessionEnd hook its `transcript_path` + `session_id` on
+   stdin. The hook calls `stele-ingest` with that path (full hook setup, with the
+   `settings.json` snippet, is in
+   [agent-integration.md](agent-integration.md#pattern-3b-sessionend-ingest-the-conversation-feed)):
+   ```bash
+   stele-ingest "$transcript_path" --session-id "$session_id" --namespace sessions
+   ```
+2. **Each event is reduced as it is read.** `reduce_event(event, cfg)` runs per
+   line: non-conversation events (file-history-snapshot, attachment, metadata,
+   system) and thinking signatures are dropped; tool bodies are truncated to the
+   keep120 tier; `role` + `is_error` are preserved. Nothing raw reaches storage.
+3. **The reduced session is stored as ONE artifact** with a TTL (default 30d),
+   PII-scrubbed by the store boundary when `pii.enabled`. You get back a
+   `stele://` ref.
+4. **Phase B distills that reduced artifact later** (never the raw transcript),
+   which is exactly why the feed makes distillation cheap.
+
+### True per-event streaming (optional)
+To process events as they arrive instead of once at session end, the same filter
+accumulates a live stream:
+```python
+from stele.extraction.ingest import reduce_stream, ingest_session
+turns = reduce_stream(live_event_iterator)            # reduce as events arrive
+ingest_session(stele, transcript=turns, namespace="sessions")  # store once, at the end
+```
+Store **one artifact per session** (at SessionEnd), not per turn: artifacts are
+immutable, so per-turn storage fragments a session across many artifacts.
+
+### Keeping it tidy and streaming
+- **Reduced, not raw, by construction.** The feed stores the keep120 form
+  (~5.6% of raw), so the store stays small without a cleanup step. Use
+  `--keep-raw` only where verbatim retention matters.
+- **One artifact per session.** Fire on SessionEnd (once); if you also fire on
+  Stop, dedupe by `session_id` at distill time.
+- **TTL on the raw, none on the distilled.** Reduced sessions expire (30d via
+  `ttl_seconds` + nightly `cleanup_expired`); the distilled memories persist and
+  evolve by supersession.
+- **Incremental distill.** Phase B touches only sessions newer than the
+  watermark, so history is never reprocessed.
+- **Consolidate the memories.** `stele.distill.consolidate(scope)` retracts stale
+  duplicates so the long-lived store reflects current truth, not a pile of
+  contradictions.
 
 ## How to make it work (concrete)
 
@@ -131,7 +183,7 @@ python -c "from stele import Stele; Stele.from_config(cfg).cleanup_expired()"
 4. **Retention:** stash with `ttl_seconds`, run `cleanup_expired` nightly.
    Distilled memory needs no TTL.
 
-### Incremental selection (built)
+### Incremental selection (benchmark harness)
 Each periodic run distills only sessions modified since the last run:
 ```bash
 # watermark file advances each run; only new sessions are processed next time
@@ -142,7 +194,7 @@ Each periodic run distills only sessions modified since the last run:
 Measured: of 5,711 sessions, ~388 were modified in the last 7 days, ~28 in the
 last day, so a daily run is minutes.
 
-### Temporal supersession (built)
+### Temporal supersession (shipped)
 Run `consolidate` after a distill batch to keep the long-lived store current:
 it clusters active memories by embedding similarity and **retracts all but the
 newest** in each cluster (newest by `session_mtime`, stamped by `from_session`),
@@ -153,7 +205,7 @@ report = stele.distill.consolidate(scope)   # {"clusters": n, "retracted": m}
 ```
 Requires an injected embedder; it is a maintenance pass, not on the hot path.
 
-### Stream reduction filter: `reduce_event` / keep120 (built)
+### Stream reduction filter: `reduce_event` / keep120 (shipped 0.6.0)
 The raw-to-stored reduction is a single per-event filter, `reduce_event(event,
 cfg)`, so it runs identically on the **live ingest stream** (event at a time, as
 Claude emits it) and on a stored **.jsonl backfill** (`parse_claude_jsonl` is just
@@ -249,6 +301,77 @@ the distilled memories cite the stored minified artifact as evidence. Note that
 results), so distilling from the minified form does not change LLM input or
 output quality. The minify-first win is **storage and embedding cost** (98-99%
 smaller evidence artifacts), not distillation quality or parse speed.
+
+### Reduction recall: keep vs drop (production budget, measured)
+At the production window budget (3 failure-first windows/session, what
+`from_session` actually uses), 8 sessions, temperature 0:
+
+| reduction | memories | vs full | note |
+|---|---|---|---|
+| full (keep all bodies) | 85 | 100% | baseline |
+| keep300 | ~81 | 95% | within noise of full |
+| **keep120 (default)** | **90** | **106%** | matches full; smallest |
+| drop / old minify | 62 | 73% | loses ~30%, hits rules hardest |
+
+Two findings behind this: (1) extraction yields ~2 memories per window
+regardless of reduction tier, so total memories track window count, not how hard
+you truncate; (2) the only cliff is keep-vs-drop. Keeping the first ~120 chars of
+each successful result preserves the headline fact; dropping the result loses it.
+Raising the cap above ~120 buys nothing (the tail is ephemeral). A separate
+finding: the "collapse repeated tool calls" step is a **no-op** on real
+transcripts (0-1.3% of tool turns), because calls are interleaved with their
+results; all reduction value is in result handling.
+
+### Corpus + distill throughput (measured)
+On a real corpus of **5,673 sessions / 1.22GB raw**:
+- **Stored reduced:** full-parsed ~70MB (5.7% of raw; the parse alone removes
+  94%); keep120 is smaller; drop/minify ~23MB. The full-vs-drop delta is ~47MB
+  corpus-wide, so storage is not a reason to drop.
+- **Window distribution:** ~1.42 windows/session (67% are 1 window, 23% two,
+  9% three). So the whole corpus is ~8,065 LLM calls at `--windows 3` (~5,673 at
+  `--windows 1`), not "5,673 x something big".
+- **Distill time:** ~5.3s/window-call on a local Spark. Full backfill ~1-1.5h
+  on both Sparks pooled, ~8-12h serial. The old "~26h" figure was embedding,
+  not distillation; skip transcript indexing and it is LLM-bound (~1-1.5h).
+
+## Capacity planning
+
+Size three things: storage, distill compute, and cadence. Numbers are measured on
+the 5,673-session / 1.22GB corpus and a laptop-dispatcher + two-Spark topology.
+
+### Storage
+| what | per 24MB-raw session | per 1,000 sessions (rough) | retention |
+|---|---|---|---|
+| raw `.jsonl` (only if `--keep-raw`) | 24MB | ~215MB | your choice |
+| keep120 reduced artifact | 1.3MB (5.6%) | ~12MB | 30d TTL |
+| distilled memories | ~5-10 records | ~5-10k records | no TTL (persists) |
+
+- The store stays small by construction (keep120 = ~5-6% of raw; whole corpus
+  reduced is ~70MB). `--keep-raw` multiplies it back toward 100% of raw.
+- **Plan for distilled-memory growth, not raw.** Raw expires; memories
+  accumulate (~5-10 per substantive session). Run `consolidate` so they do not
+  pile up as contradictions.
+
+### Distill compute
+- Work scales with **windows, not bytes**: ~1.42 windows/session, so a corpus of
+  N sessions is ~`N x 1.4` short LLM calls at `--windows 3`.
+- ~5.3s/call on a local Spark. Pool both Sparks (Qwen ~4 + Gemma ~8 concurrent)
+  for ~12-way; the full corpus backfill is ~1-1.5h, steady-state daily runs are
+  minutes.
+- **Embedding, not distillation, is the laptop cost.** Sync chunk-indexing a
+  reduced session is ~22s/session on laptop CPU. For a distill-only pipeline,
+  store raw with `indexing.mode=skip` and embed only the (small) distilled
+  memories; the 22s/session disappears. Offload transcript embedding to a GPU if
+  you do want raw-session vector search.
+
+### Cadence and sizing rule of thumb
+- ~28 new sessions/day, ~388/week on this corpus. Daily incremental distill =
+  minutes; weekly = well under an hour. **Hard rule: Phase-B cadence < raw TTL.**
+- For N new sessions/day: distill time ~= `N x 1.4 x 5.3s / concurrency`
+  (N=100/day at ~12-way is a few minutes); reduced-storage resident set ~=
+  `30 x N x 1.3MB` (30-day TTL) plus the permanent distilled memories.
+- The one-time history backfill is the only large job; everything after is
+  incremental.
 
 ## Config knobs
 - `ttl_seconds` on stash (raw retention; 30d).
