@@ -15,9 +15,11 @@ class LLMSynthesizer(Protocol):
 
 
 def active_memories(memory: object, scope: MemoryScope, limit: int = 1000) -> list[MemoryRecord]:
-    """All active (newest-valid) memories in scope, via the public Memory facade.
+    """All ACTIVE (newest-valid) memories in scope, via the public Memory facade.
 
     `memory` is a stele.core.memory.Memory; typed as object to avoid a heavy
-    import here. Calls memory.list(scope, status_filter=None, limit=...)."""
-    result = memory.list(scope, None, limit=limit)  # type: ignore[attr-defined]
+    import here. Passes status_filter=["active"] so superseded/retracted records
+    are excluded -- callers that name themselves "active_memories" should only
+    return current truth."""
+    result = memory.list(scope, ["active"], limit=limit)  # type: ignore[attr-defined]
     return list(result)

@@ -25,13 +25,9 @@ def _classify_state(text: str) -> str:
 
 async def distill_state(d: object, scope: MemoryScope) -> DistilledView:
     memory = d._memory  # type: ignore[attr-defined]
-    # active_memories may include superseded rows (status_filter=None).
-    # For state distillation we only want the head of each supersession
-    # chain, i.e. records whose status is "active".
+    # active_memories returns only status="active" records, so no extra filter needed.
     by_entity: dict[str, DistilledItem] = {}
     for m in active_memories(memory, scope):
-        if m.status != "active":
-            continue
         entity = (m.metadata or {}).get("entity") or m.summary or m.text
         by_entity[str(entity)] = DistilledItem(
             summary=str(entity),
