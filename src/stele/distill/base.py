@@ -89,6 +89,62 @@ def dedup_distilled(items: list[DistilledItem]) -> list[DistilledItem]:
     return list(by_key.values())
 
 
+def _recency(m: MemoryRecord) -> float:
+    """Ordering key for 'which is current': the session's mtime if the distiller
+    stamped it (true session recency), else the record's created_at."""
+    md = m.metadata or {}
+    raw = md.get("session_mtime")
+    if isinstance(raw, int | float | str):
+        try:
+            return float(raw)
+        except ValueError:
+            pass
+    return m.created_at.timestamp() if m.created_at else 0.0
+
+
+def consolidate(memory: object, embedder: Embedder, scope: MemoryScope,
+                threshold: float = 0.82) -> dict[str, int]:
+    """Temporal supersession over the stored memories. Within each kind, cluster
+    ACTIVE memories by embedding similarity and RETRACT all but the newest in
+    each cluster (newest by session_mtime, else created_at), so the long-lived
+    store reflects current truth instead of accumulating contradictions across
+    periodic runs ("version 0.5" superseded by "version 0.6"). A maintenance
+    pass: run it after a distill batch. Returns {clusters, retracted}."""
+    from collections import defaultdict
+
+    records: list[MemoryRecord] = memory.list(scope, ["active"], limit=10_000)  # type: ignore[attr-defined]
+    by_kind: dict[str, list[MemoryRecord]] = defaultdict(list)
+    for m in records:
+        by_kind[m.kind].append(m)
+    clusters = retracted = 0
+    for group in by_kind.values():
+        if len(group) < 2:
+            continue
+        vecs = [embedder.embed(m.summary or m.text) for m in group]
+        used = [False] * len(group)
+        for i in range(len(group)):
+            if used[i]:
+                continue
+            members = [i]
+            used[i] = True
+            for j in range(i + 1, len(group)):
+                if not used[j] and _cosine(vecs[i], vecs[j]) >= threshold:
+                    members.append(j)
+                    used[j] = True
+            if len(members) < 2:
+                continue
+            clusters += 1
+            members.sort(key=lambda k: _recency(group[k]), reverse=True)  # newest first
+            newest = group[members[0]]
+            for k in members[1:]:
+                memory.retract(  # type: ignore[attr-defined]
+                    group[k].id,
+                    reason=f"consolidated: superseded by newer equivalent {newest.id}",
+                )
+                retracted += 1
+    return {"clusters": clusters, "retracted": retracted}
+
+
 def active_memories(memory: object, scope: MemoryScope, limit: int = 1000) -> list[MemoryRecord]:
     """All ACTIVE (newest-valid) memories in scope, via the public Memory facade.
 

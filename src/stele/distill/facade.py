@@ -72,6 +72,15 @@ class Distill:
         self._jobs[job.id] = job
         return job
 
+    def consolidate(self, scope: MemoryScope, *, threshold: float = 0.82) -> dict[str, int]:
+        """Temporal maintenance: retract stale near-duplicate memories, keeping the
+        newest per cluster, so the long-lived store reflects current truth. Requires
+        an injected embedder. Run after a distill batch. Returns {clusters, retracted}."""
+        if self._embedder is None:
+            raise ValueError("consolidate requires an injected embedder (Stele._distill_embedder)")
+        from stele.distill.base import consolidate as _consolidate
+        return _consolidate(self._memory, self._embedder, scope, threshold)
+
     def result(self, job_id: str) -> DistilledView | None:
         """The DistilledView if the job finished, else None (still running).
         Raises KeyError for an unknown job id."""

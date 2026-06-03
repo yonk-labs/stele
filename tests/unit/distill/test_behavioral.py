@@ -161,6 +161,29 @@ def test_semantic_dedup_collapses_paraphrase_rules_when_embedder_injected():
     assert len(merged.source_refs) == 3
 
 
+def test_consolidate_retracts_stale_keeps_newest():
+    # Temporal supersession: two embedding-similar facts from different-aged
+    # sessions. consolidate keeps the newest, retracts the stale, so the active
+    # view reflects current truth.
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    s._distill_embedder = _BowEmbedder()
+    ns = "t-consolidate"
+    scope = MemoryScope(namespace=ns)
+    ref = str(s.store("ev", namespace=ns).reference)
+    old = s.memory.add(text="project version is 0.5.0a1", kind="fact", source_refs=[ref],
+                       scope=scope, summary="version 0.5.0a1 read write file before",
+                       metadata={"session_mtime": 100.0})
+    s.memory.add(text="project version is 0.6.0", kind="fact", source_refs=[ref],
+                 scope=scope, summary="version 0.6.0 read write file before",
+                 metadata={"session_mtime": 200.0})  # newer session
+    report = s.distill.consolidate(scope)
+    assert report["retracted"] == 1
+    active = s.memory.list(scope, ["active"], limit=50)
+    assert len(active) == 1
+    assert active[0].metadata.get("session_mtime") == 200.0   # the newer one survived
+    assert s.memory.get(old.record.id).status == "retracted"  # the stale one retracted
+
+
 def test_rules_reproduce_gold_gpt4o_pair():
     from benchmarks.external.memory_modes.distill_gold import GOLD
     s = Stele.from_config({"backend": {"type": "memory"}})

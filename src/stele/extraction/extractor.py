@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from stele.core.exceptions import (
@@ -265,6 +267,14 @@ class MemoryExtractor:
             self._stele.store(render(turns)[:200_000], namespace=scope.namespace).reference
         )
         fp = _fingerprint(self._config)
+        # session recency, so consolidation can keep the newest of duplicate facts
+        session_mtime: float | None = None
+        if isinstance(transcript, str | Path):
+            with contextlib.suppress(OSError):
+                session_mtime = Path(str(transcript)).stat().st_mtime
+        base_meta: dict[str, object] = {"source": "session", "extraction_config": fp}
+        if session_mtime is not None:
+            base_meta["session_mtime"] = session_mtime
         candidates: list[MemoryCandidate] = []
         accepted: list[AcceptedCandidate] = []
         rejected: list[RejectedCandidate] = []
@@ -279,8 +289,7 @@ class MemoryExtractor:
                     result = self._memory.add(
                         text=mem.detail or mem.summary, kind=mem.kind,  # type: ignore[arg-type]
                         source_refs=[ref], scope=scope, summary=mem.summary,
-                        detail=mem.detail, confidence=0.8,
-                        metadata={"source": "session", "extraction_config": fp},
+                        detail=mem.detail, confidence=0.8, metadata=dict(base_meta),
                     )
                 except ValidationError as exc:
                     rejected.append(RejectedCandidate(
