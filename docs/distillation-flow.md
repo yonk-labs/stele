@@ -132,22 +132,46 @@ only). After-the-fact minify of a stored artifact re-chunks/re-embeds it.
 
 ## Throughput (measured)
 
-Per session (reduced transcript, 1 window): local Qwen int4 ~44s, Gemma-4-26B
-~49s, gpt-5-mini ~97s. The Sparks parallelize well under vLLM (probe: Qwen
-near-linear to ~4 concurrent, Gemma to ~8+).
+The fleet run (both Sparks, 12 slots, 24 sessions) did 93 memories in 391s
+(~16s/session effective, ~2.7x over serial). To see what gates that, the
+per-operation costs were measured directly (LLM-free where possible, so they
+reproduce):
 
-**Measured fleet run** (both Sparks, 12 slots, 24 sessions): 93 memories in 391s
-= **~16s/session effective, ~2.7x over serial**. Not the ~12x the slots imply,
-because this run hit the biggest sessions first and **parsing 20MB+ transcripts
-is laptop-bound** (the dispatcher's real ceiling, not the Sparks). Naive
-full-backfill at that rate ~26h.
+| Operation | Cost | Where it runs |
+|---|---|---|
+| Parse a 24MB / 5,169-turn transcript | **~0.17s** | laptop (negligible) |
+| Parse the 8 biggest sessions (~95MB) serial | **0.53s** | laptop |
+| Minify (structural reduction) | ~0.1s, **97-99%** smaller | laptop |
+| `store()` with `indexing.mode=sync` (embeds 204KB) | **~22s** | **laptop CPU** |
+| `store()` with `indexing.mode=skip` (no embed) | **0.08s** | laptop |
+| One distill window -> Spark LLM | **~5-7s** | Spark |
 
-Two things make that a non-issue:
-- **Incremental runs** touch only new sessions (median ~98KB; ~28/day, ~388/week),
-  so steady-state is minutes.
-- **Minify-at-ingest** removes the backfill ceiling: store the reduced transcript
-  (~96% smaller) in Phase A so Phase B never re-parses the 20MB raw. This is the
-  fix for the laptop-parse bottleneck the fleet run exposed.
+The dominant per-session cost is **synchronous chunk-embedding on the laptop
+CPU** (`bge-base-int8`), not parsing and not the Spark LLM. Parsing is ~0.1s;
+it is not the bottleneck (an earlier note that said so was wrong). Threads do
+not parallelize the parse (GIL: measured 1.04x); processes do (2.29x), but the
+parse is sub-second so it does not matter.
+
+Levers, in order of impact:
+- **Skip raw-session indexing when you only need evidence.** Distillation does
+  not require vector search over raw transcripts. Store raw with
+  `indexing.mode=skip` (0.08s) and embed only the small distilled memories;
+  the 22s/session embedding disappears and the pipeline becomes Spark-bound.
+- **Minify before you embed**, when you *do* want raw-session retrieval: the
+  204KB minified form is ~120x fewer chunks than the 24MB raw, so embedding
+  goes from minutes to ~22s. Offload that embedding to a GPU (async indexing)
+  rather than laptop CPU for a backfill.
+- **Incremental runs** touch only new sessions (~28/day, ~388/week of 5,711),
+  so steady-state is minutes regardless.
+
+### Flow: session -> minify -> store -> distill (verified end-to-end)
+`minify_transcript(session)` -> `stele.store(minified)` -> `extract.from_session(
+transcript=session, source_ref=<stored ref>)` composes on existing primitives;
+the distilled memories cite the stored minified artifact as evidence. Note that
+`from_session` already compacts internally (windows drop successful tool
+results), so distilling from the minified form does not change LLM input or
+output quality. The minify-first win is **storage and embedding cost** (98-99%
+smaller evidence artifacts), not distillation quality or parse speed.
 
 ## Config knobs
 - `ttl_seconds` on stash (raw retention; 30d).
