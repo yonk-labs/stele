@@ -224,26 +224,30 @@ def ingest_session(stele: Stele, llm: Callable[[str], str], path: Path,
     return committed
 
 
-def _sessions(limit: int) -> list[Path]:
-    files = sorted(_PROJECTS_ROOT.glob("*/*.jsonl"), key=lambda p: p.stat().st_size, reverse=True)
-    # spread across projects: take the largest from distinct project dirs first
+def _sessions(limit: int, start: int = 0) -> list[Path]:
+    """Diverse-first, paginated. One largest session per project first (breadth),
+    then the remainder by size, then slice [start:start+limit]. `start` makes
+    large runs resumable in buckets without re-ingesting earlier sessions."""
+    files = sorted(_PROJECTS_ROOT.glob("*/*.jsonl"), key=lambda p: -p.stat().st_size)
     seen: set[str] = set()
-    picked: list[Path] = []
+    head: list[Path] = []
+    tail: list[Path] = []
     for f in files:
-        if f.parent.name not in seen:
-            seen.add(f.parent.name)
-            picked.append(f)
-        if len(picked) >= limit:
-            break
-    return picked
+        (head if f.parent.name not in seen else tail).append(f)
+        seen.add(f.parent.name)
+    ordered = head + tail
+    return ordered[start : start + limit]
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dsn", default=None)
     ap.add_argument("--limit", type=int, default=20, help="how many sessions to ingest")
+    ap.add_argument("--start", type=int, default=0, help="session offset (resume/batch in buckets)")
     ap.add_argument("--per-session-windows", type=int, default=3)
     ap.add_argument("--namespace", default="distill-real-sessions")
+    ap.add_argument("--no-purge", action="store_true", help="accumulate into the namespace (for resumed batches)")
+    ap.add_argument("--distill", action="store_true", help="run the distill views after ingest")
     args = ap.parse_args(argv)
     import os
     dsn = args.dsn or os.environ.get("STELE_PG_DSN")
@@ -267,16 +271,20 @@ def main(argv: list[str] | None = None) -> int:
     stele._distill_llm = llm  # type: ignore[attr-defined]
 
     scope = MemoryScope(namespace=args.namespace)
-    with contextlib.suppress(Exception):
-        stele.purge_namespace(args.namespace, dry_run=False)
+    if args.start == 0 and not args.no_purge:
+        with contextlib.suppress(Exception):
+            stele.purge_namespace(args.namespace, dry_run=False)
 
-    sessions = _sessions(args.limit)
+    sessions = _sessions(args.limit, args.start)
     total = 0
-    for path in sessions:
+    for i, path in enumerate(sessions, start=args.start):
         n = ingest_session(stele, llm, path, scope, args.per_session_windows)
         total += n
-        print(f"  ingested {n:>3} memories from {path.parent.name[:34]}", flush=True)
-    print(f"\nTOTAL: {total} durable memories distilled from {len(sessions)} real sessions\n")
+        print(f"  [{i}] ingested {n:>3} memories from {path.parent.name[:34]}", flush=True)
+    print(f"\nTOTAL this batch: {total} durable memories from {len(sessions)} sessions (offset {args.start})\n", flush=True)
+    if not args.distill:
+        print("(ingest-only; pass --distill to render the views, or distill separately)")
+        return 0
 
     def _distill_call(mode: str) -> Coroutine[Any, Any, DistilledView]:
         method = getattr(stele.distill, mode)
