@@ -240,6 +240,7 @@ content renders from a single Jinja template; no per-platform duplication.
 for other tools are preserved.
 
 - **5-minute quickstart**: [docs/quickstart.md](docs/quickstart.md)
+- **Memory types + architecture** (the kinds, distill views, and benchmark modes, reconciled): [docs/memory-types.md](docs/memory-types.md)
 - Full tool reference (MCP + CLI equivalents): [docs/mcp-tools.md](docs/mcp-tools.md)
 - CLI guide + troubleshooting: [docs/cli-guide.md](docs/cli-guide.md)
 - Runnable tours: [examples/mcp_tour.py](examples/mcp_tour.py) (Python/MCP) · [examples/cli_tour.sh](examples/cli_tour.sh) (shell/CLI)
