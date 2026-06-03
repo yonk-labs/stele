@@ -30,11 +30,15 @@ from stele.distill.models import DistilledView
 _PROJECTS_ROOT = Path.home() / ".claude" / "projects"
 
 
-def _sessions(limit: int, start: int = 0) -> list[Path]:
+def _sessions(limit: int, start: int = 0, since: float | None = None) -> list[Path]:
     """Diverse-first, paginated. One largest session per project first (breadth),
     then the remainder by size, then slice [start:start+limit]. `start` makes
-    large runs resumable in buckets without re-ingesting earlier sessions."""
-    files = sorted(_PROJECTS_ROOT.glob("*/*.jsonl"), key=lambda p: -p.stat().st_size)
+    large runs resumable in buckets. `since` (epoch seconds) selects only
+    sessions modified after the watermark -- the incremental path, so a periodic
+    run distills only what is new."""
+    files = [p for p in _PROJECTS_ROOT.glob("*/*.jsonl")
+             if since is None or p.stat().st_mtime > since]
+    files.sort(key=lambda p: -p.stat().st_size)
     seen: set[str] = set()
     head: list[Path] = []
     tail: list[Path] = []

@@ -82,17 +82,30 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--windows", type=int, default=1, help="windows/session (1 for small sessions)")
     ap.add_argument("--namespace", default="distill-fleet")
     ap.add_argument("--no-purge", action="store_true")
+    ap.add_argument("--since-days", type=float, default=None, help="only sessions modified in the last N days")
+    ap.add_argument("--watermark", default=None, help="incremental: file holding the last-run epoch; read before, advance after")
     args = ap.parse_args(argv)
     dsn = args.dsn or os.environ.get("STELE_PG_DSN")
     if not dsn:
         raise SystemExit("set STELE_PG_DSN or pass --dsn")
 
-    if args.start == 0 and not args.no_purge:
+    # Incremental selection: a watermark file wins; else --since-days; else all.
+    since: float | None = None
+    wm = Path(args.watermark) if args.watermark else None
+    if wm and wm.exists():
+        since = float(wm.read_text().strip() or 0) or None
+    elif args.since_days is not None:
+        since = time.time() - args.since_days * 86_400
+    if since is not None:
+        print(f"incremental: only sessions modified after {time.strftime('%Y-%m-%d %H:%M', time.localtime(since))}", flush=True)
+
+    # Incremental runs accumulate; full runs purge unless resumed.
+    if args.start == 0 and not args.no_purge and since is None:
         admin = Stele(config=StashConfig(backend=BackendConfig(type="postgres", dsn=dsn)))
         with contextlib.suppress(Exception):
             admin.purge_namespace(args.namespace, dry_run=False)
 
-    sessions = _sessions(args.limit, args.start)
+    sessions = _sessions(args.limit, args.start, since)
     q: queue.Queue[Path] = queue.Queue()
     for p in sessions:
         q.put(p)
@@ -120,6 +133,12 @@ def main(argv: list[str] | None = None) -> int:
         th.join()
     dt = time.monotonic() - t0
     rate = len(sessions) / dt if dt else 0.0
+    # Advance the watermark to the newest session processed, so the next run is
+    # truly incremental ("since last run").
+    if wm is not None and sessions:
+        newest = max(p.stat().st_mtime for p in sessions)
+        wm.write_text(str(newest))
+        print(f"watermark advanced -> {time.strftime('%Y-%m-%d %H:%M', time.localtime(newest))} ({wm})", flush=True)
     print(f"\nFLEET DONE: {stats['mem']} memories from {len(sessions)} sessions in {dt:.0f}s "
           f"({rate * 60:.1f} sessions/min, {dt / max(len(sessions), 1):.1f}s/session effective). "
           f"Full corpus (5710) at this rate: {5710 / rate / 3600:.1f}h" if rate else "")
