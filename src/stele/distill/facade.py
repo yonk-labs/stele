@@ -36,10 +36,10 @@ class Distill:
 
         return await distill_facts(self, scope)
 
-    async def precedents(self, scope: MemoryScope) -> DistilledView:
+    async def precedents(self, scope: MemoryScope, query: str | None = None) -> DistilledView:
         from stele.distill.precedents import distill_precedents
 
-        return await distill_precedents(self, scope)
+        return await distill_precedents(self, scope, query)
 
     async def state(self, scope: MemoryScope) -> DistilledView:
         from stele.distill.state import distill_state
