@@ -101,26 +101,53 @@ python -c "from stele import Stele; Stele.from_config(cfg).cleanup_expired()"
 4. **Retention:** stash with `ttl_seconds`, run `cleanup_expired` nightly.
    Distilled memory needs no TTL.
 
-### Two gaps to close before production
+### Incremental selection (built)
+Each periodic run distills only sessions modified since the last run:
+```bash
+# watermark file advances each run; only new sessions are processed next time
+.venv/bin/python -m benchmarks.external.memory_modes.distill_fleet \
+  --namespace project-memory --windows 1 --watermark /var/lib/stele/distill.wm
+# or a rolling window: --since-days 7
+```
+Measured: of 5,711 sessions, ~388 were modified in the last 7 days, ~28 in the
+last day, so a daily run is minutes.
 
-- **Incremental selection.** `distill_fleet` currently pages by size/offset.
-  Production wants "distill only sessions modified since the last run": track a
-  watermark (max session mtime distilled) and select `mtime > watermark`. Small.
-- **Temporal supersession.** Across periodic runs, facts update ("version
-  0.5→0.6"). The long-lived store must supersede stale facts, not accumulate
-  contradictions: entity-key each fact, and on a newer-session update call
-  `memory.add(supersedes=[old_id])`, distinguishing event-facts (permanent) from
-  state-facts (supersedable). The supersession/as_of primitives already exist in
-  `stele.memory`; the distiller just needs to use them. Required at scale.
+### Temporal supersession (built)
+Run `consolidate` after a distill batch to keep the long-lived store current:
+it clusters active memories by embedding similarity and **retracts all but the
+newest** in each cluster (newest by `session_mtime`, stamped by `from_session`),
+so "version 0.5" gives way to "version 0.6" instead of both lingering.
+```python
+stele._distill_embedder = build_memory_embedder(cfg.indexing)  # inject once
+report = stele.distill.consolidate(scope)   # {"clusters": n, "retracted": m}
+```
+Requires an injected embedder; it is a maintenance pass, not on the hot path.
+
+### Minify (built)
+Reduce a transcript to signal before storing/embedding (`minify_transcript` /
+the `minify` CLI). Structural reduction (drop successful tool-result bodies,
+compact + collapse tool calls, keep failures) does ~96% on real sessions;
+`--caveman` adds `lede.clean_text` on prose for ~2% more (lossy; embedding path
+only). After-the-fact minify of a stored artifact re-chunks/re-embeds it.
 
 ## Throughput (measured)
 
-Per session (with transcript reduction): local Qwen int4 ~44s, Gemma-4-26B ~49s,
-OpenAI gpt-5-mini ~97s (richer output). The Sparks parallelize well under vLLM
-(Qwen near-linear to ~4 concurrent, Gemma to ~8+). Pooling both Sparks, a full
-5,710-session backfill is single-digit hours; **incremental periodic runs only
-touch new sessions, so they are minutes**, which is the point of the two-phase
-split. Throughput is a one-time-backfill concern, not a steady-state one.
+Per session (reduced transcript, 1 window): local Qwen int4 ~44s, Gemma-4-26B
+~49s, gpt-5-mini ~97s. The Sparks parallelize well under vLLM (probe: Qwen
+near-linear to ~4 concurrent, Gemma to ~8+).
+
+**Measured fleet run** (both Sparks, 12 slots, 24 sessions): 93 memories in 391s
+= **~16s/session effective, ~2.7x over serial**. Not the ~12x the slots imply,
+because this run hit the biggest sessions first and **parsing 20MB+ transcripts
+is laptop-bound** (the dispatcher's real ceiling, not the Sparks). Naive
+full-backfill at that rate ~26h.
+
+Two things make that a non-issue:
+- **Incremental runs** touch only new sessions (median ~98KB; ~28/day, ~388/week),
+  so steady-state is minutes.
+- **Minify-at-ingest** removes the backfill ceiling: store the reduced transcript
+  (~96% smaller) in Phase A so Phase B never re-parses the 20MB raw. This is the
+  fix for the laptop-parse bottleneck the fleet run exposed.
 
 ## Config knobs
 - `ttl_seconds` on stash (raw retention; 30d).
