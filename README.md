@@ -212,8 +212,11 @@ Runnable: `STELE_PG_RAGGRAPH_DSN=… scripts/demo-living-knowledge.sh`.
 
 **Five-minute happy path: [docs/quickstart.md](docs/quickstart.md).**
 
-`pip install stele-core` exposes two binaries: `stele` (CLI) and `stele-mcp`
-(stdio MCP server). The MCP server presents 18 tools over the public Stele
+`pip install stele-core` exposes three binaries: `stele` (CLI), `stele-mcp`
+(stdio MCP server), and `stele-ingest` (reduce a Claude session transcript to
+its keep120 signal and store it as one artifact; meant for a SessionEnd hook,
+see [docs/distillation-flow.md](docs/distillation-flow.md)). The MCP server
+presents 18 tools over the public Stele
 facade — `stele_store` / `stele_fetch` / `stele_search` / `stele_query` /
 `stele_list` / `stele_delete` for artifacts, `stele_memory_{add,get,search,
 list,update,delete,retract}` for evidence-cited memory,

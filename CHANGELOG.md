@@ -5,6 +5,45 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.6.0] - 2026-06-03
+
+Session reduction at the ingestion boundary, and the live conversation feed that
+distillation reads from. Additive; one behavior change (the distill default now
+keeps successful tool-result headlines instead of dropping them).
+
+### Added
+
+- `reduce_event(event, cfg)` (`stele.extraction.session`): one pure per-event
+  filter shared by the live ingest stream and the batch `.jsonl` parser. Drops
+  thinking signatures, file-history-snapshot / attachment / metadata lines;
+  truncates tool bodies; preserves role + `is_error` for failure-first windowing.
+- `ReduceConfig` + `ExtractionConfig.reduce_result_chars` (120),
+  `reduce_error_chars` (220), `reduce_tool_chars` (200),
+  `reduce_drop_success_results` (False). A char limit of `null`/`None` is the
+  "full" tier (no truncation). `reduce_drop_success_results=True` is the older
+  aggressive minify (drops successful results; loses ~30% of memories).
+- `stele.extraction.ingest.ingest_session(...)` + `reduce_stream(...)`: reduce a
+  whole session (a `.jsonl` path or a live iterable of events) and store ONE
+  reduced artifact with a TTL. `keep_raw=True` ALSO stores the exact original
+  bytes as a second `source=session-raw` artifact (full-fidelity retention).
+- `stele-ingest` console script: `stele-ingest <path> --session-id S --namespace
+  NS [--result-chars N | --full | --keep-raw]`. The session feed entry point.
+- Claude Code SessionEnd hook template
+  `packaging/templates/hooks/claude-code-ingest.sh.j2` (reduce + store on session
+  end). Added manually to `settings.json` today; `stele install` wiring is a
+  follow-up.
+- Retention tiers, measured on a real 24MB session: keep120 (5.6% of raw),
+  keep300 (6.4%), full (16.1%), keep-raw (keep120 + the exact bytes).
+
+### Changed
+
+- The distillation reduction now **keeps** successful tool-result bodies
+  (truncated to 120 chars) instead of dropping them. Measured +~30% memories
+  recovered (facts, rules, skills especially); keep120 matches keeping the full
+  result within noise. The old drop behavior is opt-in via
+  `reduce_drop_success_results=True`. `_compact_lines` was removed; `windows()`
+  now packs already-reduced turns.
+
 ## [0.5.2] — 2026-06-02
 
 ### Fixed
