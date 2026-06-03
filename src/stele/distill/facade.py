@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from stele.core.memory_record import MemoryScope
-from stele.distill.base import LLMSynthesizer
+from stele.distill.base import Embedder, LLMSynthesizer
 from stele.distill.jobs import DistillJob, submit_job
 from stele.distill.models import DistilledView
 
@@ -24,6 +24,7 @@ class Distill:
         recall: object,
         config: DistillConfig,
         llm: LLMSynthesizer | None = None,
+        embedder: Embedder | None = None,
     ) -> None:
         self._stele = stele
         self._memory = memory
@@ -31,6 +32,7 @@ class Distill:
         self._recall = recall
         self._config = config
         self._llm = llm
+        self._embedder = embedder  # optional; enables semantic dedup
         self._jobs: dict[str, DistillJob] = {}
 
     async def facts(self, scope: MemoryScope) -> DistilledView:

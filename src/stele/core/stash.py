@@ -1061,6 +1061,7 @@ class Stele:
                 recall=self.recall,
                 config=self.config.distill,
                 llm=getattr(self, "_distill_llm", None),
+                embedder=getattr(self, "_distill_embedder", None),
             )
         return self._distill
 

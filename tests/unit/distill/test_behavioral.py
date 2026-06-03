@@ -121,6 +121,46 @@ def test_cross_session_dedup_merges_evidence_refs():
     assert set(view.items[0].source_refs) == {r1, r2}    # both evidences merged
 
 
+class _BowEmbedder:
+    """Deterministic concept embedder: maps words to concept dimensions so
+    paraphrases of one rule land on the same axis (high cosine) and distinct
+    rules are orthogonal, the way a real sentence embedder behaves."""
+
+    _CONCEPTS: tuple[tuple[str, ...], ...] = (
+        ("read", "edit", "write", "file", "before", "reading"),  # file-op rule
+        ("gpt", "version", "model", "4o"),                       # model-choice rule
+        ("pool", "connection", "async"),                         # db rule
+    )
+
+    def embed(self, text: str) -> list[float]:
+        low = text.lower()
+        return [float(sum(low.count(w) for w in concept)) for concept in self._CONCEPTS]
+
+
+def test_semantic_dedup_collapses_paraphrase_rules_when_embedder_injected():
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    s._distill_embedder = _BowEmbedder()  # inject before first .distill access
+    ns = "t-semdedup"
+    scope = MemoryScope(namespace=ns)
+    variants = [
+        ("edit a file before reading", "v1"),
+        ("write to a file before reading it", "v2"),     # paraphrase of the same rule
+        ("edit the file before you read it", "v3"),       # paraphrase again
+        ("never use gpt-4o", "v4"),                       # genuinely distinct rule
+    ]
+    for text, tag in variants:
+        ref = str(s.store(tag, namespace=ns).reference)
+        s.memory.add(text=text, kind="pitfall", source_refs=[ref], scope=scope, summary=text)
+    view = asyncio.run(s.distill.rules(MemoryScope(namespace=ns)))
+    summaries = [it.summary for it in view.items]
+    # the three read-before-edit paraphrases collapse to one; the gpt rule stays
+    assert len(view.items) == 2, summaries
+    assert any("gpt-4o" in x for x in summaries)
+    # the collapsed rule carries evidence from all three merged variants
+    merged = next(it for it in view.items if "gpt-4o" not in it.summary)
+    assert len(merged.source_refs) == 3
+
+
 def test_rules_reproduce_gold_gpt4o_pair():
     from benchmarks.external.memory_modes.distill_gold import GOLD
     s = Stele.from_config({"backend": {"type": "memory"}})

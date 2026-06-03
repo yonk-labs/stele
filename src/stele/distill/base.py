@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
@@ -16,6 +17,51 @@ class LLMSynthesizer(Protocol):
     deterministically."""
 
     def __call__(self, prompt: str) -> str: ...
+
+
+@runtime_checkable
+class Embedder(Protocol):
+    """Optional, injected (duck-typed; the storage embedder satisfies it). Used
+    for semantic dedup. distill imports no embedder module (architecture-gated)."""
+
+    def embed(self, text: str) -> list[float]: ...
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    if not a or not b:
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def semantic_dedup(items: list[DistilledItem], embedder: Embedder,
+                   threshold: float = 0.82) -> list[DistilledItem]:
+    """Collapse items whose summaries are SEMANTICALLY near-duplicates (cosine of
+    their embeddings >= threshold), merging source_refs. Catches paraphrases that
+    normalized-exact dedup misses ("edit a file without reading" vs "write to a
+    file without reading" vs "edit design.md without reading"). Greedy: each item
+    joins the first representative it is close to, else becomes a new one."""
+    if len(items) < 2:
+        return list(items)
+    reps: list[tuple[list[float], int]] = []  # (vector, index into out)
+    out: list[DistilledItem] = []
+    for it in items:
+        vec = embedder.embed(it.summary)
+        match: int | None = None
+        for rvec, idx in reps:
+            if _cosine(vec, rvec) >= threshold:
+                match = idx
+                break
+        if match is None:
+            reps.append((vec, len(out)))
+            out.append(it)
+        else:
+            kept = out[match]
+            merged = list(dict.fromkeys([*kept.source_refs, *it.source_refs]))
+            out[match] = kept.model_copy(update={"source_refs": merged})
+    return out
 
 
 def _norm(text: str) -> str:

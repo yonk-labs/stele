@@ -5,7 +5,12 @@ import re
 from collections.abc import Sequence
 
 from stele.core.memory_record import MemoryRecord, MemoryScope
-from stele.distill.base import LLMSynthesizer, active_memories, dedup_distilled
+from stele.distill.base import (
+    LLMSynthesizer,
+    active_memories,
+    dedup_distilled,
+    semantic_dedup,
+)
 from stele.distill.models import DistilledItem, DistilledView, Rule
 
 _VENDOR_TOKENS: dict[str, str] = {
@@ -148,7 +153,10 @@ def _plain_view(records: Sequence[MemoryRecord], mode: str, d: object) -> Distil
     llm, allowed = _llm_and_allowed(d)
     if allowed and llm is not None:
         items = _refine(llm, mode, items)
-    items = dedup_distilled(items)  # collapse cross-session duplicates, merge refs
+    items = dedup_distilled(items)  # exact-normalized dedup, merge refs
+    embedder = getattr(d, "_embedder", None)
+    if embedder is not None:
+        items = semantic_dedup(items, embedder)  # collapse paraphrase near-dups
     return DistilledView(mode=mode, items=items, used_llm=allowed,
                          stats={"n": float(len(items))})
 
@@ -192,6 +200,9 @@ async def distill_rules(d: object, scope: MemoryScope) -> DistilledView:
     items: list[DistilledItem] = candidates
     if allowed and llm is not None:
         items = _refine(llm, "rules", candidates)
-    items = dedup_distilled(items)  # collapse cross-session duplicates, merge refs
+    items = dedup_distilled(items)  # exact-normalized dedup, merge refs
+    embedder = getattr(d, "_embedder", None)
+    if embedder is not None:
+        items = semantic_dedup(items, embedder)  # collapse paraphrase near-dups
     return DistilledView(mode="rules", items=items, used_llm=allowed,
                          stats={"n": float(len(items))})
