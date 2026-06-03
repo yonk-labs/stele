@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from stele.core.exceptions import (
@@ -227,6 +228,71 @@ class MemoryExtractor:
             accepted=accepted,
             rejected=rejected,
             source_refs=source_refs,
+        )
+
+    def from_session(
+        self,
+        *,
+        transcript: object,
+        scope: MemoryScope,
+        llm: Callable[[str], str],
+        max_windows: int = 3,
+        source_ref: str | None = None,
+    ) -> ExtractionReport:
+        """Distill durable memory from a real agent transcript (Claude .jsonl, a
+        generic message list, or pre-parsed Turns). The deterministic extractor
+        does not fit conversational, tool-heavy transcripts, so this is
+        LLM-driven: parse, window (failures first), and ask the injected `llm`
+        to extract kinded memories with evidence. Commits via the memory facade
+        (PII scrubbing inherited); the transcript is stashed as the source ref."""
+        self._check_enabled()
+        from stele.extraction.session import (
+            extract_session_memories,
+            parse_transcript,
+            render,
+            windows,
+        )
+
+        turns = parse_transcript(transcript)
+        empty = ExtractionReport(
+            candidates=[], accepted=[], rejected=[], pii_flags=[], source_refs=[],
+            stats=ExtractionStats(candidate_count=0, accepted_count=0, rejected_count=0),
+            config_fingerprint=_fingerprint(self._config),
+        )
+        if not turns:
+            return empty
+        ref = source_ref or str(
+            self._stele.store(render(turns)[:200_000], namespace=scope.namespace).reference
+        )
+        fp = _fingerprint(self._config)
+        candidates: list[MemoryCandidate] = []
+        accepted: list[AcceptedCandidate] = []
+        rejected: list[RejectedCandidate] = []
+        for window in windows(turns, max_chars=4000, limit=max_windows):
+            for mem in extract_session_memories(llm, window):
+                cand = MemoryCandidate(
+                    text=mem.summary, kind=mem.kind, confidence=0.8,  # type: ignore[arg-type]
+                    lede_source="key_fact", classifier_path="pattern_overlay",
+                )
+                candidates.append(cand)
+                try:
+                    result = self._memory.add(
+                        text=mem.detail or mem.summary, kind=mem.kind,  # type: ignore[arg-type]
+                        source_refs=[ref], scope=scope, summary=mem.summary,
+                        detail=mem.detail, confidence=0.8,
+                        metadata={"source": "session", "extraction_config": fp},
+                    )
+                except ValidationError as exc:
+                    rejected.append(RejectedCandidate(
+                        candidate=cand, reason="validation_error", error_message=str(exc)))
+                    continue
+                if result.duplicate_of is not None:
+                    rejected.append(RejectedCandidate(
+                        candidate=cand, reason="duplicate", duplicate_of=result.duplicate_of))
+                    continue
+                accepted.append(AcceptedCandidate(candidate=cand, stored_id=result.record.id))
+        return self._build_report(
+            candidates=candidates, accepted=accepted, rejected=rejected, source_refs=[ref],
         )
 
     def preview(
