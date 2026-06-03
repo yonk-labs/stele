@@ -25,3 +25,12 @@ def submit_job(
     job_id = uuid.uuid4().hex
     future: Future[DistilledView] = _EXECUTOR.submit(lambda: asyncio.run(coro_factory()))
     return DistillJob(id=job_id, future=future)
+
+
+def run_sync(
+    coro_factory: Callable[[], Coroutine[Any, Any, DistilledView]],
+) -> DistilledView:
+    """Run an async distill call to completion from a SYNC context, safe even
+    when an event loop is already running on the calling thread (the coroutine
+    runs in a worker thread with its own loop). Used by the MCP/CLI handlers."""
+    return _EXECUTOR.submit(lambda: asyncio.run(coro_factory())).result()

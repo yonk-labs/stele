@@ -27,6 +27,6 @@ class DistilledView(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     mode: str
-    items: list[DistilledItem] = Field(default_factory=list)
+    items: list[Rule | DistilledItem] = Field(default_factory=list)
     used_llm: bool = False
     stats: dict[str, float] = Field(default_factory=dict)
