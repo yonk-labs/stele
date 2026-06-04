@@ -688,9 +688,9 @@ Architecture completion requires:
 
 ## 16. Related Documents
 
-- [Current Status](./current-status.md)
-- [Sovereign Memory System Plan](./sovereign-memory-system-plan.md)
-- [Pinecone Nexus Assessment](./pinecone-nexus-assessment.md)
-- [Industry Benchmark Plan](./industry-benchmark-plan.md)
-- [Backend Matrix](./backend-matrix.md)
-- [Product API Spec](./specs/product-api-spec.md)
+- [Current Status](../project/current-status.md)
+- [Sovereign Memory System Plan](../archive/sovereign-memory-system-plan.md)
+- [Pinecone Nexus Assessment](../archive/pinecone-nexus-assessment.md)
+- [Industry Benchmark Plan](../archive/industry-benchmark-plan.md)
+- [Backend Matrix](../reference/backend-matrix.md)
+- [Product API Spec](../specs/product-api-spec.md)

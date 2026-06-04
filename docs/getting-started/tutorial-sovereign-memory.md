@@ -232,7 +232,7 @@ print(result.stats)           # searches/fetches/tokens/latency
 | `raw_fetch` | Returns an artifact's raw content. Requires `artifact_id`; honors the `pii.raw_fetch_enabled` gate. |
 | `abstain` | Returns empty context with a structured reason. Never raises. |
 | `adaptive` | Runs tiers (`memory_search → artifact_search → raw_fetch → abstain`) until one clears the confidence floor. |
-| `graph_search` | Phase 5 living knowledge: real on a Postgres backend with `stele-core[postgres-graph]` and `graph.enabled: true` (supports `as_of` / `version_filter` / `retracted_behavior`); raises `CapabilityError` otherwise. See [living-knowledge-setup.md](living-knowledge-setup.md). |
+| `graph_search` | Phase 5 living knowledge: real on a Postgres backend with `stele-core[postgres-graph]` and `graph.enabled: true` (supports `as_of` / `version_filter` / `retracted_behavior`); raises `CapabilityError` otherwise. See [living-knowledge-setup.md](../guides/living-knowledge-setup.md). |
 
 Each has a one-line shim:
 
@@ -387,7 +387,7 @@ is synthesized internally from the same fastembed model the chunk index uses —
 nothing to wire up), and `search_with_score` fuses the keyword and vector legs
 via RRF. When it is off — the default, and every non-Postgres backend — recall
 is byte-identical to before, so this costs nothing until you ask for it. See
-[vector-indexing-setup.md](vector-indexing-setup.md) for the embedding model
+[vector-indexing-setup.md](../guides/vector-indexing-setup.md) for the embedding model
 knobs, and note the cheaper alternative of bridging facts into the existing
 chunk index if you already run it.
 
@@ -429,6 +429,6 @@ still returns the row for audit, but `search`/`list` exclude it.
 
 - Run the demos: `scripts/demo-cq-memory.sh` (tripartite + evidence + lifecycle
   kinds), `scripts/demo-supersession.sh`, `scripts/demo-extraction.sh`.
-- Read the design specs in `docs/superpowers/specs/` for the full contracts.
-- See [`docs/current-status.md`](current-status.md) for what's shipped and the
+- Read the design specs in `docs/archive/superpowers/specs/` for the full contracts.
+- See [`docs/project/current-status.md`](../project/current-status.md) for what's shipped and the
   Phase 4–8 roadmap.

@@ -3,9 +3,9 @@
 How to read your past sessions back as **episodes**, a **timeline**, cross-session
 **spans**, and via **episodic recall**. For the conceptual model (how episodic
 sits beside semantic and procedural memory), see
-[memory-types.md](memory-types.md#relation-to-the-classical-taxonomy-semantic--episodic--procedural).
+[memory-types.md](../reference/memory-types.md#relation-to-the-classical-taxonomy-semantic--episodic--procedural).
 For how sessions get ingested in the first place, see
-[distillation-flow.md](distillation-flow.md).
+[distillation-flow.md](memory-distillation-guide.md).
 
 An **episode** = one past session: its stored artifact plus the memories that
 session produced (back-linked by `source_refs`). Everything below is computed on
@@ -14,7 +14,7 @@ read from those, so nothing new is written to the store.
 ## Run it yourself
 
 A self-contained tour (in-memory backend, no DSN) is at
-[`examples/episodic_tour.py`](../examples/episodic_tour.py):
+[`examples/episodic_tour.py`](../../examples/episodic_tour.py):
 
 ```bash
 .venv/bin/python examples/episodic_tour.py

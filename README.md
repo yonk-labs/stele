@@ -18,26 +18,26 @@ five backends** (Phase 4), an **end-to-end test harness** (INFRA-A), and
 supersede/retract, `as_of`/`version_filter` graph search, every hit citing
 its `stele://` evidence (Phase 5). Runtime working memory (WorkGraph),
 adapter SDK, source connectors, and universal search are the next phases —
-see the [order of operations](docs/superpowers/2026-05-17-order-of-operations.md)
-for the authoritative path and [current status](docs/current-status.md) for
+see the [order of operations](docs/archive/superpowers/2026-05-17-order-of-operations.md)
+for the authoritative path and [current status](docs/project/current-status.md) for
 what's done.
 
 New here? Two starting points:
 
-- **Want stele in your AI coding assistant (Claude Code, Codex, Cursor, etc.)?** [5-minute quickstart](docs/quickstart.md).
-- **Want to use stele as a Python library?** [Memory tutorial](docs/tutorial-memory.md) — store → extract → supersede → recall.
+- **Want stele in your AI coding assistant (Claude Code, Codex, Cursor, etc.)?** [5-minute quickstart](docs/getting-started/quickstart.md).
+- **Want to use stele as a Python library?** [Memory tutorial](docs/getting-started/tutorial-sovereign-memory.md) — store → extract → supersede → recall.
 
 Key planning docs:
 
-- [Current status](docs/current-status.md)
-- [Sovereign memory system plan](docs/sovereign-memory-system-plan.md)
-- [PRD: Sovereign Stele](docs/prd-sovereign-stele.md)
-- [Architecture: Sovereign Stele](docs/architecture-sovereign-stele.md)
+- [Current status](docs/project/current-status.md)
+- [Sovereign memory system plan](docs/archive/sovereign-memory-system-plan.md)
+- [PRD: Sovereign Stele](docs/archive/prd-sovereign-stele.md)
+- [Architecture: Sovereign Stele](docs/architecture/architecture.md)
 - [Build specs](docs/specs/README.md)
-- [Vector & hybrid indexing setup (Phase 4)](docs/vector-indexing-setup.md)
-- [Living knowledge setup (Phase 5)](docs/living-knowledge-setup.md)
-- [Plugging Stele into an agent (Claude / Codex / MCP / others)](docs/agent-integration.md)
-- [Security posture & threat model](docs/SECURITY.md)
+- [Vector & hybrid indexing setup (Phase 4)](docs/guides/vector-indexing-setup.md)
+- [Living knowledge setup (Phase 5)](docs/guides/living-knowledge-setup.md)
+- [Plugging Stele into an agent (Claude / Codex / MCP / others)](docs/guides/agent-integration.md)
+- [Security posture & threat model](docs/operations/SECURITY.md)
 - [E2E self-host harness](deploy/README.md)
 
 ## Current Functional Surface
@@ -126,7 +126,7 @@ The current runnable slice includes:
   `mcp.json`); idempotent install with **merge** of existing `mcp.json` and
   marker-bounded section editing of shared agent docs
 
-See the [Memory tutorial](docs/tutorial-memory.md) for a runnable walkthrough.
+See the [Memory tutorial](docs/getting-started/tutorial-sovereign-memory.md) for a runnable walkthrough.
 
 ## Sovereign Memory in 30 Seconds
 
@@ -166,7 +166,7 @@ past = stele.memory.search(
 )
 ```
 
-See [docs/tutorial-memory.md](docs/tutorial-memory.md) for the full walkthrough.
+See [docs/getting-started/tutorial-sovereign-memory.md](docs/getting-started/tutorial-sovereign-memory.md) for the full walkthrough.
 
 ## Living Knowledge (Phase 5)
 
@@ -205,17 +205,17 @@ past = stele.recall(query="does Z prevent disease", scope=scope,
 
 `graph.enabled` defaults to `false`. Without the extra / not on Postgres,
 `graph_search` raises `CapabilityError` and the rest of Stele is unaffected.
-Full guide: [docs/living-knowledge-setup.md](docs/living-knowledge-setup.md).
+Full guide: [docs/guides/living-knowledge-setup.md](docs/guides/living-knowledge-setup.md).
 Runnable: `STELE_PG_RAGGRAPH_DSN=… scripts/demo-living-knowledge.sh`.
 
 ## Multi-platform Packaging (MCP + Slash-skills)
 
-**Five-minute happy path: [docs/quickstart.md](docs/quickstart.md).**
+**Five-minute happy path: [docs/getting-started/quickstart.md](docs/getting-started/quickstart.md).**
 
 `pip install stele-core` exposes three binaries: `stele` (CLI), `stele-mcp`
 (stdio MCP server), and `stele-ingest` (reduce a Claude session transcript to
 its keep120 signal and store it as one artifact; meant for a SessionEnd hook,
-see [docs/distillation-flow.md](docs/distillation-flow.md)). The MCP server
+see [docs/guides/memory-distillation-guide.md](docs/guides/memory-distillation-guide.md)). The MCP server
 presents 18 tools over the public Stele
 facade — `stele_store` / `stele_fetch` / `stele_search` / `stele_query` /
 `stele_list` / `stele_delete` for artifacts, `stele_memory_{add,get,search,
@@ -239,14 +239,14 @@ content renders from a single Jinja template; no per-platform duplication.
 `mcp.json` is **merged**, not overwritten — your existing MCP server entries
 for other tools are preserved.
 
-- **5-minute quickstart**: [docs/quickstart.md](docs/quickstart.md)
-- **Memory types + architecture** (the kinds, distill views, and benchmark modes, reconciled): [docs/memory-types.md](docs/memory-types.md)
-- **Episodic recall** (episodes / timeline / cross-session spans), step-by-step with example output: [docs/episodic-recall-guide.md](docs/episodic-recall-guide.md)
-- Full tool reference (MCP + CLI equivalents): [docs/mcp-tools.md](docs/mcp-tools.md)
-- CLI guide + troubleshooting: [docs/cli-guide.md](docs/cli-guide.md)
+- **5-minute quickstart**: [docs/getting-started/quickstart.md](docs/getting-started/quickstart.md)
+- **Memory types + architecture** (the kinds, distill views, and benchmark modes, reconciled): [docs/reference/memory-types.md](docs/reference/memory-types.md)
+- **Episodic recall** (episodes / timeline / cross-session spans), step-by-step with example output: [docs/guides/episodic-recall-guide.md](docs/guides/episodic-recall-guide.md)
+- Full tool reference (MCP + CLI equivalents): [docs/reference/mcp-tools-reference.md](docs/reference/mcp-tools-reference.md)
+- CLI guide + troubleshooting: [docs/reference/cli-reference.md](docs/reference/cli-reference.md)
 - Runnable tours: [examples/mcp_tour.py](examples/mcp_tour.py) (Python/MCP) · [examples/cli_tour.sh](examples/cli_tour.sh) (shell/CLI)
-- Auth model (stdio-only, local-trusted): [docs/packaging-auth-model.md](docs/packaging-auth-model.md)
-- Manual smoke before releases: [docs/packaging-smoke-checklist.md](docs/packaging-smoke-checklist.md)
+- Auth model (stdio-only, local-trusted): [docs/operations/mcp-auth-model.md](docs/operations/mcp-auth-model.md)
+- Manual smoke before releases: [docs/contributing/release-smoke-checklist.md](docs/contributing/release-smoke-checklist.md)
 
 ## Showcase Benchmark
 
@@ -359,4 +359,4 @@ export STELE_PG_DSN=postgresql://yonk:yonk@localhost:55432/stele
 scripts/test-postgres.sh
 ```
 
-See [docs/postgres-demo.md](docs/postgres-demo.md).
+See [docs/guides/postgres-setup-and-tests.md](docs/guides/postgres-setup-and-tests.md).

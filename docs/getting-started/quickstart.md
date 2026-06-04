@@ -108,7 +108,7 @@ Use the stele MCP to:
 4. Tell me what you found and cite the stele:// ref.
 ```
 
-A working stele install will: store the text, add a memory citing the ref, search and find it, and quote the original ref back. If any step fails, see [Troubleshooting in `cli-guide.md`](cli-guide.md#troubleshooting).
+A working stele install will: store the text, add a memory citing the ref, search and find it, and quote the original ref back. If any step fails, see [Troubleshooting in `cli-guide.md`](../reference/cli-reference.md#troubleshooting).
 
 ## 7. Try the runnable tour
 
@@ -152,16 +152,16 @@ git log --all | head -500 | stele stash Bash -
 stele recall "what database are we using" --strategy memory_search --pretty
 ```
 
-The CLI and the MCP server share one engine — `bind_handlers()` in `src/stele/mcp/tools.py` — so the JSON shapes are identical. Useful for shell scripts, CI, debugging the agent's behavior, or wiring stele into a non-MCP-capable agent. See [`docs/cli-guide.md`](cli-guide.md) for the full command reference and [`docs/mcp-tools.md`](mcp-tools.md) for the canonical schema per operation.
+The CLI and the MCP server share one engine — `bind_handlers()` in `src/stele/mcp/tools.py` — so the JSON shapes are identical. Useful for shell scripts, CI, debugging the agent's behavior, or wiring stele into a non-MCP-capable agent. See [`docs/reference/cli-reference.md`](../reference/cli-reference.md) for the full command reference and [`docs/reference/mcp-tools-reference.md`](../reference/mcp-tools-reference.md) for the canonical schema per operation.
 
 ## What next
 
-- **Tool reference:** [docs/mcp-tools.md](mcp-tools.md) — every tool, every schema, every example.
-- **CLI reference:** [docs/cli-guide.md](cli-guide.md) — every `stele` subcommand + troubleshooting.
-- **Filtered retrieval & "last week" queries:** [docs/filtered-retrieval.md](filtered-retrieval.md) — `query(filters=...)` by time/metadata/facts, plus opt-in temporal routing.
-- **Backend choices:** [docs/quickstart.md#backend-selection](#backend-selection) (below).
-- **Security model:** [docs/packaging-auth-model.md](packaging-auth-model.md) — why stdio-only + no auth in v1.
-- **Living knowledge (Phase 5):** [docs/living-knowledge-setup.md](living-knowledge-setup.md) — superseding facts, retracting, time-travel queries on a Postgres + pg-raggraph stack.
+- **Tool reference:** [docs/reference/mcp-tools-reference.md](../reference/mcp-tools-reference.md) — every tool, every schema, every example.
+- **CLI reference:** [docs/reference/cli-reference.md](../reference/cli-reference.md) — every `stele` subcommand + troubleshooting.
+- **Filtered retrieval & "last week" queries:** [docs/guides/filtered-retrieval-guide.md](../guides/filtered-retrieval-guide.md) — `query(filters=...)` by time/metadata/facts, plus opt-in temporal routing.
+- **Backend choices:** [docs/getting-started/quickstart.md#backend-selection](#backend-selection) (below).
+- **Security model:** [docs/operations/mcp-auth-model.md](../operations/mcp-auth-model.md) — why stdio-only + no auth in v1.
+- **Living knowledge (Phase 5):** [docs/guides/living-knowledge-setup.md](../guides/living-knowledge-setup.md) — superseding facts, retracting, time-travel queries on a Postgres + pg-raggraph stack.
 
 ---
 
@@ -175,7 +175,7 @@ The CLI and the MCP server share one engine — `bind_handlers()` in `src/stele/
 | `mariadb` | Existing MariaDB infrastructure | Yes | `stele-core[mariadb]` |
 | `clickhouse` | Analytics-shaped workloads | Yes | `stele-core[clickhouse]` |
 
-Vector / hybrid retrieval works across all five via Chunkshop (`indexing.mode: sync` in your config). See [vector-indexing-setup.md](vector-indexing-setup.md).
+Vector / hybrid retrieval works across all five via Chunkshop (`indexing.mode: sync` in your config). See [vector-indexing-setup.md](../guides/vector-indexing-setup.md).
 
 ## Upgrading
 

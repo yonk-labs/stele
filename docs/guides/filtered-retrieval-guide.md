@@ -141,7 +141,7 @@ Embeddings encode *similarity*, not *identity* or *order*: "7 May" and "12 May"
 embed almost identically, so a vector/keyword query cannot rank the right date,
 version, ID, or branch to the top. The filter narrows to the exact/in-range set
 first; ranking then orders only the survivors by topic. The two compose. See
-[`session-memory-metadata-design.md`](session-memory-metadata-design.md) for the
+[`session-memory-metadata-design.md`](../archive/session-memory-metadata-design.md) for the
 design rationale and the benchmark that motivated it.
 
 ## Performance notes

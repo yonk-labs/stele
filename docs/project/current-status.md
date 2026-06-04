@@ -10,12 +10,12 @@ strategy (session = artifact + its back-linked memories, time-aware via
 distill views: `episodes` (one summary per session), `timeline` (oldest-first
 narrative), `spans` (cross-session arcs clustered by embedding similarity).
 Episodic now covers the classical episodic memory category end to end (see
-[memory-types.md](memory-types.md#relation-to-the-classical-taxonomy-semantic--episodic--procedural)
-and the step-by-step [episodic-recall-guide.md](episodic-recall-guide.md)). Also:
+[memory-types.md](../reference/memory-types.md#relation-to-the-classical-taxonomy-semantic--episodic--procedural)
+and the step-by-step [episodic-recall-guide.md](../guides/episodic-recall-guide.md)). Also:
 `stele install` lays down the SessionEnd ingest hook (multi-hook `PlatformSpec`),
 the `stele distill` CLI gained the episodic modes, and the two new embedding
 thresholds were calibrated for bge (spans 0.82 to 0.65, timeline floor 0.3 to
-0.55). See [`CHANGELOG.md`](../CHANGELOG.md).
+0.55). See [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## 0.6.0 (2026-06-03)
 
@@ -30,14 +30,14 @@ config-driven (`ExtractionConfig.reduce_*`) with retention tiers keep120
 successful tool-result headlines (keep120) instead of dropping them (+~30%
 memories; old drop is opt-in). A Claude Code SessionEnd hook template ships
 (`packaging/templates/hooks/claude-code-ingest.sh.j2`); `stele install` wiring
-for it is a follow-up. See [`docs/distillation-flow.md`](distillation-flow.md)
-and [`CHANGELOG.md`](../CHANGELOG.md).
+for it is a follow-up. See [`docs/guides/memory-distillation-guide.md`](../guides/memory-distillation-guide.md)
+and [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## 0.5.1 (2026-06-01)
 
 Documentation + demo for the v0.4.0/v0.5.0 memory features (memory tutorial,
 README, this status, and `scripts/demo-cq-memory.sh`). No code/API change. See
-[`CHANGELOG.md`](../CHANGELOG.md).
+[`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## 0.5.0 (2026-06-01)
 
@@ -48,7 +48,7 @@ column + HNSW and fuses a vector leg with the tsvector keyword leg via RRF in
 The embedder is synthesized internally from the same fastembed model the chunk
 index uses (never injected). Off by default and byte-identical to keyword
 recall until enabled; advertised via `capabilities().memory_vector_search`.
-Proven in `tests/contract/test_memory_vector.py`. See [`CHANGELOG.md`](../CHANGELOG.md).
+Proven in `tests/contract/test_memory_vector.py`. See [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## 0.4.0 (2026-06-01)
 
@@ -72,7 +72,7 @@ across memory / sqlite / postgres. Demo: `scripts/demo-cq-memory.sh`.
 Added the `digest` recall strategy (lede summary + facts + top-N chunks) and
 made it the default recall strategy when chunk indexing is enabled
 (`indexing.mode != "skip"`); index-off deployments and explicit
-`recall.default_strategy` settings are unchanged. See [`CHANGELOG.md`](../CHANGELOG.md).
+`recall.default_strategy` settings are unchanged. See [`CHANGELOG.md`](../../CHANGELOG.md).
 
 ## 0.2.0 (2026-05-26)
 
@@ -84,7 +84,7 @@ graph path confirmed on pg-raggraph 0.4.0a1 (needs Postgres with `vector` +
 `pg_trgm`; `deploy/images/postgres-raggraph/init.sql` provisions both).
 Benchmarks now stamp the package versions that produced them, and the
 answer-workflow benchmark gained a separate judge endpoint. See
-[`CHANGELOG.md`](../CHANGELOG.md).
+[`CHANGELOG.md`](../../CHANGELOG.md).
 
 Open follow-ups: the `digest_search` build-vs-buy decision (gated on the
 grounding-benchmark spec at review), pre-existing mypy-2.x debt in test/benchmark
@@ -105,7 +105,7 @@ controls, namespace lifecycle primitives (purge / export / import), and a
 batched-write public API delivering ~10× postgres throughput.
 
 Authoritative sequencing lives in
-[`docs/superpowers/2026-05-17-order-of-operations.md`](superpowers/2026-05-17-order-of-operations.md).
+[`docs/archive/superpowers/2026-05-17-order-of-operations.md`](../archive/superpowers/2026-05-17-order-of-operations.md).
 This file is the human-readable snapshot; that doc wins on disputes.
 
 Source of truth for each slice:
@@ -113,11 +113,11 @@ Source of truth for each slice:
 | Phase | Spec | Status |
 | --- | --- | --- |
 | 1 — Memory supersession + `as_of` | `skill-output/mission-brief/Mission-Brief-stele-memory-supersession-slice.md` | ✅ complete, tag `phase1-memory-supersession` |
-| 2 — Deterministic extraction | `docs/superpowers/specs/2026-05-13-phase2-deterministic-extraction-design.md` | ✅ complete, tag `phase2-deterministic-extraction` |
-| 3 — Policy-driven recall | `docs/superpowers/specs/2026-05-13-phase3-policy-driven-recall-design.md` | ✅ complete, tag `phase3-policy-driven-recall` |
-| 4 — Chunkshop vector/hybrid indexing (5 backends) | `docs/superpowers/specs/2026-05-14-phase4-chunkshop-indexing-design.md` | ✅ complete, tag `phase4-chunkshop-indexing` |
-| INFRA-A — E2E test harness | `docs/superpowers/specs/2026-05-17-e2e-test-harness-design.md` | ✅ complete (`deploy/`, `tests/e2e/`) |
-| 5 — pg-raggraph living knowledge | `docs/superpowers/specs/2026-05-17-phase5-pg-raggraph-living-knowledge-CORRECTED-design.md` (recon: `…-recon-correction-sheet.md`, `…-task0-pg-raggraph-api-recon.md`) | ✅ complete, tag `phase5-pg-raggraph-living-knowledge`, merged to `main` |
+| 2 — Deterministic extraction | `docs/archive/superpowers/specs/2026-05-13-phase2-deterministic-extraction-design.md` | ✅ complete, tag `phase2-deterministic-extraction` |
+| 3 — Policy-driven recall | `docs/archive/superpowers/specs/2026-05-13-phase3-policy-driven-recall-design.md` | ✅ complete, tag `phase3-policy-driven-recall` |
+| 4 — Chunkshop vector/hybrid indexing (5 backends) | `docs/archive/superpowers/specs/2026-05-14-phase4-chunkshop-indexing-design.md` | ✅ complete, tag `phase4-chunkshop-indexing` |
+| INFRA-A — E2E test harness | `docs/archive/superpowers/specs/2026-05-17-e2e-test-harness-design.md` | ✅ complete (`deploy/`, `tests/e2e/`) |
+| 5 — pg-raggraph living knowledge | `docs/archive/superpowers/specs/2026-05-17-phase5-pg-raggraph-living-knowledge-CORRECTED-design.md` (recon: `…-recon-correction-sheet.md`, `…-task0-pg-raggraph-api-recon.md`) | ✅ complete, tag `phase5-pg-raggraph-living-knowledge`, merged to `main` |
 
 ## What's implemented
 
@@ -150,7 +150,7 @@ Source of truth for each slice:
 - Batteries-included Chunkshop adapter across memory/sqlite/postgres/
   mariadb/clickhouse; `IndexingConfig` only (no chunkshop YAML/env).
 - `vector` / `hybrid` retrieval modes. See
-  [vector-indexing-setup.md](vector-indexing-setup.md).
+  [vector-indexing-setup.md](../guides/vector-indexing-setup.md).
 
 ### INFRA-A — E2E test harness
 
@@ -173,8 +173,8 @@ Source of truth for each slice:
 - Exit gate met: the Living Knowledge Verification Bar
   (`tests/e2e/test_living_knowledge.py`) proven for real via
   `make -C deploy e2e-graph` across four fixture lanes. SC→test map:
-  `docs/superpowers/specs/2026-05-17-phase5-SC-to-test-map.md`. See
-  [living-knowledge-setup.md](living-knowledge-setup.md).
+  `docs/archive/superpowers/specs/2026-05-17-phase5-SC-to-test-map.md`. See
+  [living-knowledge-setup.md](../guides/living-knowledge-setup.md).
 
 ### Phases 6–7 — Runtime Working Memory (2026-05-18, PR #1)
 
@@ -214,9 +214,9 @@ Follow-up issues track CLI + MCP exposure.
   Claude Code, Codex, OpenCode, Cursor, Gemini CLI, Copilot, Aider.
 - One Jinja template per content type (skill, agents-md section, mcp.json, four hook variants); per-platform render via dict lookup. No duplicated skill files.
 - Idempotent shared-doc section editing (CLAUDE.md / AGENTS.md / GEMINI.md) with marker + next-H2 pattern; refuses to act on ambiguous double-marker corruption.
-- Spec: `docs/superpowers/specs/2026-05-20-stele-multiplatform-packaging-design.md`.
-- Plan: `docs/superpowers/plans/2026-05-20-stele-multiplatform-packaging.md`.
-- Smoke: `docs/packaging-smoke-checklist.md`. Auth model: `docs/packaging-auth-model.md`.
+- Spec: `docs/archive/superpowers/specs/2026-05-20-stele-multiplatform-packaging-design.md`.
+- Plan: `docs/archive/superpowers/plans/2026-05-20-stele-multiplatform-packaging.md`.
+- Smoke: `docs/contributing/release-smoke-checklist.md`. Auth model: `docs/operations/mcp-auth-model.md`.
 
 ## What's next (authoritative — order-of-operations §2)
 
@@ -228,7 +228,7 @@ Follow-up issues track CLI + MCP exposure.
 | — | CLI + MCP exposure of the library-only lifecycle and bulk-write surfaces (`purge_namespace`, `export_namespace`, `import_namespace`, `store_many`, `add_many`). Tracked as separate issues. |
 | — | Open study tickets: #10 (two-tier provisional/consolidated memory; design conversation), #11 (per-call `memory_tier` kwarg, paired with #10), #9 (runtime metadata-index management; low priority, needs an admin/UI consumer). |
 
-See [`docs/superpowers/2026-05-17-order-of-operations.md`](superpowers/2026-05-17-order-of-operations.md)
+See [`docs/archive/superpowers/2026-05-17-order-of-operations.md`](../archive/superpowers/2026-05-17-order-of-operations.md)
 for the dependency graph and the full path, and
-[`docs/sovereign-memory-system-plan.md`](sovereign-memory-system-plan.md) for
+[`docs/archive/sovereign-memory-system-plan.md`](../archive/sovereign-memory-system-plan.md) for
 the canonical prose.

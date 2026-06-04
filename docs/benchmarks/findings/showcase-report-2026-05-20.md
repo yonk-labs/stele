@@ -194,7 +194,7 @@ selectable via `--profile <name>`. Two profiles run today:
 | `locomo-best` (LoCoMo-only) | sqlite | chunkshop sync | hybrid (RRF) | **80** | `Stele.extract` + `retain_message_text` |
 
 Per-benchmark architecture + recipe docs in
-[`docs/benchmark-recipes/`](benchmark-recipes/README.md).
+[`docs/benchmarks/recipes/`](../recipes/README.md).
 
 ### Headline: default-keyword (floor) → hybrid-best / locomo-best
 
@@ -354,7 +354,7 @@ answer-bearing doc; hybrid retrieves the **labelled gold doc** much more
 precisely (28% → 72% evidence recall). Both are tied at the answer-span layer
 because both surface enough text to contain the answer at this subset size.
 
-### 6b. Broader 2026-05-18 bake-off — referenced from `docs/benchmarks-thirdparty-analysis.md`
+### 6b. Broader 2026-05-18 bake-off — referenced from `docs/archive/benchmarks-thirdparty-analysis-2026-05-18.md`
 
 These were produced by the same `bakeoff.py` code path on
 `phase6-7-runtime-working-memory` and have not regressed; re-running them at
@@ -706,7 +706,7 @@ hot-path optimization isn't where the savings live.
 1. **CRAG** — needs your HF auth + license acceptance on
    `Meta-KDDCup-24/crag-task-1-and-2`, then drop the file at
    `benchmarks/.cache/crag_task1.jsonl.bz2`. Loader is ready. Recipe in
-   [`docs/benchmark-recipes/unavailable.md`](benchmark-recipes/unavailable.md).
+   [`docs/benchmarks/recipes/unavailable.md`](../recipes/unavailable.md).
 2. **AgentLongMemEval** — no openly-resolvable release located. Loader is
    ready to consume the official JSON at
    `benchmarks/.cache/agentlongmemeval.json`.
@@ -755,7 +755,7 @@ hot-path optimization isn't where the savings live.
   consolidator for the next jump), LongBench `multifieldqa_en` at 70%
   (needs a keyword-heavy variant — the recipe framework's point).
 - **Per-benchmark architecture + recipe docs** live in
-  [`docs/benchmark-recipes/`](benchmark-recipes/README.md). Each doc
+  [`docs/benchmarks/recipes/`](../recipes/README.md). Each doc
   pairs data architecture with the right chunking/embedding/retrieval/
   metadata combination.
 - **CRAG + AgentLongMemEval** correctly reported UNAVAILABLE with

@@ -4,7 +4,7 @@ What the six-mode memory benchmark measured, in one place. Every headline number
 is deterministic (regex, set-intersection, id-join, or closed-vocab state); the
 LLM judge is never a headline. Numbers are labeled with sample size, source, and
 the precondition that makes the mode work. Harness and usage:
-[`benchmarks/external/memory_modes/README.md`](../../benchmarks/external/memory_modes/README.md).
+[`benchmarks/external/memory_modes/README.md`](../../../benchmarks/external/memory_modes/README.md).
 Endpoints: answerer Qwen @ 192.168.1.193, judge (unused for headlines) Gemma @ 192.168.1.133.
 
 > Revision note (re-verified 2026-06-02): an earlier cut of this doc reported a

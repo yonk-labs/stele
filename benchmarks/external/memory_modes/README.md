@@ -3,7 +3,7 @@
 A pluggable, multi-mode benchmark that tests stele memory **where it diverges
 from RAG**, one mode per memory use case. Design rationale and the per-mode
 specs live in
-[`docs/superpowers/specs/2026-06-02-memory-benchmark-and-blog-workflow-design.md`](../../../docs/superpowers/specs/2026-06-02-memory-benchmark-and-blog-workflow-design.md).
+[`docs/archive/superpowers/specs/2026-06-02-memory-benchmark-and-blog-workflow-design.md`](../../../docs/archive/superpowers/specs/2026-06-02-memory-benchmark-and-blog-workflow-design.md).
 This file is how you run it.
 
 ## The one idea
@@ -118,6 +118,6 @@ The runner iterates `MODES`, the writer stamps `mode.name`, the schema keys on
 
 ## See also
 
-- Memory features these modes exercise: [`docs/tutorial-memory.md`](../../../docs/tutorial-memory.md), runnable [`scripts/demo-cq-memory.sh`](../../../scripts/demo-cq-memory.sh).
+- Memory features these modes exercise: [`docs/getting-started/tutorial-sovereign-memory.md`](../../../docs/getting-started/tutorial-sovereign-memory.md), runnable [`scripts/demo-cq-memory.sh`](../../../scripts/demo-cq-memory.sh).
 - Why memory is six problems: the pillar post `~/blogs/06-02-2026-six-memories-why-memory-is-hard.md`.
 - Design + per-mode rationale: the spec linked at the top.

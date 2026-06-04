@@ -37,7 +37,7 @@ the two new embedding thresholds.
   settings.json writer exists; matches the established script-drop pattern).
 - `stele distill` CLI accepts the episodic modes (`episodes` / `timeline` /
   `spans`), matching the MCP surface.
-- A step-by-step episodic guide ([docs/episodic-recall-guide.md](docs/episodic-recall-guide.md))
+- A step-by-step episodic guide ([docs/guides/episodic-recall-guide.md](docs/guides/episodic-recall-guide.md))
   with real example output, and a runnable tour (`examples/episodic_tour.py`).
 
 ### Fixed
@@ -324,7 +324,7 @@ the shared `bind_handlers()` engine.
 - **5 new MCP tools**: `stele_purge_namespace` (refuses unless
   `confirm=true` or `dry_run=true`), `stele_export_namespace`,
   `stele_import_namespace`, `stele_store_many`, `stele_memory_add_many`.
-  See `docs/mcp-tools.md` §"Lifecycle + bulk-write tools".
+  See `docs/reference/mcp-tools-reference.md` §"Lifecycle + bulk-write tools".
 - **5 new CLI subcommands**: `stele purge-namespace` (refuses without
   `--yes` or `--dry-run`), `stele export-namespace`,
   `stele import-namespace`, `stele store-many`,
@@ -366,6 +366,6 @@ the shared `bind_handlers()` engine.
 
 ## Earlier — Phases 1–7 + INFRA-A + Multi-platform packaging
 
-See `docs/current-status.md` for the phase-by-phase summary and the
+See `docs/project/current-status.md` for the phase-by-phase summary and the
 authoritative order-of-operations doc at
-`docs/superpowers/2026-05-17-order-of-operations.md`.
+`docs/archive/superpowers/2026-05-17-order-of-operations.md`.

@@ -142,7 +142,7 @@ class Stele:
                 "are unsigned and forgeable. Safe for single-user/local. For any "
                 "shared, multi-tenant, or networked deployment set "
                 "signing.mode='required' with a strong secret. See "
-                "docs/SECURITY.md.",
+                "docs/operations/SECURITY.md.",
                 SteleSecurityWarning,
                 stacklevel=2,
             )
