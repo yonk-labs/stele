@@ -1,7 +1,7 @@
 """Consolidate the overnight model-matrix into one results doc.
 
 Reads every stele answer-workflow run + every Mem0 run under a matrix root and
-emits docs/benchmarks/model-matrix-<date>.md answering: does a stronger answerer
+emits docs/benchmarks/findings/model-matrix-<date>.md answering: does a stronger answerer
 help or hinder the summary (digest)? does block order matter, per model? Mem0 vs
 stele head-to-head. Judge is held constant (gpt-4o), so differences are answerer
 effects. Missing/partial runs are skipped, not fatal.
@@ -146,7 +146,7 @@ def main() -> None:
     args = ap.parse_args()
     md = render(args.root)
     _date = datetime.now(UTC).strftime("%Y-%m-%d")
-    out = args.out or Path(f"docs/benchmarks/model-matrix-{_date}.md")
+    out = args.out or Path(f"docs/benchmarks/findings/model-matrix-{_date}.md")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(md, encoding="utf-8")
     # also drop a copy + raw json index in the run root

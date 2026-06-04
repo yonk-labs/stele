@@ -2,11 +2,11 @@
 
 How to operate Stele as a durable, horizontally-scaled service with a
 **shared embedding tier** instead of every worker loading its own model.
-This is the service counterpart to `docs/RUNBOOK-graphrag-sweep.md` (which is
-the one-shot batch counterpart).
+This is the service counterpart to the one-shot batch graphrag sweep runbook
+(TODO: runbook not yet written; see `scripts/run-full-sweep.sh`).
 
-**Read `docs/EMBEDDING-DEPLOYMENT-GAP.md` + `docs/EMBEDDING-FIX-PLAN.md`
-first.** The shared-embedding architecture below is the *target*; some of it
+**Read [`embedding-deployment-gap.md`](../archive/embedding-deployment-gap.md)
++ [`embedding-fix-plan.md`](../archive/embedding-fix-plan.md) first.** The shared-embedding architecture below is the *target*; some of it
 requires the fix workstreams. The capability matrix states exactly what works
 **today** vs **after** which workstream — do not skip it.
 
@@ -86,7 +86,7 @@ embedding tier across all paths requires WS1+WS2+WS3.
 >    OpenAI-compatible endpoint, or you must run graph extraction without
 >    `fact_extractor="llm"`.
 >
-> See `docs/EMBEDDING-FIX-PLAN.md` → "Known pg-raggraph 0.3.0a3 limitations
+> See `docs/archive/embedding-fix-plan.md` → "Known pg-raggraph 0.3.0a3 limitations
 > (WS1)". A future pg-raggraph with a dedicated embedding endpoint (or WS3's
 > chunkshop HTTP embedder for the hybrid path) lifts constraint 2.
 
@@ -152,8 +152,8 @@ Available **after the fix** (the real service knobs):
 
 ## Relationship to the batch harness
 
-- `docs/RUNBOOK-graphrag-sweep.md` + `scripts/run-full-sweep.sh` = the
-  **one-shot batch** form (run the sweep once, unattended, on an isolated
+- The graphrag-sweep runbook (TODO: not yet written) + `scripts/run-full-sweep.sh`
+  = the **one-shot batch** form (run the sweep once, unattended, on an isolated
   box). Same backing services, finite job.
 - This guide = the **durable service** form (long-lived workers serving
   ongoing memory traffic). Same architecture; the difference is lifecycle

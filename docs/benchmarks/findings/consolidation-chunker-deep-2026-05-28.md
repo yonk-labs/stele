@@ -322,4 +322,4 @@ question type, but the new bottleneck is RETRIEVAL PRECISION — surfacing the
 *right* fact's session — not date arithmetic. `both`-qwen 0.39 is a new
 consolidation high but marginal. The architecturally correct fix is not more
 date-in-text hacking; it's date/identity as a FILTERABLE FIELD + filter-then-
-rank retrieval — see `docs/session-memory-metadata-design.md`.
+rank retrieval — see `docs/archive/session-memory-metadata-design.md`.

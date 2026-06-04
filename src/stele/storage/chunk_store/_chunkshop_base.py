@@ -64,7 +64,7 @@ def _warn_vector_recall_shortfall(
     """Emit a structured WARNING when vector search returns fewer rows than
     requested. Mirrors pg-raggraph's vector_first guard: surfaces the
     silent-failure mode where the HNSW seed missed the predicate-matching
-    candidates. See docs/retrieval-tuning-guide.md#vector-recall-shortfall.
+    candidates. See docs/guides/retrieval-tuning-guide.md#vector-recall-shortfall.
     """
     mitigation = (
         "increase IndexingConfig.chunk_overlap_words or oversample factor; "
@@ -76,7 +76,7 @@ def _warn_vector_recall_shortfall(
     _logger.warning(
         "vector recall shortfall: returned=%d requested=%d seed_size=%d "
         "has_reference_filter=%s — %s "
-        "(see docs/retrieval-tuning-guide.md#vector-recall-shortfall)",
+        "(see docs/guides/retrieval-tuning-guide.md#vector-recall-shortfall)",
         rows_returned,
         top_k_requested,
         seed_size,

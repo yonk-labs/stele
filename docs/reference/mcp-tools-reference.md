@@ -2,13 +2,13 @@
 
 This document is the **ground-truth reference** for the 18 tools the `stele-mcp` server exposes to MCP-capable agents. Schemas, types, and examples are derived from `src/stele/mcp/tools.py` — not from the design spec, which the implementation diverged from in deliberate ways (see [§ Drift from spec](#drift-from-spec)).
 
-**Every tool has a CLI equivalent.** The `stele` binary's data-plane subcommands call the same `bind_handlers()` engine over the same `Stele` instance and emit the same JSON shapes. Pick whichever surface fits the moment — MCP for agent-driven calls, CLI for shell scripts, pipelines, and debugging. See the [Tool table](#tool-table) for the mapping and [`docs/cli-guide.md`](cli-guide.md) for the full CLI command reference with flags.
+**Every tool has a CLI equivalent.** The `stele` binary's data-plane subcommands call the same `bind_handlers()` engine over the same `Stele` instance and emit the same JSON shapes. Pick whichever surface fits the moment — MCP for agent-driven calls, CLI for shell scripts, pipelines, and debugging. See the [Tool table](#tool-table) for the mapping and [`docs/reference/cli-reference.md`](cli-reference.md) for the full CLI command reference with flags.
 
 - **Transport:** stdio only (v1).
 - **Server:** `stele-mcp` (or `stele mcp` — same code path).
-- **Auth:** none (local-trusted boundary; see [`docs/packaging-auth-model.md`](packaging-auth-model.md)).
+- **Auth:** none (local-trusted boundary; see [`docs/operations/mcp-auth-model.md`](../operations/mcp-auth-model.md)).
 - **Egress sanitization:** every string in every response is run through `sanitize_label()` (ANSI strip, control-char strip, 256-char clamp) before crossing the MCP transport.
-- **Error model:** any exception inside a handler is caught by the `guard` decorator and surfaces as `{"error": {"code": str, "message": str, "context": {}}}`. Mapped codes: `CONFIG`, `PII_BLOCKED`, `CAPABILITY`, `VALIDATION`. Anything else returns `INTERNAL` with a full traceback on stderr (see [`docs/packaging-auth-model.md`](packaging-auth-model.md) for why this is safe in stdio).
+- **Error model:** any exception inside a handler is caught by the `guard` decorator and surfaces as `{"error": {"code": str, "message": str, "context": {}}}`. Mapped codes: `CONFIG`, `PII_BLOCKED`, `CAPABILITY`, `VALIDATION`. Anything else returns `INTERNAL` with a full traceback on stderr (see [`docs/operations/mcp-auth-model.md`](../operations/mcp-auth-model.md) for why this is safe in stdio).
 
 ## Tool reference
 
@@ -126,7 +126,7 @@ Targeted query against the chunk index across a namespace. Cross-artifact.
 `filters` narrows by time/metadata before ranking: `session_id`,
 `created_after`/`created_before` (ISO-8601 strings), and `metadata.<key>` with
 optional `__in` / `__gte` / `__lte` suffixes. `now` sets the reference clock for
-`retrieval.temporal_routing`. See [filtered-retrieval.md](filtered-retrieval.md).
+`retrieval.temporal_routing`. See [filtered-retrieval.md](../guides/filtered-retrieval-guide.md).
 
 **Response:** `{"hits": [<SearchHit>, ...]}`
 
@@ -468,7 +468,7 @@ Each item mirrors the per-row `stele_memory_add` kwargs with `scope` as a nested
 
 ## Drift from spec
 
-The spec at `docs/superpowers/specs/2026-05-20-stele-multiplatform-packaging-design.md` §4.1 lists 18 tool *names* that match the implementation, but the schemas described there are simpler than the real handlers. The differences are deliberate, not accidental:
+The spec at `docs/archive/superpowers/specs/2026-05-20-stele-multiplatform-packaging-design.md` §4.1 lists 18 tool *names* that match the implementation, but the schemas described there are simpler than the real handlers. The differences are deliberate, not accidental:
 
 | Spec said | Real handler does | Why |
 |---|---|---|

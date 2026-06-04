@@ -5,9 +5,9 @@ one connection per instance, create-on-first-use schema. That design makes
 several security boundaries the *operator's* responsibility, not the
 library's. This page states them plainly so they are discoverable before you
 deploy. For the full Tier-1/Tier-2 scaling detail, see
-[OPERATING-STELE-AT-SCALE.md](OPERATING-STELE-AT-SCALE.md); for embedding-tier
-specifics see [EMBEDDING-DEPLOYMENT-GAP.md](EMBEDDING-DEPLOYMENT-GAP.md) and
-[EMBEDDING-FIX-PLAN.md](EMBEDDING-FIX-PLAN.md).
+[OPERATING-STELE-AT-SCALE.md](operating-at-scale.md); for embedding-tier
+specifics see [EMBEDDING-DEPLOYMENT-GAP.md](../archive/embedding-deployment-gap.md) and
+[EMBEDDING-FIX-PLAN.md](../archive/embedding-fix-plan.md).
 
 ## Reference signing — OFF by default
 
@@ -63,10 +63,10 @@ secure them accordingly (encryption at rest, access control, retention).
 
 ## Where to go next
 
-- [OPERATING-STELE-AT-SCALE.md](OPERATING-STELE-AT-SCALE.md) — full Tier-1
+- [OPERATING-STELE-AT-SCALE.md](operating-at-scale.md) — full Tier-1
   (hard blockers) and Tier-2 (operational discipline) detail.
-- [EMBEDDING-DEPLOYMENT-GAP.md](EMBEDDING-DEPLOYMENT-GAP.md) /
-  [EMBEDDING-FIX-PLAN.md](EMBEDDING-FIX-PLAN.md) — embedding-tier specifics.
+- [EMBEDDING-DEPLOYMENT-GAP.md](../archive/embedding-deployment-gap.md) /
+  [EMBEDDING-FIX-PLAN.md](../archive/embedding-fix-plan.md) — embedding-tier specifics.
 
 ## CI / test note
 

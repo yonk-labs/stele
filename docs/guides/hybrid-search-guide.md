@@ -197,6 +197,6 @@ you know your query shape.
 
 - [retrieval-tuning-guide.md](retrieval-tuning-guide.md) — pick the engine first.
 - [vector-indexing-setup.md](vector-indexing-setup.md) — chunkshop / embedding setup.
-- [filtered-retrieval.md](filtered-retrieval.md) — metadata + temporal filters.
+- [filtered-retrieval.md](filtered-retrieval-guide.md) — metadata + temporal filters.
 - Investigation narrative + raw numbers:
-  [benchmarks/retrieval-investigation-log.md](benchmarks/retrieval-investigation-log.md).
+  [benchmarks/retrieval-investigation-log.md](../benchmarks/findings/retrieval-investigation-log.md).

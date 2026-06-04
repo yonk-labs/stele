@@ -97,8 +97,8 @@ STELE_PG_RAGGRAPH_DSN=postgresql://yonk:yonk@localhost:55453/stele \
 ```
 
 SC→test coverage:
-`docs/superpowers/specs/2026-05-17-phase5-SC-to-test-map.md`.
+`docs/archive/superpowers/specs/2026-05-17-phase5-SC-to-test-map.md`.
 Design + ground truth:
-`docs/superpowers/specs/2026-05-17-phase5-pg-raggraph-living-knowledge-CORRECTED-design.md`,
+`docs/archive/superpowers/specs/2026-05-17-phase5-pg-raggraph-living-knowledge-CORRECTED-design.md`,
 `…-phase5-recon-correction-sheet.md`,
 `…-phase5-task0-pg-raggraph-api-recon.md`.

@@ -5,7 +5,7 @@ query, resolves it to a ``[after, before]`` range relative to a caller-supplied
 ``now``, and returns the query with that phrase stripped (the date words are
 noise for the embedding, so removing them sharpens the semantic match).
 
-Design rationale lives in ``docs/session-memory-metadata-design.md``: embeddings
+Design rationale lives in ``docs/archive/session-memory-metadata-design.md``: embeddings
 cannot rank dates, so temporal recall must become an exact range *filter* +
 semantic *rank*. This module is the front door that builds the filter. It is
 opt-in (the caller decides whether to route) and requires an explicit ``now``

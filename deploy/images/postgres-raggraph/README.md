@@ -10,7 +10,7 @@ extension (`schema.sql:2` — "Extensions must be created before this runs").
 
 Pinned dependency: `pg-raggraph==0.3.0a3` via the Stele `[postgres-graph]`
 extra (PRG-1..PRG-4 verified in source — see
-`docs/superpowers/specs/2026-05-17-phase5-task0-pg-raggraph-api-recon.md`).
+`docs/archive/superpowers/specs/2026-05-17-phase5-task0-pg-raggraph-api-recon.md`).
 
 Brought up by `make -C deploy e2e-graph` (compose profile `all`/`graph`,
 port 55453).

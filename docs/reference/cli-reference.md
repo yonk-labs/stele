@@ -35,7 +35,7 @@ Global flags:
 - `--pretty` — indent JSON output (can appear before or after the subcommand)
 - `--namespace NS` — partition data (default `"default"`); accepted by every data-plane subcommand
 
-See [`docs/mcp-tools.md`](mcp-tools.md) for the canonical schema of every operation; the CLI and MCP shapes are identical because both call into `bind_handlers()` over the same `Stele` instance.
+See [`docs/reference/mcp-tools-reference.md`](mcp-tools-reference.md) for the canonical schema of every operation; the CLI and MCP shapes are identical because both call into `bind_handlers()` over the same `Stele` instance.
 
 ## `stele init`
 
@@ -211,7 +211,7 @@ The server loads `.stele/config.yaml` via the same walk-up + user-global resolut
 
 The seventeen data-plane subcommands mirror the eighteen MCP tools (`stele_stash_tool_result` is exposed as `stele stash`). Every command emits JSON to stdout; structured errors are returned with a non-zero exit code so scripts can branch on success/failure.
 
-For the canonical schema of each operation (inputs, response shape, edge cases, notes on `content_type` enum values, etc.), see [`docs/mcp-tools.md`](mcp-tools.md). The reference below is just the shell ergonomics.
+For the canonical schema of each operation (inputs, response shape, edge cases, notes on `content_type` enum values, etc.), see [`docs/reference/mcp-tools-reference.md`](mcp-tools-reference.md). The reference below is just the shell ergonomics.
 
 ### Artifact surface
 
@@ -232,7 +232,7 @@ stele query "postgres" --namespace prod --mode hybrid
 # Filter by time / metadata before ranking (filter-then-rank)
 stele query "what auth bug did I fix" --namespace sessions \
   --created-after 2026-05-18T00:00:00 \
-  --filter metadata.git_branch=auth-refactor   # see docs/filtered-retrieval.md
+  --filter metadata.git_branch=auth-refactor   # see docs/guides/filtered-retrieval-guide.md
 
 # List + delete
 stele list --namespace prod --limit 50
@@ -392,7 +392,7 @@ stele install --platform claude-code
 
 ## Lifecycle + bulk-write subcommands
 
-The 2026-05-20 hardening wave added five new surfaces; all are now exposed on both the CLI (here) and as MCP tools (see [`mcp-tools.md`](mcp-tools.md#lifecycle--bulk-write-tools-added-2026-05-20)).
+The 2026-05-20 hardening wave added five new surfaces; all are now exposed on both the CLI (here) and as MCP tools (see [`mcp-tools.md`](mcp-tools-reference.md#lifecycle--bulk-write-tools-added-2026-05-20)).
 
 ### `stele purge-namespace`
 
@@ -477,7 +477,7 @@ Retention tiers (measured on a real 24MB session, percent of raw stored):
 `ExtractionConfig.reduce_result_chars` / `reduce_error_chars` / `reduce_tool_chars`
 / `reduce_drop_success_results` (a char limit of `null` is the full tier;
 `reduce_drop_success_results: true` is the old archive-only minify). See
-[`docs/distillation-flow.md`](distillation-flow.md) for the mechanics and the
+[`docs/guides/memory-distillation-guide.md`](../guides/memory-distillation-guide.md) for the mechanics and the
 SessionEnd hook.
 
 ## Distill subcommands
@@ -487,14 +487,14 @@ SessionEnd hook.
 episodic trio `episodes`, `timeline`, `spans`. The CLI/MCP take `mode` +
 `namespace`; the advanced filters (`since` / `until` / `query` / `threshold`)
 are on the Python facade. See
-[`docs/episodic-recall-guide.md`](episodic-recall-guide.md) for the episodic
+[`docs/guides/episodic-recall-guide.md`](../guides/episodic-recall-guide.md) for the episodic
 views with example output.
 
 ## See also
 
-- [`docs/quickstart.md`](quickstart.md) — 5-minute happy path.
-- [`docs/episodic-recall-guide.md`](episodic-recall-guide.md) — episodes / timeline / spans, step by step with example output.
-- [`docs/mcp-tools.md`](mcp-tools.md) — reference for all 18 MCP tools.
-- [`docs/packaging-auth-model.md`](packaging-auth-model.md) — why no auth in v1.
-- [`docs/packaging-smoke-checklist.md`](packaging-smoke-checklist.md) — manual smoke before releases.
-- [`docs/agent-integration.md`](agent-integration.md) — long-form agent integration guide (covers MCP, Python SDK, hooks).
+- [`docs/getting-started/quickstart.md`](../getting-started/quickstart.md) — 5-minute happy path.
+- [`docs/guides/episodic-recall-guide.md`](../guides/episodic-recall-guide.md) — episodes / timeline / spans, step by step with example output.
+- [`docs/reference/mcp-tools-reference.md`](mcp-tools-reference.md) — reference for all 18 MCP tools.
+- [`docs/operations/mcp-auth-model.md`](../operations/mcp-auth-model.md) — why no auth in v1.
+- [`docs/contributing/release-smoke-checklist.md`](../contributing/release-smoke-checklist.md) — manual smoke before releases.
+- [`docs/guides/agent-integration.md`](../guides/agent-integration.md) — long-form agent integration guide (covers MCP, Python SDK, hooks).

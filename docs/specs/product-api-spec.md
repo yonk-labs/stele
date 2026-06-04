@@ -59,7 +59,7 @@ The system must improve cross-session recall by making stored artifacts discover
 Required behavior:
 
 - Artifacts can be scoped to a namespace and optionally a session.
-- Queries can include `session_id`, `created_after`, `created_before`, and metadata filters (`metadata.<key>` eq/`__in`/`__gte`/`__lte`) across all backends and retrieval modes (keyword/vector/hybrid). Optional `retrieval.temporal_routing` parses NL recency windows ("last week") into these filters. See [docs/filtered-retrieval.md](../filtered-retrieval.md).
+- Queries can include `session_id`, `created_after`, `created_before`, and metadata filters (`metadata.<key>` eq/`__in`/`__gte`/`__lte`) across all backends and retrieval modes (keyword/vector/hybrid). Optional `retrieval.temporal_routing` parses NL recency windows ("last week") into these filters. See [docs/guides/filtered-retrieval-guide.md](../guides/filtered-retrieval-guide.md).
 - Benchmark reports must show recall@K, MRR, answer correctness/F1, stale-memory error rate, and abstention accuracy.
 - Public recall claims require at least one external benchmark adapter or documented nightly run.
 

@@ -1,6 +1,6 @@
 """Contract: query(filters=...) honors created_at + metadata across backends.
 
-Validates the filter-then-rank primitive (docs/session-memory-metadata-design.md)
+Validates the filter-then-rank primitive (docs/archive/session-memory-metadata-design.md)
 on the keyword path. memory + sqlite run for real; postgres/mariadb/clickhouse
 run when their DSN env vars are set.
 """

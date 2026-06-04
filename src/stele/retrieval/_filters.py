@@ -3,7 +3,7 @@
 `query(filters=...)` historically honored only `session_id`. This widens the
 contract so the same dict can express time-range and metadata constraints —
 the filter half of the filter-then-rank pattern in
-``docs/session-memory-metadata-design.md``.
+``docs/archive/session-memory-metadata-design.md``.
 
 Supported filter keys (all optional, AND-combined):
 

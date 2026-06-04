@@ -185,7 +185,7 @@ prints the `settings.json` snippet to register it. Claude Code only runs hooks
 listed in `settings.json`, so you still add the `SessionEnd` entry yourself
 (install does not edit `settings.json`). The periodic distill (Phase B) then
 reads these reduced artifacts. See
-[`docs/distillation-flow.md`](distillation-flow.md).
+[`docs/guides/memory-distillation-guide.md`](memory-distillation-guide.md).
 
 ## Pattern 4 — Codex / OpenAI-style agents
 

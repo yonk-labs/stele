@@ -24,7 +24,7 @@ memory" can mean any of them depending on context:
   `best_practice`, `guardrail_adherence`).
 
 There is also a separate "6" that is unrelated: the recall *strategies* (how
-context is assembled at read time). See [tutorial-memory.md](tutorial-memory.md).
+context is assembled at read time). See [tutorial-memory.md](../getting-started/tutorial-sovereign-memory.md).
 
 These layers refine, rather than replace, the classical
 **semantic / episodic / procedural** memory taxonomy; the mapping is at the end
@@ -90,7 +90,7 @@ returning a `DistilledView`; every item keeps its `source_refs`.
 | `spans` | episodes clustered by summary similarity | one cross-session topic/task arc per cluster, with its time range | the member episodes (session artifacts + their memories) |
 
 The "where the evidence lives" column is why the ingestion reduction tier matters
-(see [distillation-flow.md](distillation-flow.md#impact-by-memory-type-keep120-vs-drop)):
+(see [distillation-flow.md](../guides/memory-distillation-guide.md#impact-by-memory-type-keep120-vs-drop)):
 facts/rules/skills/state draw on successful tool output, so dropping it costs
 them; precedents/best_practices are prose-borne and nearly immune.
 
@@ -127,12 +127,12 @@ refine for a tighter "what happened" line (deterministic fallback on failure).
 `timeline` and `spans` are Phase 3, which **completes** episodic recall (the
 event/timeline and cross-session-arc reads the earlier docs flagged as the open
 gap are now first-class). See
-[superpowers/specs/2026-06-04-episodic-recall-design.md](superpowers/specs/2026-06-04-episodic-recall-design.md).
+[superpowers/specs/2026-06-04-episodic-recall-design.md](../archive/superpowers/specs/2026-06-04-episodic-recall-design.md).
 
 Distillation is **oracle-free and deterministic by default**: an injected LLM
 only refines (e.g., pairing a `don't` with its `do_instead`), and an injected
 embedder only de-duplicates. Both are optional. See
-[distillation-flow.md](distillation-flow.md).
+[distillation-flow.md](../guides/memory-distillation-guide.md).
 
 ## Layer 3: benchmark modes (6 scenarios that test the views)
 
@@ -150,7 +150,7 @@ the views:
 | `guardrail_adherence` | rules | enforce a "never do X" rule |
 
 Results and the honest preconditions for each are in
-[benchmarks/memory-modes-results-2026-06-02.md](benchmarks/memory-modes-results-2026-06-02.md).
+[benchmarks/memory-modes-results-2026-06-02.md](../benchmarks/findings/memory-modes-results-2026-06-02.md).
 Memory is benchmarked where it *diverges* from RAG (history beyond context,
 evolving facts, enforcement), not as a retriever.
 
@@ -173,7 +173,7 @@ evolving facts, enforcement), not as a retriever.
 - **Produce.** Raw work becomes an immutable artifact (`store`, with the bytes
   behind a `stele://` ref). `Stele.extract` (structured text / messages) and
   `Stele.extract.from_session` (agent transcripts, via the
-  [reduce_event](distillation-flow.md#stream-reduction-filter-reduce_event--keep120-shipped-060)
+  [reduce_event](../guides/memory-distillation-guide.md#stream-reduction-filter-reduce_event--keep120-shipped-060)
   filter) turn that into kinded `MemoryRecord`s through `Stele.memory.add`. Every
   memory cites the artifact as evidence.
 - **Serve.** `Stele.memory.search/list` returns the active head (with `as_of`
@@ -185,11 +185,11 @@ evolving facts, enforcement), not as a retriever.
   PII scrubbing is inherited from those surfaces, never re-applied.
 
 The full module breakdown, data flows, and data model are in
-[architecture-sovereign-stele.md](architecture-sovereign-stele.md); the
+[architecture-sovereign-stele.md](../architecture/architecture.md); the
 hands-on store/extract/supersede/recall walkthrough is in
-[tutorial-memory.md](tutorial-memory.md); the ingestion-to-distillation pipeline
+[tutorial-memory.md](../getting-started/tutorial-sovereign-memory.md); the ingestion-to-distillation pipeline
 (the reduction filter, the conversation feed, capacity planning) is in
-[distillation-flow.md](distillation-flow.md).
+[distillation-flow.md](../guides/memory-distillation-guide.md).
 
 ## The three "sixes", reconciled
 
