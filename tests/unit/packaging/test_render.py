@@ -8,6 +8,7 @@ from stele.packaging.platforms import PLATFORM_CONFIG
 from stele.packaging.render import (
     render_agents_md_section,
     render_hook,
+    render_hook_spec,
     render_mcp_server_config,
     render_skill,
 )
@@ -77,3 +78,23 @@ def test_gemini_hook_is_valid_json() -> None:
     assert out is not None
     parsed = json.loads(out)
     assert "tools" in parsed or "beforeTool" in parsed or isinstance(parsed, dict)
+
+
+def test_render_hook_spec_renders_each_claude_code_hook() -> None:
+    for hook in PLATFORM_CONFIG["claude-code"].hooks:
+        out = render_hook_spec("claude-code", hook)
+        assert "{{" not in out
+        assert "{%" not in out
+        assert "stele" in out.lower()
+
+
+def test_render_hook_spec_uses_default_namespace() -> None:
+    # The ingest template defaults `ingest_namespace` to 'sessions' when the
+    # HookSpec supplies no override.
+    ingest = next(
+        h
+        for h in PLATFORM_CONFIG["claude-code"].hooks
+        if "session-ingest" in h.dest_path
+    )
+    out = render_hook_spec("claude-code", ingest)
+    assert "--namespace \"sessions\"" in out

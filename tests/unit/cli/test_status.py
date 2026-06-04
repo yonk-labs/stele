@@ -54,3 +54,30 @@ def test_status_reflects_an_install(
     codex_line = next(line for line in out.splitlines() if line.startswith("codex"))
     assert "yes" in claude_line
     assert "no" in codex_line
+
+
+def test_status_reports_ingest_hook(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    # Before install: the ingest hook is listed but not installed.
+    main(["status"])
+    out = capsys.readouterr().out
+    ingest_line = next(
+        line for line in out.splitlines() if "stele-session-ingest.sh" in line
+    )
+    assert "no" in ingest_line
+
+    # After install: it flips to installed.
+    main(["install", "--platform", "claude-code"])
+    capsys.readouterr()  # drain install output
+    main(["status"])
+    out = capsys.readouterr().out
+    ingest_line = next(
+        line for line in out.splitlines() if "stele-session-ingest.sh" in line
+    )
+    assert "yes" in ingest_line

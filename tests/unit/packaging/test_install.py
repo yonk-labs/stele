@@ -41,6 +41,36 @@ def test_install_codex_no_hook(fake_home: Path) -> None:
     assert not (fake_home / ".agents" / "hooks").exists()
 
 
+def test_install_claude_code_writes_ingest_hook(fake_home: Path) -> None:
+    install_for("claude-code")
+
+    ingest = _expand("~/.claude/hooks/stele-session-ingest.sh", fake_home)
+    assert ingest.is_file()
+    body = ingest.read_text()
+    assert "stele-ingest" in body
+    assert "{{" not in body  # rendered, no stray Jinja
+    # .sh hooks are made executable.
+    assert ingest.stat().st_mode & 0o111
+
+
+def test_uninstall_removes_ingest_hook(fake_home: Path) -> None:
+    install_for("claude-code")
+    uninstall_for("claude-code")
+
+    ingest = _expand("~/.claude/hooks/stele-session-ingest.sh", fake_home)
+    large_output = _expand("~/.claude/hooks/stele-large-output.sh", fake_home)
+    assert not ingest.exists()
+    assert not large_output.exists()
+
+
+def test_other_platforms_get_no_ingest_hook(fake_home: Path) -> None:
+    # The ingest hook is Claude Code specific; no other platform installs it.
+    for name in ("codex", "opencode", "cursor", "gemini-cli", "copilot", "aider"):
+        install_for(name)
+    matches = list(fake_home.rglob("stele-session-ingest.sh"))
+    assert matches == []
+
+
 def test_uninstall_removes_skill_and_section(fake_home: Path) -> None:
     install_for("claude-code")
     uninstall_for("claude-code")

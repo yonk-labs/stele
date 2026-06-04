@@ -9,7 +9,7 @@ from typing import Any
 from stele.packaging.platforms import PLATFORM_CONFIG, PlatformSpec
 from stele.packaging.render import (
     render_agents_md_section,
-    render_hook,
+    render_hook_spec,
     render_mcp_server_config,
     render_skill,
 )
@@ -107,7 +107,6 @@ def install_for(platform: str, *, dry_run: bool = False) -> None:
     home = Path.home()
 
     skill_dest = _expand(spec.skill_path, home)
-    hook_dest = _expand(spec.hook_path, home)
     user_doc = _expand(spec.user_agents_doc, home)
     project_doc = (
         Path.cwd() / spec.project_agents_doc if spec.project_agents_doc else None
@@ -121,13 +120,14 @@ def install_for(platform: str, *, dry_run: bool = False) -> None:
     skill_dest.parent.mkdir(parents=True, exist_ok=True)
     skill_dest.write_text(render_skill(platform))
 
-    if hook_dest is not None:
-        hook_text = render_hook(platform)
-        if hook_text is not None:
-            hook_dest.parent.mkdir(parents=True, exist_ok=True)
-            hook_dest.write_text(hook_text)
-            if hook_dest.suffix == ".sh":
-                hook_dest.chmod(0o755)
+    for hook in spec.hooks:
+        hook_dest = _expand(hook.dest_path, home)
+        if hook_dest is None:
+            continue
+        hook_dest.parent.mkdir(parents=True, exist_ok=True)
+        hook_dest.write_text(render_hook_spec(platform, hook))
+        if hook_dest.suffix == ".sh":
+            hook_dest.chmod(0o755)
 
     section = render_agents_md_section(platform)
     if user_doc is not None:
@@ -147,7 +147,6 @@ def uninstall_for(platform: str) -> None:
     home = Path.home()
 
     skill_dest = _expand(spec.skill_path, home)
-    hook_dest = _expand(spec.hook_path, home)
     user_doc = _expand(spec.user_agents_doc, home)
     project_doc = (
         Path.cwd() / spec.project_agents_doc if spec.project_agents_doc else None
@@ -159,8 +158,10 @@ def uninstall_for(platform: str) -> None:
         stamp = skill_dest.parent / ".stele_version"
         if stamp.exists():
             stamp.unlink()
-    if hook_dest is not None and hook_dest.exists():
-        hook_dest.unlink()
+    for hook in spec.hooks:
+        hook_dest = _expand(hook.dest_path, home)
+        if hook_dest is not None and hook_dest.exists():
+            hook_dest.unlink()
     if user_doc is not None:
         remove_section(user_doc, marker="## stele")
     if project_doc is not None:
