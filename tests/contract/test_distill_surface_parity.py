@@ -84,3 +84,33 @@ def test_distill_episodes_mcp_matches_facade() -> None:
     assert len(mcp_items) == len(facade_view.items) == 1
     assert all(it["source_refs"] for it in mcp_items)  # evidence carried
     assert "switch to keep120" in mcp_items[0]["decisions"]
+
+
+def test_distill_timeline_mcp_matches_facade() -> None:
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    ns = "parity-distill-timeline"
+    _populate_episode(s, ns)
+    facade_view = asyncio.run(s.distill.timeline(MemoryScope(namespace=ns)))
+    h = _handlers(s)
+    out = h["stele_distill"](mode="timeline", namespace=ns)  # type: ignore[operator]
+    assert "error" not in out, out
+    mcp_items = out["view"]["items"]
+    assert out["view"]["mode"] == "timeline"
+    assert len(mcp_items) == len(facade_view.items) == 1
+    assert all(it["source_refs"] for it in mcp_items)  # evidence carried
+
+
+def test_distill_spans_mcp_matches_facade() -> None:
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    ns = "parity-distill-spans"
+    _populate_episode(s, ns)
+    facade_view = asyncio.run(s.distill.spans(MemoryScope(namespace=ns)))
+    h = _handlers(s)
+    out = h["stele_distill"](mode="spans", namespace=ns)  # type: ignore[operator]
+    assert "error" not in out, out
+    mcp_items = out["view"]["items"]
+    assert out["view"]["mode"] == "spans"
+    # no embedder -> one-per-span fallback: one episode -> one span
+    assert len(mcp_items) == len(facade_view.items) == 1
+    assert all(it["source_refs"] for it in mcp_items)  # evidence carried
+    assert mcp_items[0]["span_id"].startswith("span-")
