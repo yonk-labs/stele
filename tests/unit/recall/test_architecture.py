@@ -51,3 +51,19 @@ def test_no_forbidden_imports(module_path: Path) -> None:
     assert not illegal, (
         f"{module_path} imports {illegal} — must consume Memory facade only"
     )
+
+
+def test_episodic_recall_invariant() -> None:
+    """Episodic recall (Phase 1) must stay LLM-free / graph-free / lede-free.
+    parse_temporal is the only temporal dependency and is a pure parser."""
+    episodic = RECALL_ROOT / "episodic.py"
+    assert episodic.exists(), "recall/episodic.py is missing"
+    imports = _imports(episodic)
+    for imp in imports:
+        for prefix in FORBIDDEN_PREFIXES:
+            assert prefix not in imp, (
+                f"episodic.py imports {imp!r}: recall invariant violated"
+            )
+    assert not {m for m in imports if m in FORBIDDEN_EXACT}, (
+        "episodic.py must consume the Memory facade, not store internals"
+    )

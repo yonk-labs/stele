@@ -90,7 +90,7 @@ class RecallRequest(BaseModel):
     version_filter: str | None = None
     retracted_behavior: Literal["hide", "flag", "surface_both"] | None = None
     supersession_behavior: Literal["hide", "prefer_new", "surface_both"] | None = None
-    # Episodic recall (Phase 1) — temporal is a soft boost by default; opt in to
+    # Episodic recall (Phase 1): temporal is a soft boost by default; opt in to
     # a hard window restriction. Default False preserves all existing callers.
     hard_temporal: bool = False
 

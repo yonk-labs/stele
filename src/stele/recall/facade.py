@@ -12,6 +12,7 @@ from stele.recall.adaptive import AdaptiveStrategy
 from stele.recall.artifact_search import ArtifactSearchStrategy
 from stele.recall.base import DigestPacker, Strategy, _RecallDeps
 from stele.recall.digest import DigestStrategy
+from stele.recall.episodic import EpisodicStrategy
 from stele.recall.graph_search import GraphSearchStrategy
 from stele.recall.memory_search import MemorySearchStrategy
 from stele.recall.models import (
@@ -58,6 +59,7 @@ class Recall:
             "raw_fetch": RawFetchStrategy(),
             "abstain": AbstainStrategy(),
             "digest": DigestStrategy(),
+            "episodic": EpisodicStrategy(),
         }
 
     def __call__(
@@ -75,6 +77,7 @@ class Recall:
         version_filter: str | None = None,
         retracted_behavior: str | None = None,
         supersession_behavior: str | None = None,
+        hard_temporal: bool = False,
     ) -> RecallResult:
         if not self._deps.config.enabled:
             raise CapabilityError("recall is disabled in config")
@@ -84,6 +87,7 @@ class Recall:
             strategy=strategy or self._deps.config.default_strategy,
             artifact_id=artifact_id,
             sufficient=sufficient,
+            hard_temporal=hard_temporal,
             max_memory_hits=(
                 max_memory_hits
                 if max_memory_hits is not None
@@ -155,6 +159,23 @@ class Recall:
             strategy="adaptive",
             artifact_id=artifact_id,
             sufficient=sufficient,
+        )
+
+    def episodic(
+        self,
+        *,
+        query: str,
+        scope: MemoryScope,
+        hard_temporal: bool = False,
+    ) -> RecallResult:
+        """Recall a past session (its artifact + back-linked memories),
+        temporally soft-boosted. Set ``hard_temporal=True`` to restrict to the
+        parsed window (still subject to the empty-window fallback)."""
+        return self(
+            query=query,
+            scope=scope,
+            strategy="episodic",
+            hard_temporal=hard_temporal,
         )
 
     def raw_fetch(self, *, artifact_id: str, scope: MemoryScope) -> RecallResult:
