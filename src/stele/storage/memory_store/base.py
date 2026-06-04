@@ -131,4 +131,21 @@ class MemoryStore(Protocol):
         """
         ...
 
+    def by_source_ref(
+        self,
+        scope: MemoryScope,
+        ref: str,
+        *,
+        status_filter: tuple[MemoryStatus, ...] = ("active",),
+    ) -> builtins.list[MemoryRecord]:
+        """Return the in-scope memories whose ``source_refs`` contains ``ref``.
+
+        The episodic back-link query: given an episode's artifact ref, find
+        the memories distilled from it. Filters on the current ``status``
+        (default active-head only) and the scope, newest effective_from
+        first. No text match; this is an exact ref membership lookup, so
+        sqlite/postgres use a JSON-contains predicate over source_refs.
+        """
+        ...
+
     def close(self) -> None: ...

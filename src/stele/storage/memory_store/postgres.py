@@ -517,6 +517,39 @@ class PostgresMemoryStore:
             rows = cur.fetchall()
         return self._finalize_hits(rows)
 
+    def by_source_ref(
+        self,
+        scope: MemoryScope,
+        ref: str,
+        *,
+        status_filter: tuple[str, ...] = ("active",),
+    ) -> list[MemoryRecord]:
+        sql = [
+            "SELECT * FROM memories WHERE namespace=%s",
+            "AND EXISTS ("
+            "  SELECT 1 FROM jsonb_array_elements_text(source_refs) elem"
+            "  WHERE elem = %s"
+            ")",
+        ]
+        params: list[object] = [scope.namespace, ref]
+        if status_filter:
+            sql.append("AND status = ANY(%s)")
+            params.append(list(status_filter))
+        for field, value in (
+            ("user_id", scope.user_id),
+            ("agent_id", scope.agent_id),
+            ("app_id", scope.app_id),
+            ("session_id", scope.session_id),
+        ):
+            if value is not None:
+                sql.append(f"AND {field} = %s")
+                params.append(value)
+        sql.append("ORDER BY effective_from DESC")
+        with self.conn.cursor() as cur:
+            cur.execute(" ".join(sql), params)
+            rows = cur.fetchall()
+        return [_to_record(r) for r in rows]
+
     def list(
         self,
         scope: MemoryScope,

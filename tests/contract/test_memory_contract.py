@@ -632,3 +632,71 @@ def test_add_many_with_supersession(tmp_path: Path, backend: str) -> None:
         MemoryQuery(query="prefers", scope=MemoryScope(user_id=user))
     )
     assert {h.id for h in hits} == {results[0].record.id}
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_by_source_ref_returns_active_back_links(tmp_path: Path, backend: str) -> None:
+    """Episodic Phase 1: by_source_ref returns exactly the active-head
+    memories whose source_refs contains the given ref, ignoring memories
+    that cite a different ref."""
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    scope = MemoryScope(user_id=user)
+    episode_ref = f"stele://default/episode-{uuid.uuid4().hex}"
+    other_ref = f"stele://default/other-{uuid.uuid4().hex}"
+
+    a = s.memory.add(
+        text="we switched to keep120",
+        kind="decision",
+        source_refs=[episode_ref],
+        scope=scope,
+    )
+    b = s.memory.add(
+        text="the auth refactor landed",
+        kind="fact",
+        source_refs=[episode_ref],
+        scope=scope,
+    )
+    s.memory.add(
+        text="unrelated note from another session",
+        kind="fact",
+        source_refs=[other_ref],
+        scope=scope,
+    )
+
+    linked = s.memory.by_source_ref(scope, episode_ref)
+    assert {m.id for m in linked} == {a.record.id, b.record.id}
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_by_source_ref_excludes_superseded_by_default(
+    tmp_path: Path, backend: str
+) -> None:
+    """A superseded memory is not an active head, so by_source_ref drops it
+    unless the caller widens status_filter."""
+    s = _stele(tmp_path, backend)
+    user = _unique_user()
+    scope = MemoryScope(user_id=user)
+    episode_ref = f"stele://default/episode-{uuid.uuid4().hex}"
+
+    old = s.memory.add(
+        text="user prefers Helix",
+        kind="preference",
+        source_refs=[episode_ref],
+        scope=scope,
+    )
+    new = s.memory.add(
+        text="user prefers Zed",
+        kind="preference",
+        source_refs=[episode_ref],
+        scope=scope,
+        supersedes=[old.record.id],
+    )
+
+    active = s.memory.by_source_ref(scope, episode_ref)
+    assert {m.id for m in active} == {new.record.id}
+
+    widened = s.memory.by_source_ref(
+        scope, episode_ref, status_filter=("active", "superseded")
+    )
+    assert {m.id for m in widened} == {old.record.id, new.record.id}
