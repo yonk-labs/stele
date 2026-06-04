@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -109,7 +110,8 @@ def test_recall_contract_episodic_returns_in_window_episode_with_memories(
     cfg = StashConfig.load(config_dict)
     stele = Stele(cfg)
     try:
-        scope = MemoryScope(namespace="default")
+        ns = f"ep-{uuid.uuid4().hex}"  # unique: the postgres bench DB is shared
+        scope = MemoryScope(namespace=ns)
         now = datetime.now(UTC)
         _, window = parse_temporal("what was I building last week", now)
         assert window is not None and window.after is not None
@@ -117,14 +119,14 @@ def test_recall_contract_episodic_returns_in_window_episode_with_memories(
 
         recent_ref = _ingest_episode(
             stele,
-            namespace="default",
+            namespace=ns,
             session_id="sess-recent",
             text="building the dashboard widget layout",
             when=now,
         )
         older_ref = _ingest_episode(
             stele,
-            namespace="default",
+            namespace=ns,
             session_id="sess-older",
             text="building the dashboard widget layout",
             when=in_window,
@@ -167,12 +169,13 @@ def test_recall_contract_episodic_wrong_window_falls_back(
     cfg = StashConfig.load(config_dict)
     stele = Stele(cfg)
     try:
-        scope = MemoryScope(namespace="default")
+        ns = f"ep-{uuid.uuid4().hex}"  # unique: the postgres bench DB is shared
+        scope = MemoryScope(namespace=ns)
         now = datetime.now(UTC)
         refs = [
             _ingest_episode(
                 stele,
-                namespace="default",
+                namespace=ns,
                 session_id=f"sess-{i}",
                 text="building the dashboard widget layout",
                 when=now - timedelta(hours=i),
