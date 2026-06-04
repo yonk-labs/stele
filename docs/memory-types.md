@@ -21,6 +21,10 @@ memory" can mean any of them depending on context:
 There is also a separate "6" that is unrelated: the recall *strategies* (how
 context is assembled at read time). See [tutorial-memory.md](tutorial-memory.md).
 
+These layers refine, rather than replace, the classical
+**semantic / episodic / procedural** memory taxonomy; the mapping is at the end
+of this doc.
+
 ## Layer 1: `MemoryKind` (the storage primitive)
 
 A memory record (`stele.core.memory_record.MemoryRecord`) carries exactly one
@@ -162,3 +166,44 @@ hands-on store/extract/supersede/recall walkthrough is in
 Kinds are the durable storage primitive; views and modes are computed on top.
 When someone says "the six types of memory," ask which layer they mean: the
 stored kinds (11), the distilled views (6), or the benchmark modes (6).
+
+## Relation to the classical taxonomy (semantic / episodic / procedural)
+
+Cognitive science groups memory into three kinds (Tulving's semantic vs
+episodic; Squire's declarative vs procedural), and LLM-agent work applies the
+same split (e.g. CoALA, *Cognitive Architectures for Language Agents*, which adds
+**working memory** as a fourth). That trio is the *category* level; stele's
+kinds and views are the leaf types beneath it. They do not compete with the big
+three, they refine it.
+
+| classical type | what it is | stele views | stele kinds |
+|---|---|---|---|
+| **Semantic** | facts, concepts, what is *true* (decontextualized) | `facts` (+ some `best_practices`) | `fact`, `summary`, `issue` |
+| **Episodic** | events, what *happened when* (context-bound) | the raw **artifacts/sessions** + `state` + `precedents` | `decision`, `commitment` (+ the stored sessions) |
+| **Procedural** | skills, how to *act* | `skills`, `rules`, `best_practices` | `instruction`, `preference`, `pitfall`, `workaround`, `tool_recommendation`, `tool_gap` |
+| **Working** | the current task's context | assembled by `Stele.recall` (not stored) | -- |
+
+The mapping is not arbitrary; it falls out of the architecture:
+
+- **Artifacts are the episodic substrate.** A stored session (the exact bytes
+  behind a `stele://` ref) *is* the record of what happened. Episodic memory in
+  stele is the evidence layer.
+- **Distilled memory is the semantic + procedural knowledge extracted from
+  episodes.** `facts` are semantic; `skills` / `rules` / `best_practices` are
+  procedural. The evidence-artifacts vs distilled-memory boundary IS the
+  episodic vs semantic/procedural distinction.
+- **The procedural layer is unusually graded.** The cq lifecycle
+  (`pitfall -> workaround -> tool_recommendation -> tool_gap`) is procedural
+  learning about sharp edges, and `rules` are procedural-as-enforcement, where
+  most systems carry only a thin tool list.
+
+Two honest caveats:
+
+- **Some types straddle.** `precedents` / `decision` is episodic in *origin* (a
+  decision is an event) but becomes semantic once distilled ("we use X because
+  Y"). `best_practices` is procedural guidance stated as a `preference`.
+- **Distilled-episodic is intentionally thin.** `state` (resume) and
+  `precedents` are the only distilled-episodic views; true event/timeline recall
+  ("what happened in the auth refactor last Tuesday?") is served today by raw
+  artifact/session search, not a first-class episodic view. Closing that gap is
+  a tracked direction (episodic recall).
