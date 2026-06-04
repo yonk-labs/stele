@@ -25,12 +25,12 @@ Phase 3 (timeline, spans) are out of scope per the spec.
 - Modify: `src/stele/storage/memory_store/{base,memory,sqlite,postgres}.py`
 - Test: `tests/contract/test_memory_contract.py`
 
-- [ ] **Step 1: failing contract test** — store an artifact, add two memories
+- [ ] **Step 1: failing contract test**: store an artifact, add two memories
   citing its ref + one citing another ref; assert `memory.by_source_ref(ref)`
   returns exactly the two, active-head only.
-- [ ] **Step 2: add to `MemoryStore` base** — `by_source_ref(self, scope, ref, *,
+- [ ] **Step 2: add to `MemoryStore` base**: `by_source_ref(self, scope, ref, *,
   status_filter=("active",)) -> list[MemoryRecord]`.
-- [ ] **Step 3: implement per store** — memory: filter records whose
+- [ ] **Step 3: implement per store**: memory: filter records whose
   `source_refs` contains `ref`; sqlite/postgres: `WHERE source_refs LIKE/@>`
   (JSON contains) + scope + status, reusing the existing scope/temporal SQL.
 - [ ] **Step 4: facade passthrough** on `Stele.memory`.
@@ -42,9 +42,9 @@ Phase 3 (timeline, spans) are out of scope per the spec.
 - Modify: `src/stele/recall/base.py` or `src/stele/core/recall_models.py`
 - Test: `tests/unit/recall/test_episodic.py`
 
-- [ ] **Step 1: define `EpisodeHit`** — `{session_id: str|None, when: datetime|None,
+- [ ] **Step 1: define `EpisodeHit`**: `{session_id: str|None, when: datetime|None,
   summary: str, ref: str, score: float, memories: list[MemoryRecord]}`.
-- [ ] **Step 2: temporal helper** — `_episode_when(artifact) -> datetime` (prefer
+- [ ] **Step 2: temporal helper**: `_episode_when(artifact) -> datetime` (prefer
   `metadata.session_mtime`, else `created_at`); `_boost(score, when, window)` for
   the soft-boost (proximity/recency), unit-tested with a few windows.
 - [ ] **Step 3: run; commit.**
@@ -57,15 +57,15 @@ Phase 3 (timeline, spans) are out of scope per the spec.
   `"episodic"`), add `Stele.recall.episodic(...)` shim
 - Test: `tests/unit/recall/test_episodic.py`, `tests/unit/recall/test_architecture.py`
 
-- [ ] **Step 1: failing test** — fixture of 3 dated session artifacts + back-linked
+- [ ] **Step 1: failing test**: fixture of 3 dated session artifacts + back-linked
   memories; `recall(query="...", strategy="episodic")` returns `EpisodeHit`s
   newest-relevant first, each carrying its memories.
-- [ ] **Step 2: implement** — `parse_temporal` -> `(cleaned, window)`; candidates =
+- [ ] **Step 2: implement**: `parse_temporal` -> `(cleaned, window)`; candidates =
   session-ingest artifacts in scope; rank by semantic search on `cleaned`;
   apply `_boost` (never exclude); attach `by_source_ref` memories; build
   `RecallResult` (context block) + the `EpisodeHit` list.
 - [ ] **Step 3: register** in both registries; add the facade shim.
-- [ ] **Step 4: architecture test** — assert `recall/episodic.py` imports no LLM
+- [ ] **Step 4: architecture test**: assert `recall/episodic.py` imports no LLM
   client / pg_raggraph / chunkshop / lede (the recall invariant).
 - [ ] **Step 5: run green; commit.**
 
@@ -76,7 +76,7 @@ Phase 3 (timeline, spans) are out of scope per the spec.
   (`RecallRequest.hard_temporal: bool = False`)
 - Test: `tests/unit/recall/test_episodic.py`
 
-- [ ] **Step 1: failing tests** — (a) `hard_temporal=True` excludes
+- [ ] **Step 1: failing tests**: (a) `hard_temporal=True` excludes
   out-of-window episodes; (b) a window that matches too few candidates falls
   back to unfiltered rank rather than returning empty (anti-backfire rule).
 - [ ] **Step 2: implement** the hard path + the fallback threshold.
