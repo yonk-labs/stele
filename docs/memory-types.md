@@ -11,9 +11,11 @@ memory" can mean any of them depending on context:
 
 - **`MemoryKind`** (11 values): the storage primitive. Every memory record is
   exactly one kind. This is the ground truth in the code.
-- **Distill views** (6): groupings *over* kinds that the `Stele.distill` facade
+- **Distill views** (7): groupings *over* kinds that the `Stele.distill` facade
   synthesizes for reuse (`facts`, `precedents`, `state`, `skills`,
-  `best_practices`, `rules`).
+  `best_practices`, `rules`, `episodes`). The first six are semantic/procedural
+  groupings; `episodes` is the episodic view (one "what happened" summary per
+  past session).
 - **Benchmark modes** (6): the recall *scenarios* that test those views
   (`fact_recall`, `precedent_recall`, `resume_task_state`, `skill_adherence`,
   `best_practice`, `guardrail_adherence`).
@@ -66,9 +68,9 @@ evolving**, not an append-only log:
 Artifacts are immutable; memory evolves. That boundary is guarded by
 `tests/unit/test_architecture.py`.
 
-## Layer 2: distill views (6 groupings over kinds)
+## Layer 2: distill views (7 groupings over kinds)
 
-`Stele.distill` (subsystem in `src/stele/distill/`) synthesizes six
+`Stele.distill` (subsystem in `src/stele/distill/`) synthesizes seven
 externally-consumable **views** from the stored kinds. Each is an `async` method
 returning a `DistilledView`; every item keeps its `source_refs`.
 
@@ -80,14 +82,27 @@ returning a `DistilledView`; every item keeps its `source_refs`.
 | `skills` | `instruction` (+ patterns) | reusable how-to | results + prose |
 | `best_practices` | `preference` | suggest-not-force guidance | stated prose / user turns |
 | `rules` | `pitfall` + `workaround` + `instruction` | "don't X, do Y" pairs, in-family remediation | errors + the fix in the following result |
+| `episodes` | memories grouped by their session artifact | one "what happened" summary per past session (decisions + pitfalls + facts that session produced) | the session artifacts + their back-linked memories |
 
 The "where the evidence lives" column is why the ingestion reduction tier matters
 (see [distillation-flow.md](distillation-flow.md#impact-by-memory-type-keep120-vs-drop)):
 facts/rules/skills/state draw on successful tool output, so dropping it costs
 them; precedents/best_practices are prose-borne and nearly immune.
 
-`tool_recommendation` / `tool_gap` do not map to one of the six views; they feed
+`tool_recommendation` / `tool_gap` do not map to one of the views; they feed
 the separate tool-gap synthesis.
+
+`episodes` differs from the first six: it does not draw on a single `MemoryKind`.
+It groups the scope's active memories by the session artifact they cite
+(`metadata.source == "session-ingest"`) and synthesizes one `EpisodeItem` per
+session. Like every other view it is **computed on read** (no new store rows):
+the summary is composed deterministically from the session's decisions, pitfalls,
+and a count, with an optional injected-LLM refine for a tighter "what happened"
+line (deterministic fallback on failure). Accepts `since`/`until` to window the
+episodes by their `session_mtime` (else `created_at`), newest-first. This is
+Phase 2 of episodic recall; the `episodic` recall *strategy* (Phase 1) reuses the
+same deterministic composition for an episode's `summary`. See
+[superpowers/specs/2026-06-04-episodic-recall-design.md](superpowers/specs/2026-06-04-episodic-recall-design.md).
 
 Distillation is **oracle-free and deterministic by default**: an injected LLM
 only refines (e.g., pairing a `don't` with its `do_instead`), and an injected
@@ -165,7 +180,7 @@ hands-on store/extract/supersede/recall walkthrough is in
 
 Kinds are the durable storage primitive; views and modes are computed on top.
 When someone says "the six types of memory," ask which layer they mean: the
-stored kinds (11), the distilled views (6), or the benchmark modes (6).
+stored kinds (11), the distilled views (7), or the benchmark modes (6).
 
 ## Relation to the classical taxonomy (semantic / episodic / procedural)
 
@@ -179,7 +194,7 @@ three, they refine it.
 | classical type | what it is | stele views | stele kinds |
 |---|---|---|---|
 | **Semantic** | facts, concepts, what is *true* (decontextualized) | `facts` (+ some `best_practices`) | `fact`, `summary`, `issue` |
-| **Episodic** | events, what *happened when* (context-bound) | the raw **artifacts/sessions** + `state` + `precedents` | `decision`, `commitment` (+ the stored sessions) |
+| **Episodic** | events, what *happened when* (context-bound) | `episodes` (one summary per session) + the raw **artifacts/sessions** + `state` + `precedents` | `decision`, `commitment` (+ the stored sessions) |
 | **Procedural** | skills, how to *act* | `skills`, `rules`, `best_practices` | `instruction`, `preference`, `pitfall`, `workaround`, `tool_recommendation`, `tool_gap` |
 | **Working** | the current task's context | assembled by `Stele.recall` (not stored) | -- |
 
@@ -187,7 +202,10 @@ The mapping is not arbitrary; it falls out of the architecture:
 
 - **Artifacts are the episodic substrate.** A stored session (the exact bytes
   behind a `stele://` ref) *is* the record of what happened. Episodic memory in
-  stele is the evidence layer.
+  stele is the evidence layer. The `episodes` distill view is the first-class
+  episodic *read* over that substrate: it groups the memories a session produced
+  under their session artifact and emits one "what happened" summary per session,
+  so "what was I building last week" answers without re-reading the raw bytes.
 - **Distilled memory is the semantic + procedural knowledge extracted from
   episodes.** `facts` are semantic; `skills` / `rules` / `best_practices` are
   procedural. The evidence-artifacts vs distilled-memory boundary IS the

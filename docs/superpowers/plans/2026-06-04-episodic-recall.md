@@ -104,5 +104,74 @@ Phase 3 (timeline, spans) are out of scope per the spec.
   strategies.
 
 ## Deferred (not this plan)
-- Phase 2: distilled episode summaries (`Stele.distill.episodes`).
 - Phase 3: `timeline()` ordered view + cross-session span linking via the graph.
+
+---
+
+## Phase 2: distill produces episodes (DONE)
+
+**Goal:** Add a seventh distill view, `episodes`, that synthesizes one "what
+happened" summary per past session. Computed on read, like the other six views
+(no new store rows). Deterministic by default with an optional injected-LLM
+refine. Wire the Phase 1 `episodic` recall strategy to reuse the composition.
+
+### Task P2-1: `EpisodeItem` model
+- [x] Add `EpisodeItem(DistilledItem)` in `src/stele/distill/models.py`,
+  following how `Rule` extends `DistilledItem`. Fields: `when: datetime | None`,
+  `session_id: str | None`, `ref: str`, `decisions: list[str]`,
+  `pitfalls: list[str]`, `facts: list[str]` (plus the inherited `summary`,
+  `detail`, `confidence`, `source_refs`).
+- [x] Widen `DistilledView.items` to `list[Rule | EpisodeItem | DistilledItem]`.
+
+### Task P2-2: `episodes` distill view (deterministic + LLM)
+- [x] Create `src/stele/distill/episodes.py::distill_episodes(d, scope,
+  since=None, until=None)`. Enumerate session-ingest artifacts in the namespace
+  via the `Stele` facade (`stele.list`), group the scope's ACTIVE memories
+  (`active_memories`) by the session artifact ref in their `source_refs`, and
+  emit one `EpisodeItem` per session that produced at least one memory.
+- [x] `when` = `metadata.session_mtime` (parsed) else artifact `created_at`.
+  Merge `source_refs` (session ref + every back-linked memory's refs).
+- [x] Deterministic summary = compose from the session's decisions + pitfalls +
+  a memory count. When `stele._distill_llm` is injected and synthesis is
+  allowed, tighten the "what happened" line via the LLM, with a deterministic
+  fallback on any failure / empty / over-long reply.
+- [x] `since`/`until` filter by `when`; order newest-first.
+- [x] No LLM client imported at module top (architecture-gated).
+
+### Task P2-3: facade + MCP wiring
+- [x] Add `Distill.episodes(scope, since=None, until=None)` async method in
+  `src/stele/distill/facade.py`; it flows through `submit(mode, ...)` /
+  `result(...)` like the other six (the dispatch is `getattr(self, mode)`).
+- [x] Extend the existing `stele_distill` MCP handler's valid-mode set with
+  `episodes` and update its description. No new MCP tool (the 18-tool surface
+  is unchanged; pinned by `tests/unit/mcp/test_tools.py`).
+
+### Task P2-4: wire episodic RECALL to reuse the summary
+- [x] In `src/stele/recall/episodic.py`, when an episode has back-linked
+  memories, set `EpisodeHit.summary` from the Phase 2 deterministic composition
+  (`distill.episodes._compose_summary`); fall back to the raw artifact summary
+  otherwise. Pure/deterministic, so the recall invariant holds. Phase 1 tests
+  unchanged and green.
+
+### Task P2-5: tests
+- [x] Unit (`tests/unit/distill/test_episodes.py`): group-by-session, one
+  summary per session, `when` prefers `session_mtime`, newest-first,
+  `since`/`until` filter, skip sessions with no memories, deterministic path,
+  injected-LLM refine, and deterministic fallback on bad / empty LLM output.
+- [x] Unit (`tests/unit/recall/test_episodic.py`): recall prefers the distilled
+  summary when memories exist; falls back to the artifact summary otherwise.
+- [x] Contract (`tests/contract/test_distill_episodes_contract.py`): the
+  `episodes` view across `BACKENDS` (memory + sqlite; postgres when
+  `STELE_PG_DSN` set), each test using a UNIQUE namespace (the postgres bench
+  DB is shared) and asserting exact episode sets within that namespace, no
+  insertion-order assumptions.
+- [x] Contract parity (`tests/contract/test_distill_surface_parity.py`): the
+  `episodes` MCP handler output matches the facade view.
+
+### Done criteria (Phase 2)
+- `Stele.distill.episodes(scope, since=None, until=None)` returns one
+  `EpisodeItem` per session, computed on read, deterministic by default,
+  optional LLM refine with fallback, time-windowed, newest-first.
+- Episodic recall reuses the composition for `EpisodeHit.summary`.
+- ruff + bare mypy (`packages=["stele"]`) clean; new unit + contract tests
+  green; no change to the other six views or the 18-tool MCP surface.

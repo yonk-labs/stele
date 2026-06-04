@@ -1,7 +1,8 @@
 # Episodic Recall: Design
 
-Status: **proposed** (not implemented). Tracking: yonk-labs/stele#48. Tracks the episodic-memory gap surfaced
-by mapping stele to the classical semantic/episodic/procedural taxonomy (see
+Status: **Phase 1 + Phase 2 implemented**; Phase 3 deferred. Tracking:
+yonk-labs/stele#48. Tracks the episodic-memory gap surfaced by mapping stele to
+the classical semantic/episodic/procedural taxonomy (see
 [docs/memory-types.md](../../memory-types.md#relation-to-the-classical-taxonomy-semantic--episodic--procedural)).
 
 ## TL;DR
@@ -88,9 +89,19 @@ A new `EpisodicStrategy` in `src/stele/recall/episodic.py`, registered as
 
 ## Out of scope (later phases)
 
-- **Phase 2:** distilled **episode summaries** (one per session, kind=`summary`
-  + `metadata.episode=true`) so "what happened in X" answers without re-reading;
-  surfaced as `Stele.distill.episodes(...)`.
+- **Phase 2 (DONE):** distilled **episode summaries** (one per session) so "what
+  happened in X" answers without re-reading; surfaced as
+  `Stele.distill.episodes(scope, since=None, until=None)`. Implemented as the
+  seventh distill view: COMPUTED ON READ (no new store rows, unlike the
+  originally-sketched `kind="summary"` + `metadata.episode=true` write). It
+  groups the scope's active memories by their session artifact and synthesizes
+  one `EpisodeItem` per session, deterministically (decisions + pitfalls +
+  count) with an optional injected-LLM refine and deterministic fallback.
+  `since`/`until` window the episodes by `session_mtime` (else `created_at`),
+  newest-first. The Phase 1 `episodic` recall strategy now reuses the same
+  deterministic composition for an episode's `EpisodeHit.summary` when the
+  episode has back-linked memories. See
+  [the Phase 2 plan addendum](../plans/2026-06-04-episodic-recall.md#phase-2-distill-produces-episodes-done).
 - **Phase 3:** a `timeline(scope, since, until, query)` ordered view, and
   episode-to-episode **span** linking via the graph (workgraph / pg-raggraph).
 
