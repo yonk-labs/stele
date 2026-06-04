@@ -123,7 +123,7 @@ def _span_from_members(
 async def distill_spans(
     d: object,
     scope: MemoryScope,
-    threshold: float = 0.82,
+    threshold: float = 0.65,
 ) -> DistilledView:
     episodes, _ = build_episodes(d, scope)
     llm, allowed = _llm_and_allowed(d)

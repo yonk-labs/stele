@@ -88,7 +88,10 @@ class Distill:
 
         return await distill_timeline(self, scope, since, until, query)
 
-    async def spans(self, scope: MemoryScope, threshold: float = 0.82) -> DistilledView:
+    async def spans(self, scope: MemoryScope, threshold: float = 0.65) -> DistilledView:
+        # 0.65 is the "same topic arc" default for bge-base (which runs hot:
+        # unrelated ~0.5, same-topic ~0.76). consolidate's 0.82 is a near-dup
+        # threshold and is too strict to cluster a topic across sessions.
         from stele.distill.spans import distill_spans
 
         return await distill_spans(self, scope, threshold)

@@ -5,10 +5,11 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
-## [Unreleased]
+## [0.6.1] - 2026-06-04
 
 Episodic recall (the classical episodic memory category, previously under-served)
-and the self-installing session-ingest hook. All additive.
+and the self-installing session-ingest hook. Additive, plus a calibration fix to
+the two new embedding thresholds.
 
 ### Added
 
@@ -34,6 +35,19 @@ and the self-installing session-ingest hook. All additive.
   installs `stele-session-ingest.sh` alongside the large-output hook. Install
   drops the script and prints the `settings.json` SessionEnd snippet (no
   settings.json writer exists; matches the established script-drop pattern).
+- `stele distill` CLI accepts the episodic modes (`episodes` / `timeline` /
+  `spans`), matching the MCP surface.
+- A step-by-step episodic guide ([docs/episodic-recall-guide.md](docs/episodic-recall-guide.md))
+  with real example output, and a runnable tour (`examples/episodic_tour.py`).
+
+### Fixed
+
+- **Calibrated the two new embedding thresholds for `bge-base`** (which runs
+  hot: unrelated short texts sit near cosine 0.5). `spans` default lowered
+  0.82 -> 0.65 so same-topic sessions actually cluster into a cross-session arc
+  (0.82 is `consolidate`'s near-duplicate threshold and never clustered);
+  `timeline`'s query floor raised 0.3 -> 0.55 so an off-topic episode is no
+  longer returned for an unrelated query. Both measured, not guessed.
 
 ## [0.6.0] - 2026-06-03
 

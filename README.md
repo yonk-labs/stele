@@ -241,6 +241,7 @@ for other tools are preserved.
 
 - **5-minute quickstart**: [docs/quickstart.md](docs/quickstart.md)
 - **Memory types + architecture** (the kinds, distill views, and benchmark modes, reconciled): [docs/memory-types.md](docs/memory-types.md)
+- **Episodic recall** (episodes / timeline / cross-session spans), step-by-step with example output: [docs/episodic-recall-guide.md](docs/episodic-recall-guide.md)
 - Full tool reference (MCP + CLI equivalents): [docs/mcp-tools.md](docs/mcp-tools.md)
 - CLI guide + troubleshooting: [docs/cli-guide.md](docs/cli-guide.md)
 - Runnable tours: [examples/mcp_tour.py](examples/mcp_tour.py) (Python/MCP) · [examples/cli_tour.sh](examples/cli_tour.sh) (shell/CLI)
