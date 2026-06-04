@@ -11,11 +11,14 @@ memory" can mean any of them depending on context:
 
 - **`MemoryKind`** (11 values): the storage primitive. Every memory record is
   exactly one kind. This is the ground truth in the code.
-- **Distill views** (7): groupings *over* kinds that the `Stele.distill` facade
+- **Distill views** (9): groupings *over* kinds that the `Stele.distill` facade
   synthesizes for reuse (`facts`, `precedents`, `state`, `skills`,
-  `best_practices`, `rules`, `episodes`). The first six are semantic/procedural
-  groupings; `episodes` is the episodic view (one "what happened" summary per
-  past session).
+  `best_practices`, `rules`, `episodes`, `timeline`, `spans`). The first six are
+  semantic/procedural groupings; the last three are the episodic views:
+  `episodes` (one "what happened" summary per past session, newest-first),
+  `timeline` (the same episodes ordered oldest-first as a narrative sequence,
+  optionally query-filtered), and `spans` (episodes clustered into
+  cross-session topic/task arcs). Together they make episodic recall fully built.
 - **Benchmark modes** (6): the recall *scenarios* that test those views
   (`fact_recall`, `precedent_recall`, `resume_task_state`, `skill_adherence`,
   `best_practice`, `guardrail_adherence`).
@@ -83,6 +86,8 @@ returning a `DistilledView`; every item keeps its `source_refs`.
 | `best_practices` | `preference` | suggest-not-force guidance | stated prose / user turns |
 | `rules` | `pitfall` + `workaround` + `instruction` | "don't X, do Y" pairs, in-family remediation | errors + the fix in the following result |
 | `episodes` | memories grouped by their session artifact | one "what happened" summary per past session (decisions + pitfalls + facts that session produced) | the session artifacts + their back-linked memories |
+| `timeline` | the same episodes, oldest-first | the narrative sequence of what happened, in a window, optionally query-filtered | the session artifacts + their back-linked memories |
+| `spans` | episodes clustered by summary similarity | one cross-session topic/task arc per cluster, with its time range | the member episodes (session artifacts + their memories) |
 
 The "where the evidence lives" column is why the ingestion reduction tier matters
 (see [distillation-flow.md](distillation-flow.md#impact-by-memory-type-keep120-vs-drop)):
@@ -92,16 +97,36 @@ them; precedents/best_practices are prose-borne and nearly immune.
 `tool_recommendation` / `tool_gap` do not map to one of the views; they feed
 the separate tool-gap synthesis.
 
-`episodes` differs from the first six: it does not draw on a single `MemoryKind`.
-It groups the scope's active memories by the session artifact they cite
-(`metadata.source == "session-ingest"`) and synthesizes one `EpisodeItem` per
-session. Like every other view it is **computed on read** (no new store rows):
-the summary is composed deterministically from the session's decisions, pitfalls,
-and a count, with an optional injected-LLM refine for a tighter "what happened"
-line (deterministic fallback on failure). Accepts `since`/`until` to window the
-episodes by their `session_mtime` (else `created_at`), newest-first. This is
-Phase 2 of episodic recall; the `episodic` recall *strategy* (Phase 1) reuses the
-same deterministic composition for an episode's `summary`. See
+`episodes`, `timeline`, and `spans` differ from the first six: they do not draw
+on a single `MemoryKind`. They group the scope's active memories by the session
+artifact they cite (`metadata.source == "session-ingest"`) and synthesize one
+`EpisodeItem` per session. Like every other view they are **computed on read**
+(no new store rows): the per-session summary is composed deterministically from
+the session's decisions, pitfalls, and a count, with an optional injected-LLM
+refine for a tighter "what happened" line (deterministic fallback on failure).
+
+- **`episodes`** accepts `since`/`until` to window the episodes by their
+  `session_mtime` (else `created_at`), **newest-first**. This is Phase 2 of
+  episodic recall; the `episodic` recall *strategy* (Phase 1) reuses the same
+  deterministic composition for an episode's `summary`.
+- **`timeline`** returns the same episodes ordered **oldest-first** (the
+  narrative "show me the sequence" view), within an optional `since`/`until`
+  window, optionally filtered to episodes relevant to a `query`. The query
+  filter is semantic when an embedder is injected (`Stele._distill_embedder`,
+  cosine of the episode summary), with a deterministic token-overlap fallback
+  when none is injected (so it never errors and stays oracle-free).
+- **`spans`** groups episodes into cross-session **topic/task arcs** (the whole
+  auth refactor, not one sitting) by clustering on the embedding similarity of
+  their summaries (`threshold`, default `0.82`), reusing the same greedy
+  cosine-threshold clustering as `consolidate`. With **no embedder injected** the
+  deterministic fallback is one episode per span. Each `SpanItem` carries a
+  deterministic `span_id`, its member `refs`/`session_ids`, a composed span
+  summary (optional injected-LLM refine with fallback), and a
+  `started`/`ended` time range.
+
+`timeline` and `spans` are Phase 3, which **completes** episodic recall (the
+event/timeline and cross-session-arc reads the earlier docs flagged as the open
+gap are now first-class). See
 [superpowers/specs/2026-06-04-episodic-recall-design.md](superpowers/specs/2026-06-04-episodic-recall-design.md).
 
 Distillation is **oracle-free and deterministic by default**: an injected LLM
@@ -180,7 +205,7 @@ hands-on store/extract/supersede/recall walkthrough is in
 
 Kinds are the durable storage primitive; views and modes are computed on top.
 When someone says "the six types of memory," ask which layer they mean: the
-stored kinds (11), the distilled views (7), or the benchmark modes (6).
+stored kinds (11), the distilled views (9), or the benchmark modes (6).
 
 ## Relation to the classical taxonomy (semantic / episodic / procedural)
 
@@ -194,7 +219,7 @@ three, they refine it.
 | classical type | what it is | stele views | stele kinds |
 |---|---|---|---|
 | **Semantic** | facts, concepts, what is *true* (decontextualized) | `facts` (+ some `best_practices`) | `fact`, `summary`, `issue` |
-| **Episodic** | events, what *happened when* (context-bound) | `episodes` (one summary per session) + the raw **artifacts/sessions** + `state` + `precedents` | `decision`, `commitment` (+ the stored sessions) |
+| **Episodic** | events, what *happened when* (context-bound) | `episodes` / `timeline` / `spans` (per-session, ordered sequence, cross-session arcs) + the raw **artifacts/sessions** + `state` + `precedents` | `decision`, `commitment` (+ the stored sessions) |
 | **Procedural** | skills, how to *act* | `skills`, `rules`, `best_practices` | `instruction`, `preference`, `pitfall`, `workaround`, `tool_recommendation`, `tool_gap` |
 | **Working** | the current task's context | assembled by `Stele.recall` (not stored) | -- |
 
@@ -220,8 +245,10 @@ Two honest caveats:
 - **Some types straddle.** `precedents` / `decision` is episodic in *origin* (a
   decision is an event) but becomes semantic once distilled ("we use X because
   Y"). `best_practices` is procedural guidance stated as a `preference`.
-- **Distilled-episodic is intentionally thin.** `state` (resume) and
-  `precedents` are the only distilled-episodic views; true event/timeline recall
-  ("what happened in the auth refactor last Tuesday?") is served today by raw
-  artifact/session search, not a first-class episodic view. Closing that gap is
-  a tracked direction (episodic recall).
+- **Distilled-episodic is now first-class.** Beyond `state` (resume) and
+  `precedents`, episodic recall is fully built: `episodes` (per-session "what
+  happened"), `timeline` (the ordered sequence, "what happened in the auth
+  refactor last Tuesday?"), and `spans` (cross-session topic/task arcs) are
+  first-class distill views over the session-artifact substrate, complemented by
+  the `episodic` recall *strategy*. The earlier gap (event/timeline recall served
+  only by raw artifact search) is closed.

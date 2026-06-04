@@ -1,7 +1,8 @@
 # Episodic Recall: Design
 
-Status: **Phase 1 + Phase 2 implemented**; Phase 3 deferred. Tracking:
-yonk-labs/stele#48. Tracks the episodic-memory gap surfaced by mapping stele to
+Status: **COMPLETE: Phase 1 + Phase 2 + Phase 3 implemented**. Episodic recall
+is fully built. Tracking: yonk-labs/stele#48. Tracks the episodic-memory gap
+surfaced by mapping stele to
 the classical semantic/episodic/procedural taxonomy (see
 [docs/memory-types.md](../../memory-types.md#relation-to-the-classical-taxonomy-semantic--episodic--procedural)).
 
@@ -102,8 +103,23 @@ A new `EpisodicStrategy` in `src/stele/recall/episodic.py`, registered as
   deterministic composition for an episode's `EpisodeHit.summary` when the
   episode has back-linked memories. See
   [the Phase 2 plan addendum](../plans/2026-06-04-episodic-recall.md#phase-2-distill-produces-episodes-done).
-- **Phase 3:** a `timeline(scope, since, until, query)` ordered view, and
-  episode-to-episode **span** linking via the graph (workgraph / pg-raggraph).
+- **Phase 3 (DONE):** two more distill views completing episodic recall.
+  `Stele.distill.timeline(scope, since=None, until=None, query=None)` returns the
+  scope's episodes ordered OLDEST-first (the narrative sequence; `episodes()` is
+  newest-first), in an optional window, optionally filtered to episodes relevant
+  to `query`. `Stele.distill.spans(scope, threshold=0.82)` groups episodes into
+  cross-session topic/task **spans** by clustering on the embedding similarity of
+  their summaries (reusing `distill.base.consolidate`'s greedy cosine-threshold
+  pattern). Both are COMPUTED ON READ on top of the Phase 2 episode computation
+  (`build_episodes`), deterministic and oracle-free; the embedder + LLM are
+  INJECTED and optional (with no embedder, `spans` falls back to one-episode-per-
+  span; `timeline`'s `query` falls back to deterministic token overlap). Each
+  span is a `SpanItem` (`span_id`, member `refs`/`session_ids`, a composed
+  summary with optional LLM refine + fallback, and a `started`/`ended` range).
+  Reachable via `submit(mode, ...)` and the `stele_distill` MCP mode set (no new
+  MCP tool). The originally-sketched graph-based span linking
+  (workgraph / pg-raggraph) was not needed: embedding-similarity clustering over
+  the episode summaries is sufficient and keeps the recall invariant.
 
 ## Cautions (carried from the prior temporal work)
 
