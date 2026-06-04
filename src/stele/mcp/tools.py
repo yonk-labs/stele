@@ -302,7 +302,8 @@ TOOLS: list[ToolSpec] = [
     # ---- distill ----
     ToolSpec(
         "stele_distill",
-        "Distill a memory mode (facts|precedents|state|skills|best_practices|rules) "
+        "Distill a memory mode "
+        "(facts|precedents|state|skills|best_practices|rules|episodes) "
         "into a structured DistilledView.",
         _obj(
             {
@@ -702,7 +703,10 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
 
     @guard
     def distill(mode: str, namespace: str | None = None) -> dict[str, Any]:
-        valid = {"facts", "precedents", "state", "skills", "best_practices", "rules"}
+        valid = {
+            "facts", "precedents", "state", "skills", "best_practices", "rules",
+            "episodes",
+        }
         if mode not in valid:
             return {
                 "error": {

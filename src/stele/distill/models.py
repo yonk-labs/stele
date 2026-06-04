@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -23,10 +25,27 @@ class Rule(DistilledItem):
     domain: str = "prose"
 
 
+class EpisodeItem(DistilledItem):
+    """One distilled episode: a "what happened" summary for a single session,
+    synthesized from the memories that session produced (NOT a new store row).
+
+    ``when`` is the episode's temporal anchor (the session artifact's
+    ``session_mtime`` if present, else its ``created_at``). ``decisions`` and
+    ``pitfalls`` are the key kinded items that session yielded. ``source_refs``
+    merges the session artifact ref with every back-linked memory's refs."""
+
+    when: datetime | None = None
+    session_id: str | None = None
+    ref: str = ""
+    decisions: list[str] = Field(default_factory=list)
+    pitfalls: list[str] = Field(default_factory=list)
+    facts: list[str] = Field(default_factory=list)
+
+
 class DistilledView(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     mode: str
-    items: list[Rule | DistilledItem] = Field(default_factory=list)
+    items: list[Rule | EpisodeItem | DistilledItem] = Field(default_factory=list)
     used_llm: bool = False
     stats: dict[str, float] = Field(default_factory=dict)

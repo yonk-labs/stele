@@ -8,6 +8,8 @@ from stele.distill.jobs import DistillJob, submit_job
 from stele.distill.models import DistilledView
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from stele.core.config import DistillConfig
 
 
@@ -65,9 +67,19 @@ class Distill:
 
         return await distill_rules(self, scope)
 
+    async def episodes(
+        self,
+        scope: MemoryScope,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> DistilledView:
+        from stele.distill.episodes import distill_episodes
+
+        return await distill_episodes(self, scope, since, until)
+
     def submit(self, mode: str, scope: MemoryScope, **kwargs: object) -> DistillJob:
         """Kick off a distill run in the background. Returns a handle immediately."""
-        method = getattr(self, mode)  # one of the six async methods
+        method = getattr(self, mode)  # one of the seven async view methods
         job = submit_job(lambda: method(scope, **kwargs))
         self._jobs[job.id] = job
         return job
