@@ -7,12 +7,31 @@ support.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class HookSpec:
+    """One installable hook: a template, its destination, and render context.
+
+    `context` carries any template variables beyond the shared render context
+    (e.g. the ingest hook's `ingest_namespace`).
+    """
+
+    template: str
+    dest_path: str
+    context: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class PlatformSpec:
-    """Where a platform's skill, hook, and shared-doc-section live."""
+    """Where a platform's skill, hooks, and shared-doc-section live.
+
+    `hook_template` / `hook_path` describe the primary hook and are kept for
+    backward compatibility (docs and the legacy `render_hook` path read them).
+    `extra_hooks` carries any additional hooks a platform installs alongside it.
+    `hooks` is the unified view install / uninstall / status iterate over.
+    """
 
     name: str
     description: str
@@ -23,6 +42,15 @@ class PlatformSpec:
     hook_template: str | None
     hook_path: str | None
     mcp_config_path: str | None
+    extra_hooks: tuple[HookSpec, ...] = ()
+
+    @property
+    def hooks(self) -> tuple[HookSpec, ...]:
+        """Every hook this platform installs, primary first then extras."""
+        primary: tuple[HookSpec, ...] = ()
+        if self.hook_template is not None and self.hook_path is not None:
+            primary = (HookSpec(template=self.hook_template, dest_path=self.hook_path),)
+        return primary + self.extra_hooks
 
 
 _STELE_DESCRIPTION = (
@@ -43,6 +71,12 @@ PLATFORM_CONFIG: dict[str, PlatformSpec] = {
         hook_template="hooks/claude-code.sh.j2",
         hook_path="~/.claude/hooks/stele-large-output.sh",
         mcp_config_path="~/.claude/mcp.json",
+        extra_hooks=(
+            HookSpec(
+                template="hooks/claude-code-ingest.sh.j2",
+                dest_path="~/.claude/hooks/stele-session-ingest.sh",
+            ),
+        ),
     ),
     "codex": PlatformSpec(
         name="codex",

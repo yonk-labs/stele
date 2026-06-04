@@ -10,7 +10,7 @@ from importlib.resources import files
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
-from stele.packaging.platforms import PLATFORM_CONFIG, PlatformSpec
+from stele.packaging.platforms import PLATFORM_CONFIG, HookSpec, PlatformSpec
 
 _TEMPLATES_DIR = files("stele.packaging").joinpath("templates")
 
@@ -69,3 +69,11 @@ def render_hook(platform_name: str) -> str | None:
     if spec.hook_template is None:
         return None
     return _env().get_template(spec.hook_template).render(**_ctx(spec))
+
+
+def render_hook_spec(platform_name: str, hook: HookSpec) -> str:
+    """Render one `HookSpec` with the shared context plus the hook's own context."""
+    spec = PLATFORM_CONFIG[platform_name]
+    ctx = _ctx(spec)
+    ctx.update(hook.context)
+    return _env().get_template(hook.template).render(**ctx)
