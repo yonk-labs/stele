@@ -1,8 +1,8 @@
 # Current Status
 
-Date: 2026-06-04 · Version: **0.6.0** (+ unreleased work on main)
+Date: 2026-06-04 · Version: **0.6.1**
 
-## Unreleased (on main, 2026-06-04)
+## 0.6.1 (2026-06-04)
 
 Episodic recall, complete (issue #48, all 3 phases): an `episodic` recall
 strategy (session = artifact + its back-linked memories, time-aware via
@@ -10,10 +10,12 @@ strategy (session = artifact + its back-linked memories, time-aware via
 distill views: `episodes` (one summary per session), `timeline` (oldest-first
 narrative), `spans` (cross-session arcs clustered by embedding similarity).
 Episodic now covers the classical episodic memory category end to end (see
-[memory-types.md](memory-types.md#relation-to-the-classical-taxonomy-semantic--episodic--procedural)).
-Also: `stele install` now lays down the SessionEnd ingest hook (multi-hook
-`PlatformSpec`). Not yet tagged/released; see [`CHANGELOG.md`](../CHANGELOG.md)
-[Unreleased].
+[memory-types.md](memory-types.md#relation-to-the-classical-taxonomy-semantic--episodic--procedural)
+and the step-by-step [episodic-recall-guide.md](episodic-recall-guide.md)). Also:
+`stele install` lays down the SessionEnd ingest hook (multi-hook `PlatformSpec`),
+the `stele distill` CLI gained the episodic modes, and the two new embedding
+thresholds were calibrated for bge (spans 0.82 to 0.65, timeline floor 0.3 to
+0.55). See [`CHANGELOG.md`](../CHANGELOG.md).
 
 ## 0.6.0 (2026-06-03)
 

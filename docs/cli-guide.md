@@ -480,9 +480,20 @@ Retention tiers (measured on a real 24MB session, percent of raw stored):
 [`docs/distillation-flow.md`](distillation-flow.md) for the mechanics and the
 SessionEnd hook.
 
+## Distill subcommands
+
+`stele distill <mode> --namespace NS` renders a distilled view as JSON. Modes:
+`facts`, `precedents`, `state`, `skills`, `best_practices`, `rules`, plus the
+episodic trio `episodes`, `timeline`, `spans`. The CLI/MCP take `mode` +
+`namespace`; the advanced filters (`since` / `until` / `query` / `threshold`)
+are on the Python facade. See
+[`docs/episodic-recall-guide.md`](episodic-recall-guide.md) for the episodic
+views with example output.
+
 ## See also
 
 - [`docs/quickstart.md`](quickstart.md) — 5-minute happy path.
+- [`docs/episodic-recall-guide.md`](episodic-recall-guide.md) — episodes / timeline / spans, step by step with example output.
 - [`docs/mcp-tools.md`](mcp-tools.md) — reference for all 18 MCP tools.
 - [`docs/packaging-auth-model.md`](packaging-auth-model.md) — why no auth in v1.
 - [`docs/packaging-smoke-checklist.md`](packaging-smoke-checklist.md) — manual smoke before releases.

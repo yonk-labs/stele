@@ -28,7 +28,10 @@ from stele.distill.models import DistilledItem, DistilledView, EpisodeItem
 # this fraction of the query's content tokens appear in its text.
 _TOKEN_OVERLAP_FLOOR = 0.5
 # An episode passes the semantic (embedder) query filter at or above this cosine.
-_QUERY_SIM_FLOOR = 0.3
+# Calibrated for bge-base, which runs hot: even unrelated short texts sit near
+# ~0.5, so a low floor lets everything through. 0.55 keeps on-topic episodes and
+# drops off-topic ones (measured: relevant ~0.64, unrelated ~0.50).
+_QUERY_SIM_FLOOR = 0.55
 
 
 def _tokens(text: str) -> set[str]:
