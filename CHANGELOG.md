@@ -5,6 +5,36 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [Unreleased]
+
+Episodic recall (the classical episodic memory category, previously under-served)
+and the self-installing session-ingest hook. All additive.
+
+### Added
+
+- **Episodic recall** (issue #48, all 3 phases):
+  - `recall(strategy="episodic", query, scope, hard_temporal=False)` + a
+    `Stele.recall.episodic(...)` shim. Retrieves a session (the artifact + its
+    back-linked memories), time-aware via `parse_temporal`: soft boost by
+    default (never excludes), `hard_temporal=True` opt-in, empty-window fallback.
+  - `memory.by_source_ref(scope, ref)` back-link query across all stores (the
+    episode to its memories link).
+  - `Stele.distill.episodes(scope, since, until)`: the 7th distill view, one
+    computed-on-read episode summary per session (`EpisodeItem`).
+  - `Stele.distill.timeline(scope, since, until, query)`: episodes ordered
+    oldest-first (the narrative sequence), windowed + optionally query-filtered.
+  - `Stele.distill.spans(scope, threshold)`: cross-session arcs, clustering
+    episodes by embedding similarity (`SpanItem`); one-episode-per-span fallback
+    with no embedder.
+  - `stele_distill` MCP tool gains modes `episodes` / `timeline` / `spans` (no
+    new tool; the 18-tool surface is unchanged). Recall invariant preserved
+    (no LLM/graph imports).
+- **`stele install` wires the SessionEnd ingest hook.** `PlatformSpec` now
+  manages multiple hooks per platform (`HookSpec` + `extra_hooks`); claude-code
+  installs `stele-session-ingest.sh` alongside the large-output hook. Install
+  drops the script and prints the `settings.json` SessionEnd snippet (no
+  settings.json writer exists; matches the established script-drop pattern).
+
 ## [0.6.0] - 2026-06-03
 
 Session reduction at the ingestion boundary, and the live conversation feed that
