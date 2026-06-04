@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from stele.core.artifact import ArtifactRecord, SearchHit, estimate_tokens
+from stele.core.memory_record import MemoryRecord
 from stele.recall.base import _RecallDeps
 from stele.recall.models import (
     Citation,
@@ -97,6 +98,21 @@ def _soft_boost(score: float, when: datetime, window: TemporalFilter | None) -> 
 
 def _record_when(record: ArtifactRecord) -> datetime:
     return _episode_when(dict(record.metadata), record.created_at)
+
+
+def _episode_summary(record: ArtifactRecord, memories: Sequence[MemoryRecord]) -> str:
+    """Prefer a distilled 'what happened' summary (the Phase 2 episode view's
+    deterministic composition over the session's memories) when the episode has
+    back-linked memories; fall back to the raw artifact summary otherwise.
+
+    Reuses ``distill.episodes._compose_summary`` so the recall and distill
+    surfaces describe an episode identically. That helper is pure and
+    deterministic (no LLM, no graph), so the recall invariant is preserved."""
+    if not memories:
+        return record.summary
+    from stele.distill.episodes import _compose_summary
+
+    return _compose_summary(record, list(memories))
 
 
 def _is_session_record(record: ArtifactRecord) -> bool:
@@ -208,7 +224,7 @@ class EpisodicStrategy:
         return EpisodeHit(
             session_id=rec.session_id,
             when=candidate.when,
-            summary=rec.summary,
+            summary=_episode_summary(rec, memories),
             ref=rec.reference,
             score=_soft_boost(candidate.base_score, candidate.when, window),
             memories=memories,

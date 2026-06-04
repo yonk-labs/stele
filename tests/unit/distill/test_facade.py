@@ -6,10 +6,13 @@ from stele import Stele
 from stele.distill.models import DistilledView
 
 
-def test_distill_facade_attaches_with_six_methods():
+def test_distill_facade_attaches_with_seven_methods():
     s = Stele.from_config({"backend": {"type": "memory"}})
     d = s.distill
-    for m in ("facts", "precedents", "state", "skills", "best_practices", "rules"):
+    for m in (
+        "facts", "precedents", "state", "skills", "best_practices", "rules",
+        "episodes",
+    ):
         assert callable(getattr(d, m))
 
 

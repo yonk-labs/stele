@@ -51,3 +51,36 @@ def test_distill_rejects_unknown_mode() -> None:
     h = _handlers(s)
     out = h["stele_distill"](mode="bogus", namespace="x")  # type: ignore[operator]
     assert out.get("error", {}).get("code") == "VALIDATION"
+
+
+def _populate_episode(s: Stele, ns: str) -> None:
+    scope = MemoryScope(namespace=ns)
+    ref = str(
+        s.store(
+            "auth session",
+            namespace=ns,
+            session_id="sess-a",
+            metadata={"source": "session-ingest"},
+        ).reference
+    )
+    s.memory.add(
+        text="switched to keep120",
+        kind="decision",
+        source_refs=[ref],
+        scope=scope,
+        summary="switch to keep120",
+    )
+
+
+def test_distill_episodes_mcp_matches_facade() -> None:
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    ns = "parity-distill-episodes"
+    _populate_episode(s, ns)
+    facade_view = asyncio.run(s.distill.episodes(MemoryScope(namespace=ns)))
+    h = _handlers(s)
+    out = h["stele_distill"](mode="episodes", namespace=ns)  # type: ignore[operator]
+    assert "error" not in out, out
+    mcp_items = out["view"]["items"]
+    assert len(mcp_items) == len(facade_view.items) == 1
+    assert all(it["source_refs"] for it in mcp_items)  # evidence carried
+    assert "switch to keep120" in mcp_items[0]["decisions"]

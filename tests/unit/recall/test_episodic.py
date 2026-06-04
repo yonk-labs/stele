@@ -243,6 +243,52 @@ def test_episodic_empty_window_falls_back_to_unfiltered() -> None:
     stele.close()
 
 
+def test_episodic_prefers_distilled_episode_summary() -> None:
+    """When an episode has back-linked memories, the EpisodeHit.summary uses the
+    Phase 2 distilled 'what happened' composition (decisions + pitfalls + count)
+    instead of the raw artifact summary."""
+    stele = _stele()
+    scope = MemoryScope(namespace="default")
+    ref = _ingest_episode(
+        stele,
+        session_id="sess-distill",
+        text="a long raw session transcript about many things",
+        when=datetime.now(UTC) - timedelta(days=1),
+    )
+    stele.memory.add(
+        text="we switched the cadence to keep120",
+        kind="decision",
+        source_refs=[ref],
+        scope=scope,
+        summary="switch cadence to keep120",
+    )
+    result = stele.recall.episodic(query="cadence", scope=scope)
+    assert result.episodes
+    top = result.episodes[0]
+    # The composed summary leads with the decision, not the raw artifact prose.
+    assert "switch cadence to keep120" in top.summary
+    assert top.summary.startswith("decided ")
+    stele.close()
+
+
+def test_episodic_summary_falls_back_to_artifact_when_no_memories() -> None:
+    """An episode candidate with no back-linked memories keeps the raw artifact
+    summary (the deterministic composition only kicks in with memories)."""
+    stele = _stele()
+    scope = MemoryScope(namespace="default")
+    ref = _ingest_episode(
+        stele,
+        session_id="sess-bare",
+        text="orphan session with no distilled memories",
+        when=datetime.now(UTC) - timedelta(days=1),
+    )
+    result = stele.recall.episodic(query="orphan session", scope=scope)
+    top = next(ep for ep in result.episodes if ep.ref == ref)
+    assert top.memories == []
+    assert "orphan session" in top.summary  # artifact summary, not a composed line
+    stele.close()
+
+
 def test_episodic_via_facade_shim() -> None:
     stele = _stele()
     scope = MemoryScope(namespace="default")
