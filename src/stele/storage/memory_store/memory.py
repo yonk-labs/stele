@@ -293,5 +293,24 @@ class InProcessMemoryStore:
             ScoredMemoryHit(record=rec, score=raw / max_score) for rec, raw in top
         ]
 
+    def by_source_ref(
+        self,
+        scope: MemoryScope,
+        ref: str,
+        *,
+        status_filter: tuple[MemoryStatus, ...] = ("active",),
+    ) -> builtins.list[MemoryRecord]:
+        out: list[MemoryRecord] = []
+        for record in self._records.values():
+            if not _scope_matches(record.scope, scope):
+                continue
+            if record.status not in status_filter:
+                continue
+            if ref not in record.source_refs:
+                continue
+            out.append(record)
+        out.sort(key=lambda r: r.effective_from, reverse=True)
+        return out
+
     def close(self) -> None:
         return None

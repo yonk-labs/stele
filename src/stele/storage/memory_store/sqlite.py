@@ -489,6 +489,37 @@ class SQLiteMemoryStore:
                 result.append(ScoredMemoryHit(record=rec, score=row["raw_score"] / max_score))
         return result
 
+    def by_source_ref(
+        self,
+        scope: MemoryScope,
+        ref: str,
+        *,
+        status_filter: tuple[str, ...] = ("active",),
+    ) -> list[MemoryRecord]:
+        sql = [
+            "SELECT * FROM memories WHERE namespace = ?",
+            "AND EXISTS ("
+            "  SELECT 1 FROM json_each(memories.source_refs) j WHERE j.value = ?"
+            ")",
+        ]
+        params: list[object] = [scope.namespace, ref]
+        if status_filter:
+            placeholders = ",".join("?" * len(status_filter))
+            sql.append(f"AND status IN ({placeholders})")
+            params.extend(status_filter)
+        for field, value in (
+            ("user_id", scope.user_id),
+            ("agent_id", scope.agent_id),
+            ("app_id", scope.app_id),
+            ("session_id", scope.session_id),
+        ):
+            if value is not None:
+                sql.append(f"AND {field} = ?")
+                params.append(value)
+        sql.append("ORDER BY effective_from DESC")
+        cur = self.conn.execute(" ".join(sql), params)
+        return [_row_to_record(dict(row)) for row in cur.fetchall()]
+
     def list(
         self,
         scope: MemoryScope,

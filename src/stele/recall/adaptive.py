@@ -5,6 +5,7 @@ from __future__ import annotations
 from stele.recall.abstain import AbstainStrategy
 from stele.recall.artifact_search import ArtifactSearchStrategy
 from stele.recall.base import Strategy, _RecallDeps
+from stele.recall.episodic import EpisodicStrategy
 from stele.recall.graph_search import GraphSearchStrategy
 from stele.recall.memory_search import MemorySearchStrategy
 from stele.recall.models import (
@@ -33,6 +34,7 @@ class AdaptiveStrategy:
             "graph_search": GraphSearchStrategy(),
             "raw_fetch": RawFetchStrategy(),
             "abstain": AbstainStrategy(),
+            "episodic": EpisodicStrategy(),
         }
 
     def execute(self, request: RecallRequest, deps: _RecallDeps) -> RecallResult:

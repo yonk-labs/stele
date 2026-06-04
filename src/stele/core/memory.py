@@ -361,5 +361,19 @@ class Memory:
             source_ref_filter=source_ref_filter,
         )
 
+    def by_source_ref(
+        self,
+        scope: MemoryScope,
+        ref: str,
+        *,
+        status_filter: tuple[MemoryStatus, ...] = ("active",),
+    ) -> builtins.list[MemoryRecord]:
+        """Return in-scope memories whose ``source_refs`` contains ``ref``.
+
+        The episodic back-link: given an episode's artifact ref, the
+        memories distilled from it. Active-head only by default; widen
+        ``status_filter`` to include superseded/retracted history."""
+        return self._store.by_source_ref(scope, ref, status_filter=status_filter)
+
     def close(self) -> None:
         self._store.close()

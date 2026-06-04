@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from stele.core.memory_record import MemoryScope
+from stele.core.memory_record import MemoryRecord, MemoryScope
 
 StrategyName = Literal[
     "summary_only",
@@ -20,6 +20,7 @@ StrategyName = Literal[
     "raw_fetch",
     "abstain",
     "digest",
+    "episodic",
 ]
 
 CitationKind = Literal["memory", "artifact", "chunk"]
@@ -89,10 +90,29 @@ class RecallRequest(BaseModel):
     version_filter: str | None = None
     retracted_behavior: Literal["hide", "flag", "surface_both"] | None = None
     supersession_behavior: Literal["hide", "prefer_new", "surface_both"] | None = None
+    # Episodic recall (Phase 1): temporal is a soft boost by default; opt in to
+    # a hard window restriction. Default False preserves all existing callers.
+    hard_temporal: bool = False
+
+
+class EpisodeHit(BaseModel):
+    """One recalled episode: a past session artifact plus the memories
+    back-linked to it. ``when`` is the episode's temporal anchor
+    (``metadata.session_mtime`` if present, else the artifact ``created_at``).
+    ``score`` is the soft-boosted semantic rank of the session text."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    session_id: str | None = None
+    when: datetime | None = None
+    summary: str
+    ref: str
+    score: float
+    memories: list[MemoryRecord] = Field(default_factory=list)
 
 
 class RecallResult(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     strategy_used: StrategyName
     context: str
@@ -103,3 +123,6 @@ class RecallResult(BaseModel):
     stats: RecallStats
     abstained: bool = False
     abstain_reason: str | None = None
+    # Episodic recall (Phase 1): populated only by the episodic strategy;
+    # every other strategy leaves it empty so the contract is unchanged.
+    episodes: list[EpisodeHit] = Field(default_factory=list)
