@@ -1,6 +1,19 @@
 # Current Status
 
-Date: 2026-06-03 · Version: **0.6.0**
+Date: 2026-06-04 · Version: **0.6.0** (+ unreleased work on main)
+
+## Unreleased (on main, 2026-06-04)
+
+Episodic recall, complete (issue #48, all 3 phases): an `episodic` recall
+strategy (session = artifact + its back-linked memories, time-aware via
+`parse_temporal` with soft-boost default), `memory.by_source_ref`, and three new
+distill views: `episodes` (one summary per session), `timeline` (oldest-first
+narrative), `spans` (cross-session arcs clustered by embedding similarity).
+Episodic now covers the classical episodic memory category end to end (see
+[memory-types.md](memory-types.md#relation-to-the-classical-taxonomy-semantic--episodic--procedural)).
+Also: `stele install` now lays down the SessionEnd ingest hook (multi-hook
+`PlatformSpec`). Not yet tagged/released; see [`CHANGELOG.md`](../CHANGELOG.md)
+[Unreleased].
 
 ## 0.6.0 (2026-06-03)
 
