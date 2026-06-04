@@ -77,6 +77,22 @@ class Distill:
 
         return await distill_episodes(self, scope, since, until)
 
+    async def timeline(
+        self,
+        scope: MemoryScope,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        query: str | None = None,
+    ) -> DistilledView:
+        from stele.distill.timeline import distill_timeline
+
+        return await distill_timeline(self, scope, since, until, query)
+
+    async def spans(self, scope: MemoryScope, threshold: float = 0.82) -> DistilledView:
+        from stele.distill.spans import distill_spans
+
+        return await distill_spans(self, scope, threshold)
+
     def submit(self, mode: str, scope: MemoryScope, **kwargs: object) -> DistillJob:
         """Kick off a distill run in the background. Returns a handle immediately."""
         method = getattr(self, mode)  # one of the seven async view methods

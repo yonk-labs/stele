@@ -113,12 +113,19 @@ def _refine_summary(llm: LLMSynthesizer, deterministic: str, mems: list[MemoryRe
     return reply
 
 
-async def distill_episodes(
+def build_episodes(
     d: object,
     scope: MemoryScope,
     since: datetime | None = None,
     until: datetime | None = None,
-) -> DistilledView:
+) -> tuple[list[EpisodeItem], bool]:
+    """Compute the scope's episodes once: group ACTIVE memories by their session
+    artifact, window by ``since``/``until``, and synthesize one
+    :class:`EpisodeItem` per session (deterministic, optional LLM refine).
+
+    Returns ``(episodes, used_llm)`` UNSORTED. The shared core for the episodes,
+    timeline, and spans views; each orders/clusters the result its own way so
+    none of them re-derives the grouping."""
     memory = d._memory  # type: ignore[attr-defined]
     stele = d._stele  # type: ignore[attr-defined]
     llm, allowed = _llm_and_allowed(d)
@@ -165,6 +172,16 @@ async def distill_episodes(
                 source_refs=merged_refs,
             )
         )
+    return episodes, allowed
+
+
+async def distill_episodes(
+    d: object,
+    scope: MemoryScope,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> DistilledView:
+    episodes, used_llm = build_episodes(d, scope, since, until)
 
     # Newest-first by the episode's temporal anchor.
     episodes.sort(
@@ -177,6 +194,6 @@ async def distill_episodes(
     return DistilledView(
         mode="episodes",
         items=items,
-        used_llm=allowed,
+        used_llm=used_llm,
         stats={"n": float(len(items))},
     )

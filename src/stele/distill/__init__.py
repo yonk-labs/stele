@@ -1,3 +1,3 @@
-from stele.distill.models import DistilledItem, DistilledView, Rule
+from stele.distill.models import DistilledItem, DistilledView, EpisodeItem, Rule, SpanItem
 
-__all__ = ["DistilledItem", "DistilledView", "Rule"]
+__all__ = ["DistilledItem", "DistilledView", "EpisodeItem", "Rule", "SpanItem"]

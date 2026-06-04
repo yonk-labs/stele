@@ -104,7 +104,9 @@ Phase 3 (timeline, spans) are out of scope per the spec.
   strategies.
 
 ## Deferred (not this plan)
-- Phase 3: `timeline()` ordered view + cross-session span linking via the graph.
+- Phase 3: `timeline()` ordered view + cross-session span linking. **DONE** (see
+  the Phase 3 addendum below). Span linking landed as embedding-similarity
+  clustering over episode summaries rather than a graph traversal.
 
 ---
 
@@ -175,3 +177,81 @@ refine. Wire the Phase 1 `episodic` recall strategy to reuse the composition.
 - Episodic recall reuses the composition for `EpisodeHit.summary`.
 - ruff + bare mypy (`packages=["stele"]`) clean; new unit + contract tests
   green; no change to the other six views or the 18-tool MCP surface.
+
+---
+
+## Phase 3: timeline + cross-session spans (DONE)
+
+**Goal:** Add the eighth and ninth distill views, `timeline` and `spans`, that
+complete episodic recall. Both build ON TOP of the Phase 2 episode computation
+(no re-derivation of the grouping), are computed on read, oracle-free, and
+reachable via `submit(mode, ...)` and the `stele_distill` MCP mode set (no new
+MCP tool; the 18-tool surface is unchanged).
+
+### Task P3-0: share the episode core + `SpanItem` model
+- [x] Extract `build_episodes(d, scope, since, until) -> (list[EpisodeItem],
+  used_llm)` from `distill_episodes` in `src/stele/distill/episodes.py`, so
+  timeline and spans reuse the grouping/windowing instead of duplicating it.
+  `distill_episodes` now sorts the result newest-first; behavior unchanged.
+- [x] Add `SpanItem(DistilledItem)` in `src/stele/distill/models.py`, mirroring
+  how `EpisodeItem`/`Rule` extend it. Fields: `span_id: str`, `refs: list[str]`,
+  `session_ids: list[str]`, `started: datetime | None`, `ended: datetime | None`
+  (plus the inherited `summary`, `detail`, `confidence`, `source_refs`). Widen
+  `DistilledView.items` to include `SpanItem`.
+
+### Task P3-1: `timeline` distill view
+- [x] Create `src/stele/distill/timeline.py::distill_timeline(d, scope,
+  since=None, until=None, query=None)`. Reuse `build_episodes`, then order
+  OLDEST-first (the narrative sequence; the reverse of `episodes()`).
+- [x] Optional `query` filter: semantic when an embedder is injected
+  (`stele._distill_embedder`, cosine of the episode text), with a deterministic
+  token-overlap fallback when none is injected (so it never errors and stays
+  oracle-free). No LLM client imported at module top (architecture-gated).
+- [x] Add `Distill.timeline(scope, since=None, until=None, query=None)` async
+  method in `src/stele/distill/facade.py` (flows through `submit`/`result`).
+
+### Task P3-2: `spans` distill view (cross-session arcs)
+- [x] Create `src/stele/distill/spans.py::distill_spans(d, scope,
+  threshold=0.82)`. Reuse `build_episodes`, then cluster the episodes by the
+  embedding similarity of their summaries, REUSING `distill.base.consolidate`'s
+  greedy cosine-threshold pattern (`Embedder` + `_cosine`, cluster when cosine
+  >= threshold). Requires an injected embedder (`stele._distill_embedder`, same
+  as `consolidate`); with NO embedder injected, the deterministic fallback is
+  one-episode-per-span (each episode its own span) so it never errors.
+- [x] Each `SpanItem`: a deterministic `span_id` (sha1 of member identity),
+  member `refs`/`session_ids`, a span summary composed deterministically from
+  the member episode summaries (optional injected-LLM refine with deterministic
+  fallback, like `episodes()`), and a `started`/`ended` time range. No LLM
+  client imported at module top (architecture-gated).
+- [x] Add `Distill.spans(scope, threshold=0.82)` async method in `facade.py`.
+
+### Task P3-3: MCP wiring
+- [x] Extend the `stele_distill` handler's valid-mode set with `timeline` and
+  `spans` and update its description. No new MCP tool (18-tool surface pinned by
+  `tests/unit/mcp/test_tools.py`), exactly as Phase 2 added `episodes`.
+
+### Task P3-4: tests
+- [x] Unit (`tests/unit/distill/test_timeline.py`): orders oldest-first;
+  respects `since`/`until`; query filter (deterministic token-overlap + injected
+  semantic embedder); no-query keeps all.
+- [x] Unit (`tests/unit/distill/test_spans.py`): clusters embedding-similar
+  episodes into one span and keeps distinct ones separate (deterministic
+  `_BowEmbedder` stub); no-embedder one-per-span fallback; deterministic
+  `span_id`; LLM-refine path with deterministic fallback on failure.
+- [x] Contract (`tests/contract/test_distill_timeline_contract.py`,
+  `tests/contract/test_distill_spans_contract.py`): `timeline` + `spans` across
+  `BACKENDS`, each test using a UNIQUE namespace (the postgres bench DB is
+  shared) and asserting only namespace-local, order-free facts (ordering is
+  anchored on explicit `session_mtime`).
+- [x] Contract parity (`tests/contract/test_distill_surface_parity.py`): the
+  `timeline` + `spans` MCP handler output matches the facade view.
+
+### Done criteria (Phase 3)
+- `Stele.distill.timeline(...)` returns episodes oldest-first, windowed,
+  optionally query-filtered; `Stele.distill.spans(...)` returns cross-session
+  spans (clustered with an embedder, one-per-span without).
+- Both computed on read, oracle-free, embedder/LLM injected + optional with
+  deterministic fallbacks; reachable via the `stele_distill` mode set.
+- ruff + bare mypy (`packages=["stele"]`) clean; new unit + contract tests
+  green; no change to the other views or the 18-tool MCP surface. Episodic
+  recall is COMPLETE.

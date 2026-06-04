@@ -42,10 +42,27 @@ class EpisodeItem(DistilledItem):
     facts: list[str] = Field(default_factory=list)
 
 
+class SpanItem(DistilledItem):
+    """A cross-session span: a topic or task arc that crosses several sessions
+    (the whole auth refactor, not one sitting). Built by clustering episodes by
+    the embedding similarity of their summaries (Phase 3); with no embedder
+    injected, every episode is its own one-member span.
+
+    ``span_id`` is deterministic (derived from the member session ids). ``refs``
+    and ``session_ids`` are the member episodes. ``started`` / ``ended`` bracket
+    the span's time range (the earliest and latest member ``when``)."""
+
+    span_id: str = ""
+    refs: list[str] = Field(default_factory=list)
+    session_ids: list[str] = Field(default_factory=list)
+    started: datetime | None = None
+    ended: datetime | None = None
+
+
 class DistilledView(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     mode: str
-    items: list[Rule | EpisodeItem | DistilledItem] = Field(default_factory=list)
+    items: list[Rule | EpisodeItem | SpanItem | DistilledItem] = Field(default_factory=list)
     used_llm: bool = False
     stats: dict[str, float] = Field(default_factory=dict)
