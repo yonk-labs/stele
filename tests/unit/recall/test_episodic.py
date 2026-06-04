@@ -172,6 +172,77 @@ def test_episodic_soft_boost_surfaces_in_window_episode_first() -> None:
     stele.close()
 
 
+def test_episodic_hard_temporal_excludes_out_of_window() -> None:
+    stele = _stele()
+    scope = MemoryScope(namespace="default")
+    now = datetime.now(UTC)
+    _, window = parse_temporal("what was I building last week", now)
+    assert window is not None and window.after is not None
+
+    in_window = window.after + timedelta(hours=12)
+    out_window = now
+
+    recent_ref = _ingest_episode(
+        stele,
+        session_id="sess-recent",
+        text="building the dashboard widget layout",
+        when=out_window,
+    )
+    older_ref = _ingest_episode(
+        stele,
+        session_id="sess-older",
+        text="building the dashboard widget layout",
+        when=in_window,
+    )
+    for ref in (recent_ref, older_ref):
+        stele.memory.add(
+            text=f"note for {ref}",
+            kind="fact",
+            source_refs=[ref],
+            scope=scope,
+        )
+
+    result = stele.recall.episodic(
+        query="what was I building last week", scope=scope, hard_temporal=True
+    )
+    refs = {ep.ref for ep in result.episodes}
+    assert refs == {older_ref}, "hard_temporal must drop the out-of-window episode"
+    stele.close()
+
+
+def test_episodic_empty_window_falls_back_to_unfiltered() -> None:
+    """Anti-backfire: a window that matches too few candidates must NOT empty
+    the result; it falls back to the unfiltered rank."""
+    stele = _stele()
+    scope = MemoryScope(namespace="default")
+    now = datetime.now(UTC)
+    # Every episode is THIS week, so none land inside "last week".
+    refs = [
+        _ingest_episode(
+            stele,
+            session_id=f"sess-{i}",
+            text="building the dashboard widget layout",
+            when=now - timedelta(hours=i),
+        )
+        for i in range(3)
+    ]
+    for ref in refs:
+        stele.memory.add(
+            text=f"note for {ref}",
+            kind="fact",
+            source_refs=[ref],
+            scope=scope,
+        )
+
+    # Even with hard_temporal, an empty window must not silently hide the answer.
+    result = stele.recall.episodic(
+        query="what was I building last week", scope=scope, hard_temporal=True
+    )
+    assert result.episodes, "empty window must fall back to unfiltered rank"
+    assert {ep.ref for ep in result.episodes} == set(refs)
+    stele.close()
+
+
 def test_episodic_via_facade_shim() -> None:
     stele = _stele()
     scope = MemoryScope(namespace="default")
