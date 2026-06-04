@@ -179,8 +179,11 @@ A ready-made hook script that parses the stdin JSON itself ships at
 `packaging/templates/hooks/claude-code-ingest.sh.j2` (point the hook at the
 rendered `.sh` instead of the inline `jq` form if you prefer). Retention tiers
 are flags (`--result-chars 300`, `--full`, `--keep-raw`) or config defaults
-(`ExtractionConfig.reduce_*`). `stele install` does not yet wire this hook for
-you; add it to `settings.json` manually. The periodic distill (Phase B) then
+(`ExtractionConfig.reduce_*`). `stele install --platform claude-code` now drops
+the rendered script at `~/.claude/hooks/stele-session-ingest.sh` (chmod +x) and
+prints the `settings.json` snippet to register it. Claude Code only runs hooks
+listed in `settings.json`, so you still add the `SessionEnd` entry yourself
+(install does not edit `settings.json`). The periodic distill (Phase B) then
 reads these reduced artifacts. See
 [`docs/distillation-flow.md`](distillation-flow.md).
 

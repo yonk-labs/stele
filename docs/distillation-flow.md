@@ -39,7 +39,7 @@ Distillation is deliberately split from ingestion. They run on different clocks.
 | Reduce one event (stream/parse filter) | `extraction.session.reduce_event(event, cfg)` | shipped 0.6.0 |
 | Reduction knobs | `ExtractionConfig.reduce_*` (`result_chars=120`, ...) | shipped 0.6.0 |
 | Ingest a session (reduce + store) | `extraction.ingest.ingest_session` / `stele-ingest` CLI | shipped 0.6.0 |
-| Live conversation feed hook | `templates/hooks/claude-code-ingest.sh.j2` (SessionEnd) | shipped 0.6.0 (template; install is manual) |
+| Live conversation feed hook | `templates/hooks/claude-code-ingest.sh.j2` (SessionEnd) | `stele install --platform claude-code` drops the script + prints the `settings.json` snippet to register it |
 | Chunk index for retrieval | `IndexingConfig(mode=sync/async)` + chunk store | shipped |
 | Raw retention GC | `stele.cleanup_expired()` | shipped |
 | Distill one transcript | `stele.extract.from_session(transcript=, scope=, llm=)` | shipped 0.6.0 |

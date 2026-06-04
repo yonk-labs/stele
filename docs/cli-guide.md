@@ -129,7 +129,7 @@ stele uninstall --platform NAME       | --all
 
 | Platform | Skill | Hook | MCP config | Project doc |
 |---|---|---|---|---|
-| `claude-code` | `~/.claude/skills/stele/SKILL.md` | `~/.claude/hooks/stele-large-output.sh` | `~/.claude/mcp.json` | `CLAUDE.md` |
+| `claude-code` | `~/.claude/skills/stele/SKILL.md` | `~/.claude/hooks/stele-large-output.sh` + `~/.claude/hooks/stele-session-ingest.sh` | `~/.claude/mcp.json` | `CLAUDE.md` |
 | `codex` | `~/.agents/skills/stele/SKILL.md` | — | `~/.agents/mcp.json` | `AGENTS.md` |
 | `opencode` | `~/.config/opencode/skills/stele/SKILL.md` | `~/.config/opencode/plugins/stele.js` | `~/.config/opencode/mcp.json` | `AGENTS.md` |
 | `cursor` | `~/.cursor/skills/stele/SKILL.md` | `.cursor/rules/stele.mdc` (project) | `~/.cursor/mcp.json` | — |
