@@ -259,6 +259,32 @@ and especially resume/state) are exactly the ones dropping results guts; keep120
 protects all of them. precedents and best_practices are prose-borne, so they are
 nearly immune to the reduction either way.
 
+#### Extraction-prompt coverage of `instruction` / `preference` (fixed in 0.6.2)
+Reduction is not the only thing that can starve a view. The `skills` and
+`best_practices` views are **kind-gated to a single kind each** (`skills` <-
+`instruction`, `best_practices` <- `preference`), so each is only as rich as the
+extractor's emission of that one kind. Through 0.6.1 the extraction prompt
+(`_EXTRACT_PROMPT`) gave `instruction`/`preference` only a terse one-line gloss
+while the preamble pushed toward failure/fact signal, so a real LLM emitted them
+rarely and both views came out near-empty even on transcripts full of stated
+rules and preferences (issue #59).
+
+0.6.2 fixes the prompt (a per-kind bulleted list with a concrete example for every
+kind, plus an explicit "extract instructions and preferences" directive). Measured
+on 6 real transcripts (paired A/B, identical inputs, temp 0): behavioral
+extraction roughly doubled (46 -> 79), `preference` 9 -> 31; an A/A control put
+run-to-run jitter at 0 for `preference` and 5 for behavioral, and a per-window
+correlation (r ~ 0) showed the gain is not the `decision` drop relabeled.
+
+**Downstream action when upgrading from <= 0.6.1:** distilled memory is long-lived
+and Phase B is incremental (it only touches sessions newer than the watermark), so
+upgrading does **not** retroactively re-extract already-distilled history. If your
+`skills` / `best_practices` views are thin from an earlier run, re-distill the
+affected sessions after upgrading: reset the watermark (or pass an explicit
+`--since-days` / `--start` window) so `from_session` re-runs over them. New
+sessions pick up the fix automatically. Absolute counts are model-specific; the
+defensible result is the paired delta on identical inputs.
+
 ## Throughput (measured)
 
 The fleet run (both Sparks, 12 slots, 24 sessions) did 93 memories in 391s

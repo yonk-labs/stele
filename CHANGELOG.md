@@ -5,6 +5,38 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.6.2] - 2026-06-05
+
+Extraction-prompt fix for under-extracted behavioral memory. Reported by a
+downstream consumer (issue #59).
+
+### Fixed
+
+- **`extract.from_session` now surfaces `instruction` and `preference`
+  memories reliably** (issue #59). The `_EXTRACT_PROMPT` kind enumeration in
+  `extraction/session.py` gave those two kinds only a terse parenthetical gloss
+  while the preamble nudged hard toward failure/fact signal, so a real LLM
+  rarely emitted them. The distilled views that derive from them came out
+  near-empty: `skills` (from `instruction`) and `best_practices` (from
+  `preference`). The enumeration is now a per-kind bulleted list with a concrete
+  `e.g.` example for every kind, `instruction` is broadened from "a rule the
+  USER stated" to "the user or team stated... or a best practice", and an
+  explicit directive ("Extract instructions and preferences explicitly") was
+  added. Validated with a paired A/B over 6 real agent transcripts (60 windows,
+  identical inputs, `temperature=0`): behavioral extraction (instruction +
+  preference) roughly doubled (46 to 79), with `preference` the largest gainer
+  (9 to 31). An A/A control (same prompt twice) put run-to-run jitter at 0 for
+  `preference` and 5 for behavioral, so the +33 behavioral gain is ~7x the noise
+  floor; a per-window correlation showed it is not sourced from the concurrent
+  `decision` decrease (r ~ 0).
+
+  Upgrading from <= 0.6.1: distilled memory is long-lived and Phase B distill is
+  incremental, so upgrading does not re-extract already-distilled history.
+  Re-distill past sessions (reset the watermark, or pass `--since-days` /
+  `--start`) to backfill `skills` / `best_practices` from history; new sessions
+  pick up the fix automatically. See
+  [docs/guides/memory-distillation-guide.md](docs/guides/memory-distillation-guide.md#extraction-prompt-coverage-of-instruction--preference-fixed-in-062).
+
 ## [0.6.1] - 2026-06-04
 
 Episodic recall (the classical episodic memory category, previously under-served)
