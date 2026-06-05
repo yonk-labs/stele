@@ -162,6 +162,31 @@ Externally via MCP/CLI: `stele distill rules --namespace project-memory`
 (`stele_distill` tool over the wire). Inject an embedder for semantic dedup and
 an LLM for the refine/synthesis (both optional; deterministic without them).
 
+### What the views emit today (one-line memories), and known gaps
+The distilled views return **flat, one-line kinded memories**, not composed recipes.
+`skills` is a list of `instruction` one-liners, `best_practices` a list of
+`preference` one-liners, `precedents` a list of `decision` one-liners. There is no
+cross-kind composition into a named, triggerable how-to. A `distill.recipes()` view
+that composes precedents + best practices + facts into agent-skill-shaped recipes is
+**proposed, not shipped**: see
+[recipe-distiller-design.md](../specs/recipe-distiller-design.md) and the
+[spike findings](../benchmarks/findings/recipe-distillation-spike-2026-06-05.md).
+
+Three measured gaps to be aware of (2026-06-05 spike, 16 real sessions):
+- **No authorship / provenance.** Extraction discards turn role, so a human directive
+  and an agent musing are stored as indistinguishable memories across all kinds. ~62%
+  of extracted `instruction` items were the agent stating a rule to itself, not a user
+  directive. A provenance/authority axis is part of the proposed design.
+- **Precedent yield is corpus-dependent, and that is expected.** On real agent work
+  the extractor yields ~1.5 `decision`/session (25 faithful / 37 extended over 16
+  sessions). On conversational benchmark corpora (LoCoMo / LongMemEval) it yields ~0,
+  because chitchat contains no engineering decisions. A near-empty `precedents` view
+  usually means the corpus, not the extractor.
+- **The 3-window default under-mines large sessions.** `from_session` samples 3
+  failure-first windows; on large multi-MB sessions that leaves memory on the table
+  (raising to 6 windows ~doubled yield on this corpus). Fine for the corpus average
+  (~1.42 windows/session), worth raising `--windows` for big sessions.
+
 ### 4. Retention GC (scheduled, Phase A cleanup)
 ```bash
 # nightly: drop expired raw artifacts; distilled memory is untouched (no TTL)
