@@ -2,6 +2,22 @@
 
 Date: 2026-06-04 · Version: **0.6.1**
 
+## Proposed / in design (not shipped)
+
+**Recipe distiller + memory provenance (2026-06-05).** A `distill.recipes()` view
+that composes cross-kind memories (precedents + best practices + facts) into
+agent-skill-shaped recipes, plus a memory **provenance/authority** axis (human vs
+agent), the **materiality judge** extended to `facts`/`precedents`, and a review-queue
+governance layer (`review_state` new/accepted/rejected, `priority` low/med/high for an
+external curation harness). Validated by a throwaway spike on 16 real sessions; **no
+shipped code yet**. Design:
+[recipe-distiller-design.md](../specs/recipe-distiller-design.md). Findings:
+[recipe-distillation-spike-2026-06-05.md](../benchmarks/findings/recipe-distillation-spike-2026-06-05.md).
+Key results: the old store's precedent scarcity was a corpus artifact (real agent work
+yields ~1.5 `decision`/session, not 4); the shipped extractor discards turn role, so
+~62% of `instruction` memories were agent self-talk; max-authority attribution lifts
+instruction human-share 33% -> 55%; 52-58 coherent cross-kind recipes composed.
+
 ## 0.6.1 (2026-06-04)
 
 Episodic recall, complete (issue #48, all 3 phases): an `episodic` recall
