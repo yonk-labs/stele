@@ -225,11 +225,17 @@ Return ONLY a JSON array (no prose, no code fences). Each item is an object with
 keys "kind", "summary" (one specific line), and "detail" (short; include the
 failing command or approach if relevant).
 
-kind is one of: fact (a durable fact/result/state), decision (a choice + why),
-pitfall (something that FAILED or a deadend/mistake, with what went wrong),
-workaround (the fix), instruction (a rule the USER stated, always/never),
-preference (a stated preference). Skip chitchat. Only durable, reusable memory.
-If nothing durable, return [].
+kind is one of:
+- fact: a durable fact/result/state (e.g. "the API returns 400 when the id is missing")
+- decision: a choice + why (e.g. "chose Postgres 16 over MySQL for full-text search")
+- pitfall: something that FAILED, a deadend or mistake, with what went wrong
+- workaround: the fix that resolved a pitfall (include the remediation)
+- instruction: an explicit rule the user or team stated, ALWAYS/NEVER or a best
+  practice (e.g. "always run the tests before committing", "never use --no-verify")
+- preference: a stated or suggested preference (e.g. "prefer small PRs",
+  "use async/await over callbacks here")
+Extract instructions and preferences explicitly: they are sparse but guide future work.
+Skip chitchat. Only durable, reusable memory. If nothing durable, return [].
 
 WINDOW:
 {window}
