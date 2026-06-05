@@ -30,6 +30,13 @@ downstream consumer (issue #59).
   floor; a per-window correlation showed it is not sourced from the concurrent
   `decision` decrease (r ~ 0).
 
+  Upgrading from <= 0.6.1: distilled memory is long-lived and Phase B distill is
+  incremental, so upgrading does not re-extract already-distilled history.
+  Re-distill past sessions (reset the watermark, or pass `--since-days` /
+  `--start`) to backfill `skills` / `best_practices` from history; new sessions
+  pick up the fix automatically. See
+  [docs/guides/memory-distillation-guide.md](docs/guides/memory-distillation-guide.md#extraction-prompt-coverage-of-instruction--preference-fixed-in-062).
+
 ## [0.6.1] - 2026-06-04
 
 Episodic recall (the classical episodic memory category, previously under-served)
