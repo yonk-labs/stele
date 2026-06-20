@@ -337,7 +337,12 @@ class MemoryExtractor:
         for w_idx, window in windows(turns, max_chars=4000, limit=max_windows):
             for e_idx, mem in enumerate(extract_session_memories(llm, window)):
                 slotted.append(Slotted(order=(w_idx, e_idx), memory=mem, slot=slot_for(mem)))
-        chains, standalone = plan_chains(slotted)
+        if self._config.consolidation_enabled:
+            chains, standalone = plan_chains(slotted)
+        else:
+            # Consolidation off: commit every extracted fact standalone (no slot
+            # grouping, no supersession) — the pre-consolidation behavior.
+            chains, standalone = {}, slotted
 
         candidates: list[MemoryCandidate] = []
         accepted: list[AcceptedCandidate] = []

@@ -189,6 +189,11 @@ class RecallConfig(BaseModel):
 
 class ExtractionConfig(BaseModel):
     enabled: bool = True
+    # Evolving-fact consolidation in from_session: group facts into
+    # (subject, aspect) slots and supersede stale states. False = commit every
+    # extracted fact standalone (pre-consolidation behavior). The escape hatch
+    # and the A/B lever for measuring consolidation's effect.
+    consolidation_enabled: bool = True
     min_confidence: float = 0.6
     max_candidates_per_doc: int = 50
     overlay_patterns_enabled: bool = True
