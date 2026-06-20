@@ -36,6 +36,7 @@ class SessionMemory:
     kind: str  # a MemoryKind value
     summary: str
     detail: str
+    do_instead: str = ""  # pitfall remediation; surfaced by distill.rules (#62)
 
 
 @dataclass(frozen=True)
@@ -223,12 +224,21 @@ commands, deadends, rework, corrections, and what fixed them.
 
 Return ONLY a JSON array (no prose, no code fences). Each item is an object with
 keys "kind", "summary" (one specific line), and "detail" (short; include the
-failing command or approach if relevant).
+failing command or approach if relevant). A "pitfall" item may also include a
+"do_instead" key (see below).
 
 kind is one of:
 - fact: a durable fact/result/state (e.g. "the API returns 400 when the id is missing")
 - decision: a choice + why (e.g. "chose Postgres 16 over MySQL for full-text search")
-- pitfall: something that FAILED, a deadend or mistake, with what went wrong
+- pitfall: an action that was ATTEMPTED and FAILED or caused a problem. Phrase
+  "summary" as the specific action NOT to repeat, and include a "do_instead" key:
+  the in-family replacement to use instead (same tool/model/vendor family), or ""
+  if the window implies none. Do NOT tag a neutral fact, a normal/expected
+  behavior, or a design constraint as a pitfall; those are "fact". A pitfall is a
+  mistake someone MADE, e.g. summary "assumed the cache key was the bare
+  session_id" + do_instead "key the cache on session_id:turn_index". NOT pitfalls
+  (these are facts): "human-uploaded KBs skip entity extraction", "global hooks
+  run against the main checkout".
 - workaround: the fix that resolved a pitfall (include the remediation)
 - instruction: an explicit rule the user or team stated, ALWAYS/NEVER or a best
   practice (e.g. "always run the tests before committing", "never use --no-verify")
@@ -288,5 +298,8 @@ def extract_session_memories(llm: LLM, window: str) -> list[SessionMemory]:
         summary = str(obj.get("summary", "")).strip()
         if kind in KIND_VALUES and summary:
             detail = str(obj.get("detail", "")).strip()
-            out.append(SessionMemory(kind=kind, summary=summary, detail=detail))
+            out.append(SessionMemory(
+                kind=kind, summary=summary, detail=detail,
+                do_instead=str(obj.get("do_instead", "")).strip(),
+            ))
     return out

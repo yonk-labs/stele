@@ -294,11 +294,16 @@ class MemoryExtractor:
                     lede_source="key_fact", classifier_path="pattern_overlay",
                 )
                 candidates.append(cand)
+                meta = dict(base_meta)
+                if mem.do_instead:
+                    # #62: carry the pitfall remediation so distill.rules can
+                    # surface it (it reads metadata["do_instead"]).
+                    meta["do_instead"] = mem.do_instead
                 try:
                     result = self._memory.add(
                         text=mem.detail or mem.summary, kind=mem.kind,  # type: ignore[arg-type]
                         source_refs=[ref], scope=scope, summary=mem.summary,
-                        detail=mem.detail, confidence=0.8, metadata=dict(base_meta),
+                        detail=mem.detail, confidence=0.8, metadata=meta,
                     )
                 except ValidationError as exc:
                     rejected.append(RejectedCandidate(
