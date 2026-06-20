@@ -5,7 +5,9 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import logging
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -18,6 +20,14 @@ from stele.core.exceptions import (
 from stele.core.memory_record import MemoryScope
 from stele.extraction.candidates import extract_candidates
 from stele.extraction.classifier import classify_kind
+from stele.extraction.consolidation import (
+    SlotKey,
+    Slotted,
+    is_newer,
+    overlap_warnings,
+    plan_chains,
+    slot_for,
+)
 from stele.extraction.models import (
     AcceptedCandidate,
     ExtractionReport,
@@ -32,6 +42,34 @@ if TYPE_CHECKING:
     from stele.core.stash import Stele
     from stele.pii.regex import RegexPIIScrubber
     from stele.pii.scrubber import DisabledPIIScrubber
+
+_log = logging.getLogger(__name__)
+
+
+def _record_recency(metadata: dict[str, object], effective_from: datetime) -> float:
+    mt = metadata.get("session_mtime")
+    if isinstance(mt, (int, float)):
+        return float(mt)
+    return effective_from.timestamp()
+
+
+def _cross_session_superseded(
+    memory: object, lookup_scope: MemoryScope, slot: SlotKey, this_recency: float,
+) -> list[str]:
+    """Active memories in the SAME slot from other sessions that this session's
+    fact supersedes. Bias to false-negatives: exact subject+aspect match AND
+    strictly newer (by recency)."""
+    out: list[str] = []
+    for r in memory.list(lookup_scope, status_filter=["active"], limit=500):  # type: ignore[attr-defined]
+        meta = r.metadata or {}
+        if meta.get("canonical_subject") != slot.canonical_subject:
+            continue
+        if meta.get("aspect") != slot.aspect:
+            continue
+        if not is_newer(this_recency, _record_recency(meta, r.effective_from)):
+            continue
+        out.append(r.id)
+    return out
 
 
 def _fingerprint(config: ExtractionConfig) -> str:
@@ -250,6 +288,7 @@ class MemoryExtractor:
         self._check_enabled()
         from stele.extraction.session import (
             ReduceConfig,
+            SessionMemory,
             extract_session_memories,
             parse_transcript,
             render,
@@ -284,36 +323,71 @@ class MemoryExtractor:
         base_meta: dict[str, object] = {"source": "session", "extraction_config": fp}
         if session_mtime is not None:
             base_meta["session_mtime"] = session_mtime
+        slotted: list[Slotted] = []
+        for w_idx, window in windows(turns, max_chars=4000, limit=max_windows):
+            for e_idx, mem in enumerate(extract_session_memories(llm, window)):
+                slotted.append(Slotted(order=(w_idx, e_idx), memory=mem, slot=slot_for(mem)))
+        chains, standalone = plan_chains(slotted)
+
         candidates: list[MemoryCandidate] = []
         accepted: list[AcceptedCandidate] = []
         rejected: list[RejectedCandidate] = []
-        for _w_idx, window in windows(turns, max_chars=4000, limit=max_windows):
-            for mem in extract_session_memories(llm, window):
-                cand = MemoryCandidate(
-                    text=mem.summary, kind=mem.kind, confidence=0.8,  # type: ignore[arg-type]
-                    lede_source="key_fact", classifier_path="pattern_overlay",
+
+        def _commit(
+            mem: SessionMemory, *, supersedes: list[str], extra_meta: dict[str, object]
+        ) -> str | None:
+            cand = MemoryCandidate(
+                text=mem.summary, kind=mem.kind, confidence=0.8,  # type: ignore[arg-type]
+                lede_source="key_fact", classifier_path="pattern_overlay",
+            )
+            candidates.append(cand)
+            meta = dict(base_meta)
+            meta.update(extra_meta)
+            if mem.do_instead:
+                # #62: carry the pitfall remediation so distill.rules can
+                # surface it (it reads metadata["do_instead"]).
+                meta["do_instead"] = mem.do_instead
+            try:
+                result = self._memory.add(
+                    text=mem.detail or mem.summary, kind=mem.kind,  # type: ignore[arg-type]
+                    source_refs=[ref], scope=scope, summary=mem.summary,
+                    detail=mem.detail, confidence=0.8, metadata=meta,
+                    supersedes=supersedes,
                 )
-                candidates.append(cand)
-                meta = dict(base_meta)
-                if mem.do_instead:
-                    # #62: carry the pitfall remediation so distill.rules can
-                    # surface it (it reads metadata["do_instead"]).
-                    meta["do_instead"] = mem.do_instead
-                try:
-                    result = self._memory.add(
-                        text=mem.detail or mem.summary, kind=mem.kind,  # type: ignore[arg-type]
-                        source_refs=[ref], scope=scope, summary=mem.summary,
-                        detail=mem.detail, confidence=0.8, metadata=meta,
-                    )
-                except ValidationError as exc:
-                    rejected.append(RejectedCandidate(
-                        candidate=cand, reason="validation_error", error_message=str(exc)))
-                    continue
-                if result.duplicate_of is not None:
-                    rejected.append(RejectedCandidate(
-                        candidate=cand, reason="duplicate", duplicate_of=result.duplicate_of))
-                    continue
-                accepted.append(AcceptedCandidate(candidate=cand, stored_id=result.record.id))
+            except ValidationError as exc:
+                rejected.append(RejectedCandidate(
+                    candidate=cand, reason="validation_error", error_message=str(exc)))
+                return None
+            if result.duplicate_of is not None and not supersedes:
+                rejected.append(RejectedCandidate(
+                    candidate=cand, reason="duplicate", duplicate_of=result.duplicate_of))
+                return None
+            accepted.append(AcceptedCandidate(candidate=cand, stored_id=result.record.id))
+            return result.record.id
+
+        for it in standalone:
+            _commit(it.memory, supersedes=[], extra_meta={})
+
+        this_recency = session_mtime if session_mtime is not None else datetime.now(UTC).timestamp()
+        lookup_scope = scope.model_copy(update={"session_id": None})
+        for slot, states in chains.items():
+            slot_meta: dict[str, object] = {
+                "canonical_subject": slot.canonical_subject, "aspect": slot.aspect,
+            }
+            cross_ids = _cross_session_superseded(self._memory, lookup_scope, slot, this_recency)
+            prev_id: str | None = None
+            for it in states:  # already chronological from plan_chains
+                supersedes = [prev_id] if prev_id is not None else cross_ids
+                new_id = _commit(it.memory, supersedes=supersedes, extra_meta=slot_meta)
+                if new_id is not None:
+                    prev_id = new_id
+
+        for subj, aspects in overlap_warnings(chains):
+            _log.info(
+                "evolving-fact: subject %r carries multiple active aspects %s "
+                "(possible aspect drift; left distinct, not merged)", subj, aspects,
+            )
+
         return self._build_report(
             candidates=candidates, accepted=accepted, rejected=rejected, source_refs=[ref],
         )
