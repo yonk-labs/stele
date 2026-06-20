@@ -66,6 +66,24 @@ def test_as_of_returns_historical_state(tmp_path):
     assert "Test 1 not run" in {m.summary for m in hist}   # history preserved
 
 
+def test_consolidation_disabled_keeps_all_states_active(tmp_path):
+    cfg = StashConfig.model_validate({
+        "backend": {"type": "sqlite", "path": str(tmp_path / "stele.db")},
+        "extraction": {"enabled": True, "consolidation_enabled": False},
+    })
+    s = Stele(cfg)
+    scope = MemoryScope(namespace="off", session_id="s1")
+    transcript = [
+        {"role": "user", "content": "Test 1 not run; covers RAG. " + "x" * 4100},
+        {"role": "assistant", "content": "Test 1 passed; covers RAG and graph. " + "y" * 4100},
+    ]
+    s.extract.from_session(transcript=transcript, scope=scope, llm=_fake_llm, source_ref=None)
+    summaries = {m.summary for m in s.memory.search(MemoryQuery(query="Test 1", scope=scope, limit=50))}
+    # consolidation OFF: stale AND current states both stay active (no supersession)
+    assert "Test 1 not run" in summaries
+    assert "Test 1 passed" in summaries
+
+
 def test_cross_session_supersedes_prior(tmp_path):
     s = _stele(tmp_path)
     ns = "t3"
