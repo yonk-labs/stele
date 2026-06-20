@@ -143,6 +143,20 @@ aspects, both true). `as_of(early)` → "not run", "covers RAG".
   (`Test 1` vs `Test 2` → `test 1` vs `test 2`, distinct).
 - **PII** — `canonical_subject` is derived from the already-scrubbed `summary`, so no
   raw PII enters metadata.
+- **Aspect drift / "zombie facts"** (PRIMARY RISK — flagged unanimously by gemma +
+  qwen): if the LLM names the same attribute differently across time (`status` one
+  day, `reliability` the next), the states land in different slots and never collapse,
+  leaving multiple active facts for one real state. The false-negative bias makes this
+  the *safe* failure (no wrong erasure) but it accrues memory bloat over long runs.
+  Mitigation: an extensible aspect **synonym map** applied in `canonical_aspect`
+  (reliability/health → status, scope → coverage, ...); unknown aspects kept DISTINCT
+  (never silently folded into a wrong bucket); and a consolidation-time **detector
+  that LOGS** when one `canonical_subject` carries multiple active aspect-slots that
+  may overlap (for review — never auto-merge in v1).
+- **Cross-aspect coherence** (qwen): an `owner`/`version` change can logically
+  invalidate a `coverage` fact, but aspects are treated as orthogonal. OUT OF SCOPE
+  for v1 (named limitation, not silently "solved"); a future rule or the graph tier
+  can flag cross-slot contradictions.
 
 ## Testing plan (TDD)
 
@@ -161,9 +175,19 @@ aspects, both true). `as_of(early)` → "not run", "covers RAG".
   (the #59 recipe), judged per-kind, to confirm the prompt change adds subject/aspect
   signal without regressing existing kinds.
 
+## Cross-model validation
+
+Direction cross-checked across three models. A gemma+qwen debate converged on
+consolidation + supersede but split on identity and partial-update; a Codex second
+opinion resolved both (code-canonicalized labels; aspect-scoping). Re-validating the
+refined design, BOTH gemma and qwen returned AGREE — qwen explicitly reversing its
+"graph is the only correct answer" stance for the default path. All three flag the
+SAME primary risk: aspect-vocabulary drift (see Edge cases).
+
 ## Open questions
 
-1. Final seeded `aspect` vocabulary (start small, expand on evidence).
+1. Final seeded `aspect` vocabulary + synonym map (see the aspect-drift risk in Edge
+   cases). Start small, expand on evidence.
 2. Reliable source ordering given failure-first windows: window-position index vs a
    model-emitted turn index. Prefer code-derived window position (the prior
    turn-indexing experiment underperformed, but for windowing quality, a different
