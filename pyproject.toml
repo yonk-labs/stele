@@ -38,17 +38,18 @@ clickhouse = [
 chunkshop = [
   "chunkshop[all-backends]>=0.6.1,<0.7",
 ]
-# pg-raggraph 0.4.0a1 — the Phase 5 living-knowledge consumer surface.
-# Adds the per-call retrieval ladder (query(profile=...) + retrieval_strategy
-# weighted/pre_filter/vector_first), no-LLM mode="summary"/summary_base_mode,
-# JSONB metadata-index machinery, and the graph-hydration latency fix on top of
-# the 0.3.0a3 PRG-1..4 surface. Defaults are byte-identical; the new knobs are
-# opt-in. Owner-controlled, so the exact alpha is pinned.
+# pg-raggraph 0.5.0a17 — the Phase 5 living-knowledge consumer surface.
+# Bumped from 0.4.0a1 onto the 0.5 line: xact-scoped advisory-lock bootstrap
+# (multi-worker safe, no deadlock on a fresh DB) plus additive living_knowledge
+# knobs (opt-in). All PGRGConfig kwargs stele's revisor passes survive the bump;
+# the path is exercised by tests/integration/test_pg_raggraph_revisor.py.
+# Defaults are byte-identical; the new knobs are opt-in. Owner-controlled, so
+# the exact alpha is pinned.
 # Independent of [postgres]: the graph projection reuses the Postgres
 # artifact-backend DSN (no os.environ), but the dependency set is separate.
 # pg-raggraph brings its own psycopg[binary]/psycopg-pool/pgvector.
 postgres-graph = [
-  "pg-raggraph==0.4.0a1",
+  "pg-raggraph==0.5.0a17",
 ]
 judge = [
   "openai>=1.0,<2",
