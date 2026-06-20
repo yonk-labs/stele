@@ -36,7 +36,9 @@ class SessionMemory:
     kind: str  # a MemoryKind value
     summary: str
     detail: str
-    do_instead: str = ""  # pitfall remediation; surfaced by distill.rules (#62)
+    do_instead: str = ""      # pitfall remediation; surfaced by distill.rules (#62)
+    subject_label: str = ""   # human-visible entity name; code canonicalizes the key
+    aspect: str = ""          # which attribute of the subject this fact is about
 
 
 @dataclass(frozen=True)
@@ -227,6 +229,12 @@ keys "kind", "summary" (one specific line), and "detail" (short; include the
 failing command or approach if relevant). A "pitfall" item may also include a
 "do_instead" key (see below).
 
+For "fact" items about a NAMED, trackable entity (a test, file, service, branch,
+config), ALSO include "subject_label" (the entity's visible name, e.g. "Test 1")
+and "aspect" (which attribute the fact is about). Prefer an aspect from:
+status, coverage, version, owner, location, config. If none fits, use a short
+lowercase noun. Omit both for general facts with no named subject.
+
 kind is one of:
 - fact: a durable fact/result/state (e.g. "the API returns 400 when the id is missing")
 - decision: a choice + why (e.g. "chose Postgres 16 over MySQL for full-text search")
@@ -301,5 +309,7 @@ def extract_session_memories(llm: LLM, window: str) -> list[SessionMemory]:
             out.append(SessionMemory(
                 kind=kind, summary=summary, detail=detail,
                 do_instead=str(obj.get("do_instead", "")).strip(),
+                subject_label=str(obj.get("subject_label", "")).strip(),
+                aspect=str(obj.get("aspect", "")).strip(),
             ))
     return out
