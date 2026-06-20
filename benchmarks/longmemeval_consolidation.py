@@ -52,8 +52,9 @@ DEFAULT_ANSWER_MODEL = "Intel/Qwen3-Coder-Next-int4-AutoRound"
 DEFAULT_JUDGE_URL = "http://192.168.1.133:8000/v1"
 DEFAULT_JUDGE_MODEL = "cyankiwi/gemma-4-26B-A4B-it-AWQ-4bit"
 
-MEMORY_SEARCH_LIMIT = 20
+DEFAULT_MEMORY_SEARCH_LIMIT = 20
 MAX_CONTEXT_CHARS = 12_000
+DEFAULT_MAX_WINDOWS = 3
 
 
 # --------------------------------------------------------------------------- #
@@ -66,6 +67,9 @@ class ArmResult:
     arm: str  # "on" | "off"
     accepted_count: int
     superseded_count: int
+    total_memories: int
+    supersession_chains: int
+    recalled_count: int
     context_chars: int
     answer: str
     correct: bool
@@ -118,6 +122,8 @@ def _run_arm(
     tmpdir: Path,
     answerer: OpenAICompatAnswerer,
     llm: Any,
+    max_windows: int = DEFAULT_MAX_WINDOWS,
+    recall_limit: int = DEFAULT_MEMORY_SEARCH_LIMIT,
 ) -> ArmResult:
     db_path = str(tmpdir / f"{question_id}_{arm}.db")
     config = StashConfig.model_validate({
@@ -146,7 +152,7 @@ def _run_arm(
                     transcript=session_turns,
                     scope=sess_scope,
                     llm=llm,
-                    max_windows=3,
+                    max_windows=max_windows,
                 )
                 accepted_total += report.stats.accepted_count
             except Exception as exc:  # noqa: BLE001
@@ -160,15 +166,38 @@ def _run_arm(
         all_mems = stele.memory.list(scope, limit=5000)
         superseded_count = sum(1 for m in all_mems if m.status == "superseded")
         active_mems = [m for m in all_mems if m.status == "active"]
+        total_memories = len(all_mems)
+
+        # Build supersession chains (memories that have a supersession relationship)
+        supersession_chains = 0
+        for m in all_mems:
+            if m.status == "active" and getattr(m, "supersedes", None):
+                supersession_chains += 1
 
         # Assemble context from active memory search
-        hits = stele.memory.search_with_score(question, scope, limit=MEMORY_SEARCH_LIMIT)
+        hits = stele.memory.search_with_score(question, scope, limit=recall_limit)
         if hits:
             parts = [h.record.text for h in hits]
         else:
-            parts = [m.text for m in active_mems[:MEMORY_SEARCH_LIMIT]]
+            parts = [m.text for m in active_mems[:recall_limit]]
         context = "\n\n".join(parts)[:MAX_CONTEXT_CHARS]
         context_chars = len(context)
+        recalled_count = len(hits) if hits else min(len(active_mems), recall_limit)
+
+        # DIAGNOSTIC output (ON arm only — consolidation is only meaningful there)
+        if arm == "on":
+            print(
+                f"  [DIAG] total_memories={total_memories} "
+                f"active={len(active_mems)} superseded={superseded_count} "
+                f"chains={supersession_chains} recalled={recalled_count}",
+                flush=True,
+            )
+            print(f"  [DIAG] gold: {gold_answer[:120]}", flush=True)
+            top_texts = parts[:5]
+            for i, t in enumerate(top_texts, 1):
+                print(f"  [DIAG] mem[{i}]: {t[:120]}", flush=True)
+            if not top_texts:
+                print("  [DIAG] mem: (none recalled)", flush=True)
 
         # Answer the question
         answer, _ = answerer.answer(
@@ -191,6 +220,9 @@ def _run_arm(
             arm=arm,
             accepted_count=accepted_total,
             superseded_count=superseded_count,
+            total_memories=total_memories,
+            supersession_chains=supersession_chains,
+            recalled_count=recalled_count,
             context_chars=context_chars,
             answer=answer,
             correct=verdict.correct,
@@ -217,6 +249,8 @@ def run_consolidation_benchmark(
     judge_model: str,
     api_key: str,
     output_root: Path,
+    max_windows: int = DEFAULT_MAX_WINDOWS,
+    recall_limit: int = DEFAULT_MEMORY_SEARCH_LIMIT,
 ) -> dict[str, Any]:
     answerer = OpenAICompatAnswerer(
         answer_model=answer_model,
@@ -271,6 +305,8 @@ def run_consolidation_benchmark(
                     tmpdir=tmpdir,
                     answerer=answerer,
                     llm=llm,
+                    max_windows=max_windows,
+                    recall_limit=recall_limit,
                 )
                 print(
                     f"  arm=ON  accepted={on_result.accepted_count} "
@@ -292,6 +328,8 @@ def run_consolidation_benchmark(
                     tmpdir=tmpdir,
                     answerer=answerer,
                     llm=llm,
+                    max_windows=max_windows,
+                    recall_limit=recall_limit,
                 )
                 print(
                     f"  arm=OFF accepted={off_result.accepted_count} "
@@ -338,6 +376,10 @@ def run_consolidation_benchmark(
         "off_mean_accepted": _mean_float(off_rows, "accepted_count"),
         "on_mean_superseded": _mean_float(on_rows, "superseded_count"),
         "off_mean_superseded": _mean_float(off_rows, "superseded_count"),
+        "on_mean_chains": _mean_float(on_rows, "supersession_chains"),
+        "on_mean_total_memories": _mean_float(on_rows, "total_memories"),
+        "on_mean_recalled": _mean_float(on_rows, "recalled_count"),
+        "off_mean_recalled": _mean_float(off_rows, "recalled_count"),
         "on_mean_latency_ms": _mean_float(on_rows, "latency_ms"),
         "off_mean_latency_ms": _mean_float(off_rows, "latency_ms"),
     }
@@ -357,6 +399,8 @@ def run_consolidation_benchmark(
             "answer_url": answer_url,
             "judge_model": judge_model,
             "judge_url": judge_url,
+            "max_windows": max_windows,
+            "recall_limit": recall_limit,
         },
         "summary": summary,
         "rows": raw_rows,
@@ -458,6 +502,20 @@ def main() -> None:
         "--output-root", type=Path, default=Path("benchmarks/runs"),
         help="Root directory for run output",
     )
+    ap.add_argument(
+        "--max-windows", type=int, default=DEFAULT_MAX_WINDOWS,
+        help=(
+            f"max_windows passed to from_session (default: {DEFAULT_MAX_WINDOWS}); "
+            "raise to increase extraction density"
+        ),
+    )
+    ap.add_argument(
+        "--recall-limit", type=int, default=DEFAULT_MEMORY_SEARCH_LIMIT,
+        help=(
+            f"Number of memory hits returned by memory.search (default: "
+            f"{DEFAULT_MEMORY_SEARCH_LIMIT})"
+        ),
+    )
     args = ap.parse_args()
 
     try:
@@ -470,6 +528,8 @@ def main() -> None:
             judge_model=args.judge_model,
             api_key=args.api_key,
             output_root=args.output_root,
+            max_windows=args.max_windows,
+            recall_limit=args.recall_limit,
         )
     except DatasetUnavailable as exc:
         print(f"DATASET UNAVAILABLE: {exc}", file=sys.stderr)
