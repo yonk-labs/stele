@@ -5,6 +5,42 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.6.3] - 2026-06-20
+
+Evolving-fact consolidation, the #62 pitfall extraction fix, and the pg-raggraph
+0.5 bump.
+
+### Added
+
+- **Evolving-fact consolidation in `extract.from_session`.** Facts about the same
+  entity that evolve over time now reconcile instead of accumulating as
+  contradictory active memories. Extraction emits a `subject_label` + `aspect`;
+  deterministic code canonicalizes them into a `(scope, kind=fact,
+  canonical_subject, aspect)` slot; within a slot, states are committed as a
+  supersession chain, so default recall returns the current state and `as_of`
+  preserves history. Works same-session and cross-session; facts only; biased to
+  false-negatives (no slot, no merge). Recall is unchanged. Mechanism proven by
+  contract tests; the cross-session path was confirmed end-to-end with a real LLM.
+  Design/plan in `docs/specs/evolving-fact-consolidation-{design,plan}.md`.
+
+### Fixed
+
+- **`pitfall` extraction now carries a `do_instead` remediation and stops
+  mis-tagging neutral facts** (issue #62, follow-on to #59). `_EXTRACT_PROMPT`
+  frames a pitfall's `summary` as the action NOT to repeat, requests an inline
+  `do_instead` key, and tells the model not to tag a neutral fact / normal
+  behavior / design constraint as a pitfall. `from_session` threads `do_instead`
+  into pitfall `metadata`, which `distill.rules` already reads. Validated with a
+  paired A/B over real transcripts: `do_instead` coverage 0% to 100%, mis-tag
+  rate 20% to 9% (directional, small-N).
+
+### Changed
+
+- **pg-raggraph pinned to `0.5.0a17`** (was `0.4.0a1`). Aligns stele's optional
+  graph projection with the 0.5 line (xact-scoped advisory-lock bootstrap,
+  multi-worker safe). API-compatible for the revisor; verified by the graph
+  integration tests against a 0.5.0a17 Postgres.
+
 ## [0.6.2] - 2026-06-05
 
 Extraction-prompt fix for under-extracted behavioral memory. Reported by a

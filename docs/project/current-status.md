@@ -1,6 +1,6 @@
 # Current Status
 
-Date: 2026-06-04 · Version: **0.6.1**
+Date: 2026-06-20 · Version: **0.6.3**
 
 ## Proposed / in design (not shipped)
 
@@ -30,7 +30,7 @@ transcript spot check: slotting fires (14/21 facts slotted across 2 sessions);
 supersession triggers only when the same `(subject, aspect)` recurs (proven in the
 contract tests; not triggered on the small spot-check sample, as no slot collided).
 Design/plan: [evolving-fact-consolidation-design.md](../specs/evolving-fact-consolidation-design.md),
-[evolving-fact-consolidation-plan.md](../specs/evolving-fact-consolidation-plan.md). Pending PR/merge.
+[evolving-fact-consolidation-plan.md](../specs/evolving-fact-consolidation-plan.md). Merged to main via PR #66 (0.6.3).
 
 ## 0.6.1 (2026-06-04)
 
