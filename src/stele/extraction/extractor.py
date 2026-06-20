@@ -287,7 +287,7 @@ class MemoryExtractor:
         candidates: list[MemoryCandidate] = []
         accepted: list[AcceptedCandidate] = []
         rejected: list[RejectedCandidate] = []
-        for window in windows(turns, max_chars=4000, limit=max_windows):
+        for _w_idx, window in windows(turns, max_chars=4000, limit=max_windows):
             for mem in extract_session_memories(llm, window):
                 cand = MemoryCandidate(
                     text=mem.summary, kind=mem.kind, confidence=0.8,  # type: ignore[arg-type]

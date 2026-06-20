@@ -197,11 +197,12 @@ def render(turns: list[Turn]) -> str:
     return "\n".join(_line(t) for t in turns)
 
 
-def windows(turns: list[Turn], max_chars: int = 4000, limit: int = 3) -> list[str]:
-    """Group already-reduced turns into ~max_chars windows, failure-bearing
-    windows first (richest), capped at `limit`. Turns arrive pre-reduced from
-    `reduce_event`, so windowing only packs and orders -- the drop/truncate
-    decisions live in ReduceConfig at the stream boundary, not here."""
+def windows(turns: list[Turn], max_chars: int = 4000, limit: int = 3) -> list[tuple[int, str]]:
+    """Group already-reduced turns into ~max_chars windows. Failure-bearing
+    windows are preferred for SELECTION (richest), but the result is returned in
+    ORIGINAL (chronological) order with each window's original index, so
+    consolidation can order an evolving fact's states by time. Turns arrive
+    pre-reduced from `reduce_event`."""
     grouped: list[tuple[str, bool]] = []
     buf: list[str] = []
     size = 0
@@ -216,8 +217,11 @@ def windows(turns: list[Turn], max_chars: int = 4000, limit: int = 3) -> list[st
             buf, size, has_err = [], 0, False
     if buf:
         grouped.append(("\n".join(buf), has_err))
-    grouped.sort(key=lambda w: (not w[1], -len(w[0])))  # failure windows first
-    return [text for text, _ in grouped[:limit]]
+    indexed = list(enumerate(grouped))  # (original_index, (text, has_err))
+    indexed.sort(key=lambda w: (not w[1][1], -len(w[1][0])))  # failure-first SELECTION
+    selected = indexed[:limit]
+    selected.sort(key=lambda w: w[0])  # return chronological
+    return [(idx, text) for idx, (text, _err) in selected]
 
 
 _EXTRACT_PROMPT = """You are distilling DURABLE MEMORY from one window of an AI agent's
