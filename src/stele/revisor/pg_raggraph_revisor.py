@@ -77,11 +77,13 @@ class PgRaggraphRevisor:
         self._rerank = rerank
         # Opt-in remote embedding (WS1). Default "local" keeps the
         # per-worker fastembed model and a byte-identical _cfg() dict.
-        # pg-raggraph 0.3.0a3 has no embedding_base_url/embedding_api_key
-        # fields (verified: PGRGConfig rejects unknown kwargs); its
-        # get_embedding_provider() reads a remote (openai|ollama) endpoint
-        # from llm_base_url and the key from llm_api_key. So stele's
-        # embedding_base_url/_api_key surface maps onto those cfg keys.
+        # pg-raggraph 0.5.0a17's get_embedding_provider() reads the openai|ollama
+        # embedder endpoint from llm_base_url and the key from llm_api_key
+        # (verified: embedding.py get_embedding_provider). So stele's
+        # embedding_base_url/_api_key surface maps onto those cfg keys. a17 also
+        # added dedicated embedding_base_url/_api_key fields, but only for a new
+        # embedding_provider="http" that stele does not expose, so the mapping
+        # below stays correct for local|openai|ollama.
         self._embedding_provider = embedding_provider
         self._embedding_model = embedding_model
         self._embedding_dim = embedding_dim
@@ -126,11 +128,11 @@ class PgRaggraphRevisor:
                 cfg["embedding_model"] = self._embedding_model
             if self._embedding_dim is not None:
                 cfg["embedding_dim"] = self._embedding_dim
-            # pg-raggraph's remote embedder reads llm_base_url/llm_api_key.
+            # pg-raggraph's openai|ollama embedder reads llm_base_url/llm_api_key.
             # Do not clobber an endpoint the LLM-extraction path already set:
-            # the extraction-LLM endpoint intentionally wins. pg-raggraph
-            # 0.3.0a3 has a SINGLE llm_base_url shared by extraction and
-            # embedding, so the two endpoints cannot differ here (see the
+            # the extraction-LLM endpoint intentionally wins. In pg-raggraph
+            # 0.5.0a17 the openai|ollama embedder still shares llm_base_url with
+            # extraction, so the two endpoints cannot differ here (see the
             # GraphConfig embedding-fields note in core/config.py).
             if self._embedding_base_url is not None and "llm_base_url" not in cfg:
                 cfg["llm_base_url"] = self._embedding_base_url
