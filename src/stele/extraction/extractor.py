@@ -60,7 +60,17 @@ def _cross_session_superseded(
     fact supersedes. Bias to false-negatives: exact subject+aspect match AND
     strictly newer (by recency)."""
     out: list[str] = []
-    for r in memory.list(lookup_scope, status_filter=["active"], limit=500):  # type: ignore[attr-defined]
+    # Ceiling: 500 active records per namespace/slot. Exceeding this limit biases
+    # toward false-negatives (cross-session match missed, both facts left active);
+    # metadata-indexed query is the upgrade path. Observe via warning log if ceiling hit.
+    results = memory.list(lookup_scope, status_filter=["active"], limit=500)  # type: ignore[attr-defined]
+    if len(results) == 500:
+        _log.warning(
+            "cross-session supersession search hit 500-record ceiling for namespace=%s slot=%s; "
+            "possible cross-session match missed (false-negative bias)",
+            lookup_scope.namespace, slot,
+        )
+    for r in results:
         meta = r.metadata or {}
         if meta.get("canonical_subject") != slot.canonical_subject:
             continue
@@ -358,6 +368,8 @@ class MemoryExtractor:
                 rejected.append(RejectedCandidate(
                     candidate=cand, reason="validation_error", error_message=str(exc)))
                 return None
+            # When supersedes is non-empty, we allow storing even if a text-hash twin exists,
+            # because superseding = updating (the new memory replaces the old one).
             if result.duplicate_of is not None and not supersedes:
                 rejected.append(RejectedCandidate(
                     candidate=cand, reason="duplicate", duplicate_of=result.duplicate_of))
