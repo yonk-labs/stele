@@ -18,6 +18,20 @@ yields ~1.5 `decision`/session, not 4); the shipped extractor discards turn role
 ~62% of `instruction` memories were agent self-talk; max-authority attribution lifts
 instruction human-share 33% -> 55%; 52-58 coherent cross-kind recipes composed.
 
+**Evolving-fact consolidation (2026-06-20, on `feat/evolving-fact-consolidation`).**
+`from_session` groups extracted FACTS into `(scope, kind=fact, canonical_subject,
+aspect)` slots and commits each slot as a supersession chain (same- and cross-session),
+so recall returns an evolving fact's current state while `as_of` preserves history.
+Identity = LLM-emitted `subject_label` + deterministic code canonicalization; aspect from
+a seeded vocabulary; facts only; bias to false-negatives (no slot, no merge). Recall is
+unchanged (already active-filtered). Designed cross-model (gemma+qwen debate + Codex
+second opinion), built subagent-driven (6 TDD tasks); full suite 1053 passed. Real-
+transcript spot check: slotting fires (14/21 facts slotted across 2 sessions);
+supersession triggers only when the same `(subject, aspect)` recurs (proven in the
+contract tests; not triggered on the small spot-check sample, as no slot collided).
+Design/plan: [evolving-fact-consolidation-design.md](../specs/evolving-fact-consolidation-design.md),
+[evolving-fact-consolidation-plan.md](../specs/evolving-fact-consolidation-plan.md). Pending PR/merge.
+
 ## 0.6.1 (2026-06-04)
 
 Episodic recall, complete (issue #48, all 3 phases): an `episodic` recall

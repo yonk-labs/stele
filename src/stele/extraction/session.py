@@ -36,7 +36,9 @@ class SessionMemory:
     kind: str  # a MemoryKind value
     summary: str
     detail: str
-    do_instead: str = ""  # pitfall remediation; surfaced by distill.rules (#62)
+    do_instead: str = ""      # pitfall remediation; surfaced by distill.rules (#62)
+    subject_label: str = ""   # human-visible entity name; code canonicalizes the key
+    aspect: str = ""          # which attribute of the subject this fact is about
 
 
 @dataclass(frozen=True)
@@ -195,11 +197,12 @@ def render(turns: list[Turn]) -> str:
     return "\n".join(_line(t) for t in turns)
 
 
-def windows(turns: list[Turn], max_chars: int = 4000, limit: int = 3) -> list[str]:
-    """Group already-reduced turns into ~max_chars windows, failure-bearing
-    windows first (richest), capped at `limit`. Turns arrive pre-reduced from
-    `reduce_event`, so windowing only packs and orders -- the drop/truncate
-    decisions live in ReduceConfig at the stream boundary, not here."""
+def windows(turns: list[Turn], max_chars: int = 4000, limit: int = 3) -> list[tuple[int, str]]:
+    """Group already-reduced turns into ~max_chars windows. Failure-bearing
+    windows are preferred for SELECTION (richest), but the result is returned in
+    ORIGINAL (chronological) order with each window's original index, so
+    consolidation can order an evolving fact's states by time. Turns arrive
+    pre-reduced from `reduce_event`."""
     grouped: list[tuple[str, bool]] = []
     buf: list[str] = []
     size = 0
@@ -214,8 +217,11 @@ def windows(turns: list[Turn], max_chars: int = 4000, limit: int = 3) -> list[st
             buf, size, has_err = [], 0, False
     if buf:
         grouped.append(("\n".join(buf), has_err))
-    grouped.sort(key=lambda w: (not w[1], -len(w[0])))  # failure windows first
-    return [text for text, _ in grouped[:limit]]
+    indexed = list(enumerate(grouped))  # (original_index, (text, has_err))
+    indexed.sort(key=lambda w: (not w[1][1], -len(w[1][0])))  # failure-first SELECTION
+    selected = indexed[:limit]
+    selected.sort(key=lambda w: w[0])  # return chronological
+    return [(idx, text) for idx, (text, _err) in selected]
 
 
 _EXTRACT_PROMPT = """You are distilling DURABLE MEMORY from one window of an AI agent's
@@ -226,6 +232,12 @@ Return ONLY a JSON array (no prose, no code fences). Each item is an object with
 keys "kind", "summary" (one specific line), and "detail" (short; include the
 failing command or approach if relevant). A "pitfall" item may also include a
 "do_instead" key (see below).
+
+For "fact" items about a NAMED, trackable entity (a test, file, service, branch,
+config), ALSO include "subject_label" (the entity's visible name, e.g. "Test 1")
+and "aspect" (which attribute the fact is about). Prefer an aspect from:
+status, coverage, version, owner, location, config. If none fits, use a short
+lowercase noun. Omit both for general facts with no named subject.
 
 kind is one of:
 - fact: a durable fact/result/state (e.g. "the API returns 400 when the id is missing")
@@ -301,5 +313,7 @@ def extract_session_memories(llm: LLM, window: str) -> list[SessionMemory]:
             out.append(SessionMemory(
                 kind=kind, summary=summary, detail=detail,
                 do_instead=str(obj.get("do_instead", "")).strip(),
+                subject_label=str(obj.get("subject_label", "")).strip(),
+                aspect=str(obj.get("aspect", "")).strip(),
             ))
     return out
