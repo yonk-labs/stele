@@ -16,7 +16,19 @@
 - Every memory cites `source_refs` (stele:// URIs); `from_session` already supplies the stashed transcript ref.
 - Facts only: never consolidate `decision` / `pitfall` / `instruction` / `preference` / others.
 - Bias to false-negatives: consolidate only when subject is explicit AND aspect non-empty; otherwise commit standalone (today's behavior).
-- Lint/types/tests gate: `.venv/bin/ruff check .`, `.venv/bin/mypy src tests`, `.venv/bin/pytest`.
+- Lint/types/tests gate: `.venv/bin/ruff check .`, `.venv/bin/mypy src` (configured gate is `packages=["stele"]`, strict), `.venv/bin/pytest`.
+
+## Interaction with #62 (pitfall do_instead) — READ BEFORE TASK 2 & 5
+
+This plan's code samples predate #62. Once #62 is merged, `from_session` already
+threads pitfall remediation into metadata and `SessionMemory` already has a
+`do_instead` field. **Do not drop it** when rewriting:
+- Task 2: `SessionMemory` will carry BOTH `do_instead` (from #62) AND the new
+  `subject_label`/`aspect` — add the new fields alongside, do not replace.
+- Task 5: the `_commit` helper replaces the old commit loop. It MUST preserve
+  #62's behavior: `if mem.do_instead: meta["do_instead"] = mem.do_instead` (in
+  addition to the slot metadata). Diff `_commit` against the merged `from_session`
+  before committing so the do_instead thread survives the rewrite.
 
 ---
 
