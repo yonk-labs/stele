@@ -25,10 +25,11 @@ def _stub_investigate_then_consistent(prompt: str) -> str:
 
 
 def test_rework_stub_scores_inconsistent() -> None:
-    report = run(_stub_always_rework)
-    for r in _arms(report):
-        assert r["rework_rate"] == 1.0
-        assert r["consistency_rate"] == 0.0
+    for forced in (False, True):
+        report = run(_stub_always_rework, forced=forced)
+        for r in _arms(report):
+            assert r["rework_rate"] == 1.0
+            assert r["consistency_rate"] == 0.0
 
 
 def test_consistent_stub_after_investigation() -> None:
