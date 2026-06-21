@@ -26,13 +26,16 @@ def _arms_by_name(report: dict[str, object]) -> dict[str, dict[str, object]]:
 def test_evolving_world_headline_and_72_gates() -> None:
     with tempfile.TemporaryDirectory() as d:
         backend: dict[str, object] = {"type": "sqlite", "path": str(Path(d) / "ew.db")}
-        report = run(n_sessions=132, backend=backend)
+        report = run(n_sessions=132, backend=backend, with_role_fix=True)
 
     arms = _arms_by_name(report)
-    assert set(arms) == set(ARMS)
+    assert set(ARMS) | {"stele-role"} == set(arms)
 
     def metric(arm: str, key: str) -> float:
         return cast("float", arms[arm][key])
+
+    def by_class(arm: str) -> dict[str, float]:
+        return cast("dict[str, float]", arms[arm]["stale_by_class"])
 
     assert metric("stele-full", "sessions") == report["sessions"] == 132
 
@@ -44,13 +47,18 @@ def test_evolving_world_headline_and_72_gates() -> None:
 
     # store-side (#72): the new machinery leaves no MORE active staleness than blind append.
     full_stale = metric("stele-full", "active_staleness_rate")
-    naive_stale = metric("naive-append", "active_staleness_rate")
-    assert full_stale <= naive_stale
+    assert full_stale <= metric("naive-append", "active_staleness_rate")
 
-    # precision gate: distinct entities must never be wrongly merged.
+    # precision gate: distinct entities must never be wrongly merged, fix on or off.
     assert metric("stele-full", "over_merge_rate") == 0.0
+    assert metric("stele-role", "over_merge_rate") == 0.0
 
     # #72 localization: for stele-full, residual staleness lives in the value-named
     # class, not the stable-subject class the registry already resolves cleanly.
-    sbc = cast("dict[str, float]", arms["stele-full"]["stale_by_class"])
-    assert sbc.get("stable", 0.0) <= sbc.get("value", 0.0)
+    assert by_class("stele-full").get("stable", 0.0) <= by_class("stele-full").get("value", 0.0)
+
+    # the role-anchor fix collapses value-named staleness without regressing the
+    # stable class (and over-merge stays 0, asserted above).
+    assert by_class("stele-role").get("value", 1.0) <= by_class("stele-full").get("value", 1.0)
+    role_stale = metric("stele-role", "active_staleness_rate")
+    assert role_stale <= metric("stele-full", "active_staleness_rate")

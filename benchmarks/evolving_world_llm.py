@@ -117,6 +117,7 @@ def run_lane(backend: dict[str, object], base_url: str, model: str,
                 {"backend": backend, "extraction": {"enabled": True}})
             stele = Stele(cfg)
             ns = f"ewllm_{mode}_{idx}"
+            stele.purge_namespace(ns, dry_run=False)  # hermetic across reruns
             _ingest_evolving(stele, ns, canonical, aspect, steps, llm)
             active = _active_values(stele, ns, values)
             out[mode] = {"active": active, "stale": len(active) > 1}

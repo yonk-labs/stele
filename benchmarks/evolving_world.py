@@ -44,8 +44,9 @@ from stele import Stele
 from stele.core.artifact import estimate_tokens
 from stele.core.config import StashConfig
 from stele.core.memory_record import MemoryQuery, MemoryScope
+from stele.extraction.identity import canonical_subject
 
-Arm = Literal["no-memory", "naive-append", "stele-full"]
+Arm = Literal["no-memory", "naive-append", "stele-full", "stele-role"]
 ARMS: tuple[Arm, ...] = ("no-memory", "naive-append", "stele-full")
 LabelMode = Literal["stable", "value"]
 
@@ -326,12 +327,34 @@ def probe_store(arm: Arm, stele: Stele, ns: str, entities: list[Entity],
     return active_stale, stale_by_class, over_merge
 
 
+def role_aliases(entities: list[Entity]) -> dict[str, str]:
+    """The deterministic role-mapping layer option-1 recommends, modeled with the
+    shipped `subject_aliases` config: every value of a value-named entity maps to
+    one stable `role:<name>` id, so a value swap (Postgres->MySQL) keys the same
+    slot and supersession fires. Coexisting entities get no alias, so distinct
+    entities sharing an aspect stay distinct (over-merge guard preserved)."""
+    out: dict[str, str] = {}
+    for e in entities:
+        if e.label_mode == "value":
+            for _, v in e.changes:
+                out[canonical_subject(v)] = f"role:{e.name}"
+    return out
+
+
 def run_arm(arm: Arm, steps: list[SessionStep], entities: list[Entity],
             backend: dict[str, object],
-            real_llm: Callable[[str], str] | None = None) -> ArmMetrics:
-    cfg = StashConfig.model_validate({"backend": backend, "extraction": {"enabled": True}})
+            real_llm: Callable[[str], str] | None = None,
+            aliases: dict[str, str] | None = None) -> ArmMetrics:
+    extraction: dict[str, object] = {"enabled": True}
+    if aliases:
+        extraction["subject_aliases"] = aliases
+    cfg = StashConfig.model_validate({"backend": backend, "extraction": extraction})
     stele = Stele(cfg)
     ns = f"ew_{arm.replace('-', '_')}"
+    # Hermetic run: clear any rows a prior run left in this namespace on a
+    # persistent backend, else append-only arms accumulate across runs and the
+    # numbers stop being reproducible.
+    stele.purge_namespace(ns, dry_run=False)
     m = ArmMetrics(arm=arm)
     knowable: dict[int, str] = {}
     last_evidence_text: dict[int, str] = {}
@@ -371,10 +394,19 @@ def run_arm(arm: Arm, steps: list[SessionStep], entities: list[Entity],
     return m
 
 
-def run(n_sessions: int, backend: dict[str, object]) -> dict[str, object]:
+def run(n_sessions: int, backend: dict[str, object],
+        with_role_fix: bool = False) -> dict[str, object]:
     entities = default_entities()
     steps = build_plan(entities, n_sessions)
     results = [run_arm(arm, steps, entities, backend).summary() for arm in ARMS]
+    if with_role_fix:
+        # The recommended #72 fix (schema-backed subject_role), modeled via the
+        # shipped subject_aliases layer. Validates the back-half: does keying the
+        # slot on a stable role collapse value-named staleness with 0 over-merge?
+        results.append(
+            run_arm("stele-role", steps, entities, backend,
+                    aliases=role_aliases(entities)).summary()
+        )
     return {
         "benchmark": "evolving_world",
         "sessions": len(steps),
@@ -429,6 +461,8 @@ def main() -> None:
     ap.add_argument("--dsn", default=None, help="postgres DSN (or env STELE_PG_DSN)")
     ap.add_argument("--sqlite-path", default="/tmp/stele_evolving_world.db")
     ap.add_argument("--out", default=None, help="output dir (default benchmarks/runs/<date>)")
+    ap.add_argument("--fix", action="store_true",
+                    help="add the stele-role arm (recommended #72 fix via subject_aliases)")
     args = ap.parse_args()
 
     if args.backend == "postgres":
@@ -440,7 +474,7 @@ def main() -> None:
     else:
         backend = {"type": "sqlite", "path": args.sqlite_path}
 
-    report = run(args.sessions, backend)
+    report = run(args.sessions, backend, with_role_fix=args.fix)
     default_dir = Path("benchmarks/runs") / datetime.now(UTC).strftime("%Y-%m-%d")
     out_dir = Path(args.out) if args.out else default_dir
     out_dir.mkdir(parents=True, exist_ok=True)
