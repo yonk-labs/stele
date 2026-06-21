@@ -2,8 +2,9 @@
 
 Status: DRAFT (brainstorming output, pending review)
 Date: 2026-06-20
-Scope: `stele` memory facade + distill timeline
-Related: builds on the existing `metadata` field and the `distill.timeline` view (0.6.1).
+Scope: `stele` memory facade + distill timeline + fact-evolution view
+Related: builds on the existing `metadata` field, the `distill.timeline` view (0.6.1),
+and the 0.6.3 consolidation supersession chains (the fact-evolution view reads them).
 
 ## Problem
 
@@ -25,7 +26,9 @@ timeline API.
 
 - **Source:** both **explicit** (caller-supplied) AND **auto-derived** (stele adds
   structural tags so grouping/timeline work with zero effort).
-- **Read:** both a **filter** primitive AND a **timeline** view built on it.
+- **Read:** a **filter** primitive, a **timeline** view, AND a **fact-evolution**
+  view (current value + prior values with date ranges for an evolving fact), all
+  built on the filter.
 - **Storage:** **metadata convention** — tags live under a reserved
   `metadata["tags"]` key. No schema migration; works across all 5 backends now;
   reuses the proven metadata plumbing (the same path consolidation's cross-session
@@ -72,7 +75,21 @@ stable.
 - `src/stele/distill/` timeline: extend the existing `distill.timeline` to accept
   `tags=[...]` + `match`, filtering its memory set by tag before time-ordering.
   Reuse the existing oldest-first ordering and windowing; do NOT rebuild it.
+- `src/stele/distill/` evolution (new view): `distill.evolution(scope, *, tags=None,
+  subject=None, aspect=None, match="any")` → for each `(canonical_subject, aspect)`
+  slot in the tag-scoped set, return its supersession CHAIN oldest→newest with each
+  state's value/summary + `effective_from` + `effective_until`. This is the
+  "postgres v15 until 2026-06-14, now v18" answer. It reads memories with
+  `status_filter=["active", "superseded"]` (the whole chain), groups by the
+  `canonical_subject`/`aspect` metadata that **consolidation already writes**, and
+  orders each slot by `effective_from`: the active link is "current"
+  (`effective_until=None`), each superseded link carries its `effective_until` (the
+  "until X"). Pure read over the facade; no new storage; LLM-free. **Depends on
+  consolidation** (the chains + the slot metadata + `effective_until`); with
+  `consolidation_enabled=False` there are no chains, so the view degrades to a flat
+  per-subject list with no supersession history (documented, not a failure).
 - MCP/CLI surfaces (`stele_memory_add` tags arg, `stele_memory_list --tag`,
+  `stele distill evolution --tag --subject --aspect`,
   `stele distill timeline --tag`): in scope but as a thin follow-on slice; the
   facade is the primitive.
 
@@ -83,6 +100,15 @@ gets `metadata["tags"] = ["day:2026-06-20", "project:bento", "session:s1"]` (aut
 merged with any explicit tags. Later: `memory.list(scope, tags=["project:bento"])`
 returns all bento memories; `distill.timeline(scope, tags=["topic:auth"])` returns
 the auth memories oldest-first.
+
+**Evolving fact (the motivating case):** across sessions the LLM extracts "postgres
+version = 15", then later "postgres version = 18" (both slot `postgres`/`version`).
+Consolidation supersedes 15 with 18, stamping 15's `effective_until` = when 18
+landed. Then `distill.evolution(scope, tags=["project:bento"], subject="postgres",
+aspect="version")` returns `[{value: "15", from: T0, until: T1}, {value: "18",
+from: T1, until: None}]` — i.e. "postgres was v15 until <T1>, now v18", scoped to
+project bento. The current value is the active link; the "until" comes from the
+superseded link's `effective_until`.
 
 ## Edge cases / invariants
 
@@ -108,6 +134,11 @@ the auth memories oldest-first.
   returns the right set; auto-tags present; `retag` adds/removes.
 - **Timeline:** `distill.timeline(tags=[...])` returns only tagged memories,
   oldest-first.
+- **Evolution:** ingest an evolving fact (v15 → v18 in one `subject`/`aspect` slot),
+  call `distill.evolution(subject=, aspect=)`, assert it returns both states
+  oldest→newest with the superseded one's `effective_until` set and the active one's
+  `effective_until=None`; tag-scoping restricts it to the right project. Also assert
+  the `consolidation_enabled=False` degradation (flat list, no chain).
 - **Regression:** `from_session` still threads `do_instead` + slot metadata AND now
   tags (no clobber); existing memory/extraction/distill suites stay green.
 
@@ -120,3 +151,10 @@ the auth memories oldest-first.
 3. MCP/CLI exposure: ship in the same change or as an immediate follow-on slice?
 4. Tag normalization: casefold by default — confirm (some users may want
    case-sensitive values like `sprint:Q3`). Default casefold; revisit if it bites.
+5. `distill.evolution` return shape (a typed `EvolutionItem`/`StateItem` vs plain
+   dicts) and whether `subject`/`aspect` are required (single-slot) or optional
+   (all evolving slots in scope). Default: optional filters; return all slots that
+   have a chain, plus single-slot when both are given.
+6. Whether the evolution view should also surface the `source_refs` per state (so
+   "v15 until last week" links to the evidence that said v15). Default: yes, include
+   refs — it is stele's exact-evidence thesis and nearly free here.
