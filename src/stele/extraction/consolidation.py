@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from stele.extraction.identity import canonical_aspect, canonical_subject
+from stele.extraction.identity import canonical_aspect
 from stele.extraction.session import SessionMemory
 
 
 @dataclass(frozen=True)
 class SlotKey:
-    canonical_subject: str
+    scope_key: str
+    subject_type: str
+    subject_id: str
     aspect: str
 
 
@@ -21,14 +23,19 @@ class Slotted:
     slot: SlotKey | None            # None => commit standalone (today's behavior)
 
 
-def slot_for(mem: SessionMemory) -> SlotKey | None:
+def slot_for(
+    mem: SessionMemory,
+    *,
+    scope_key: str,
+    subject_id: str,
+    subject_type: str,
+) -> SlotKey | None:
     if mem.kind != "fact":
         return None
-    subj = canonical_subject(mem.subject_label)
     asp = canonical_aspect(mem.aspect)
-    if not subj or not asp:
+    if not subject_id or not asp:
         return None
-    return SlotKey(subj, asp)
+    return SlotKey(scope_key, subject_type, subject_id, asp)
 
 
 def plan_chains(
@@ -47,11 +54,10 @@ def plan_chains(
 
 
 def overlap_warnings(chains: dict[SlotKey, list[Slotted]]) -> list[tuple[str, list[str]]]:
-    """Aspect-drift detector (log-only): a canonical_subject carrying >1 aspect
-    slot. Returns (subject, [aspects]) for review. Never auto-merges."""
+    """Aspect-drift detector (log-only): one subject_id carrying >1 aspect slot."""
     by_subject: dict[str, list[str]] = {}
     for slot in chains:
-        by_subject.setdefault(slot.canonical_subject, []).append(slot.aspect)
+        by_subject.setdefault(slot.subject_id, []).append(slot.aspect)
     return [(s, asp) for s, asp in by_subject.items() if len(asp) > 1]
 
 

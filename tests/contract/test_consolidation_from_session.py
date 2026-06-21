@@ -81,3 +81,16 @@ def test_cross_session_supersedes_prior(tmp_path):
     summaries = {m.summary for m in active}
     assert "Test 1 passed" in summaries
     assert "Test 1 not run" not in summaries   # day2 superseded day1 in the status slot
+
+
+def test_committed_facts_carry_subject_id(tmp_path):
+    s = _stele(tmp_path)
+    scope = MemoryScope(namespace="sid", session_id="s1")
+    transcript = [
+        {"role": "user", "content": "Test 1 not run; covers RAG. " + "x" * 4100},
+        {"role": "assistant", "content": "Test 1 passed; covers RAG and graph. " + "y" * 4100},
+    ]
+    s.extract.from_session(transcript=transcript, scope=scope, llm=_fake_llm, source_ref=None)
+    hits = s.memory.search(MemoryQuery(query="Test 1", scope=scope, limit=50,
+                                       include_superseded=True))
+    assert all(m.metadata.get("subject_id") for m in hits if m.metadata.get("aspect"))

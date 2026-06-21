@@ -102,6 +102,24 @@ def test_stele_close_closes_initialized_memory_store(stele: Stele) -> None:
         )
 
 
+def test_update_metadata_changes_metadata_not_text(stele: Stele) -> None:
+    res = stele.memory.add(
+        text="Postgres 14 is the version",
+        kind="fact",
+        source_refs=["stele://default/pg"],
+        scope=MemoryScope(user_id="alice"),
+        metadata={"canonical_subject": "postgres", "aspect": "version"},
+    )
+    stele.memory.update_metadata(
+        res.record.id,
+        {"canonical_subject": "postgres", "aspect": "version", "subject_id": "entity:postgres"},
+    )
+    got = stele.memory.get(res.record.id)
+    assert got is not None
+    assert got.metadata["subject_id"] == "entity:postgres"
+    assert got.text == "Postgres 14 is the version"  # text immutable
+
+
 def test_memory_facade_search_with_score_delegates_to_store() -> None:
     from stele import Stele
     from stele.core.config import StashConfig

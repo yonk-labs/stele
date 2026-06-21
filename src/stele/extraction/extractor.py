@@ -17,7 +17,7 @@ from stele.core.exceptions import (
     SteleError,
     ValidationError,
 )
-from stele.core.memory_record import MemoryScope
+from stele.core.memory_record import MemoryScope, canonical_scope_key
 from stele.extraction.candidates import extract_candidates
 from stele.extraction.classifier import classify_kind
 from stele.extraction.consolidation import (
@@ -28,6 +28,7 @@ from stele.extraction.consolidation import (
     plan_chains,
     slot_for,
 )
+from stele.extraction.identity import canonical_subject, canonical_subject_type
 from stele.extraction.models import (
     AcceptedCandidate,
     ExtractionReport,
@@ -35,6 +36,7 @@ from stele.extraction.models import (
     MemoryCandidate,
     RejectedCandidate,
 )
+from stele.extraction.registry import ExistingSubject, SubjectDisambiguationError, resolve_subject
 
 if TYPE_CHECKING:
     from stele.core.config import ExtractionConfig
@@ -72,7 +74,7 @@ def _cross_session_superseded(
         )
     for r in results:
         meta = r.metadata or {}
-        if meta.get("canonical_subject") != slot.canonical_subject:
+        if meta.get("subject_id") != slot.subject_id:
             continue
         if meta.get("aspect") != slot.aspect:
             continue
@@ -80,6 +82,32 @@ def _cross_session_superseded(
             continue
         out.append(r.id)
     return out
+
+
+def _scope_key_no_session(scope: MemoryScope) -> str:
+    # canonical_scope_key is a MODULE FUNCTION in memory_record.py, not a method.
+    return canonical_scope_key(scope.model_copy(update={"session_id": None}))
+
+
+def _active_subjects(memory: object, scope: MemoryScope) -> list[ExistingSubject]:
+    lookup = scope.model_copy(update={"session_id": None})
+    rows = memory.list(lookup, status_filter=["active"], limit=500)  # type: ignore[attr-defined]
+    if len(rows) == 500:
+        _log.warning(
+            "_active_subjects hit 500-record ceiling for namespace=%s; "
+            "some existing subjects may be invisible (false-negative bias)",
+            lookup.namespace,
+        )
+    seen: dict[str, ExistingSubject] = {}
+    for r in rows:
+        meta = r.metadata or {}
+        sid, stype = meta.get("subject_id"), meta.get("subject_type")
+        if sid and stype and sid not in seen:
+            # normalized_label must match the label that minted subject_id for registry consistency.
+            seen[sid] = ExistingSubject(
+                sid, stype, canonical_subject(meta.get("canonical_subject", "")),
+            )
+    return list(seen.values())
 
 
 def _fingerprint(config: ExtractionConfig) -> str:
@@ -333,10 +361,38 @@ class MemoryExtractor:
         base_meta: dict[str, object] = {"source": "session", "extraction_config": fp}
         if session_mtime is not None:
             base_meta["session_mtime"] = session_mtime
+        scope_key = _scope_key_no_session(scope)
+        active = _active_subjects(self._memory, scope)
+        aliases = self._config.subject_aliases
         slotted: list[Slotted] = []
+        known_subjects = [(e.subject_id, e.normalized_label) for e in active]
         for w_idx, window in windows(turns, max_chars=4000, limit=max_windows):
-            for e_idx, mem in enumerate(extract_session_memories(llm, window)):
-                slotted.append(Slotted(order=(w_idx, e_idx), memory=mem, slot=slot_for(mem)))
+            for e_idx, mem in enumerate(
+                extract_session_memories(llm, window, known_subjects)
+            ):
+                slot = None
+                if mem.kind == "fact" and canonical_subject(mem.subject_label):
+                    stype = canonical_subject_type(mem.subject_type or "entity")
+                    try:
+                        sid = resolve_subject(
+                            scope_key=scope_key,
+                            subject_type=stype,
+                            raw_label=mem.subject_label,
+                            user_id=scope.user_id,
+                            existing=active,
+                            aliases=aliases,
+                            proposed_subject_id=mem.subject_id,
+                            on_ambiguous="refuse",
+                        )
+                        slot = slot_for(mem, scope_key=scope_key, subject_id=sid,
+                                        subject_type=stype)
+                    except SubjectDisambiguationError as exc:
+                        _log.warning(
+                            "from_session: subject disambiguation failed for %r: "
+                            "downgrading fact to standalone: %s",
+                            mem.subject_label, exc,
+                        )
+                slotted.append(Slotted(order=(w_idx, e_idx), memory=mem, slot=slot))
         chains, standalone = plan_chains(slotted)
 
         candidates: list[MemoryCandidate] = []
@@ -384,7 +440,11 @@ class MemoryExtractor:
         lookup_scope = scope.model_copy(update={"session_id": None})
         for slot, states in chains.items():
             slot_meta: dict[str, object] = {
-                "canonical_subject": slot.canonical_subject, "aspect": slot.aspect,
+                # Earliest label is display only (subject_id drives identity/supersession)
+                "canonical_subject": canonical_subject(states[0].memory.subject_label),
+                "aspect": slot.aspect,
+                "subject_id": slot.subject_id,
+                "subject_type": slot.subject_type,
             }
             cross_ids = _cross_session_superseded(self._memory, lookup_scope, slot, this_recency)
             prev_id: str | None = None
@@ -394,10 +454,10 @@ class MemoryExtractor:
                 if new_id is not None:
                     prev_id = new_id
 
-        for subj, aspects in overlap_warnings(chains):
+        for subject_id, aspects in overlap_warnings(chains):
             _log.info(
-                "evolving-fact: subject %r carries multiple active aspects %s "
-                "(possible aspect drift; left distinct, not merged)", subj, aspects,
+                "evolving-fact: subject_id %r carries multiple active aspects %s "
+                "(possible aspect drift; left distinct, not merged)", subject_id, aspects,
             )
 
         return self._build_report(
