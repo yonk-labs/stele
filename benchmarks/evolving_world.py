@@ -236,7 +236,7 @@ def _pct(values: list[float], q: float) -> float:
 
 
 def _ingest(arm: Arm, stele: Stele, ns: str, scope: MemoryScope, ent: Entity,
-            step: SessionStep) -> None:
+            step: SessionStep, real_llm: Callable[[str], str] | None = None) -> None:
     if arm == "no-memory" or step.role == "query":
         return
     art = _artifact(ent, step)
@@ -246,13 +246,17 @@ def _ingest(arm: Arm, stele: Stele, ns: str, scope: MemoryScope, ent: Entity,
         stele.memory.add(text=fact_text, kind="fact", source_refs=[ref], scope=scope,
                          metadata={"widx": step.i, "value": step.value})
     else:  # stele-full: real registry + cross-session supersession
+        # Deterministic stub forces the worst-case label per scenario class; the
+        # real-LLM lane (real_llm) instead reads the noisy artifact and extracts
+        # with genuine label/aspect drift (catches the extraction-instability
+        # staleness class the deterministic core cannot see).
         payload = json.dumps([{
             "kind": "fact", "summary": fact_text, "subject_label": subj_label,
             "aspect": aspect, "subject_type": "entity",
         }])
         stele.extract.from_session(
             transcript=[{"role": "user", "content": art}], scope=scope,
-            llm=_const_llm(payload), max_windows=1,
+            llm=real_llm or _const_llm(payload), max_windows=1,
         )
 
 
@@ -323,7 +327,8 @@ def probe_store(arm: Arm, stele: Stele, ns: str, entities: list[Entity],
 
 
 def run_arm(arm: Arm, steps: list[SessionStep], entities: list[Entity],
-            backend: dict[str, object]) -> ArmMetrics:
+            backend: dict[str, object],
+            real_llm: Callable[[str], str] | None = None) -> ArmMetrics:
     cfg = StashConfig.model_validate({"backend": backend, "extraction": {"enabled": True}})
     stele = Stele(cfg)
     ns = f"ew_{arm.replace('-', '_')}"
@@ -339,7 +344,7 @@ def run_arm(arm: Arm, steps: list[SessionStep], entities: list[Entity],
             last_evidence_text[step.entity] = _artifact(ent, step)
 
         t0 = time.perf_counter()
-        _ingest(arm, stele, ns, scope, ent, step)
+        _ingest(arm, stele, ns, scope, ent, step, real_llm=real_llm)
         answer, recall_tokens, extra_turns = _decide(
             arm, stele, ns, ent, step, last_evidence_text.get(step.entity, _artifact(ent, step))
         )
