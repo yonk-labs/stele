@@ -5,6 +5,36 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.6.4] - 2026-06-21
+
+Temporal Recall Phase 1: a deterministic, scoped Subject Registry that resolves
+entity identity before commit, so cross-session evolving-fact consolidation works
+when the LLM labels the same entity differently across sessions (the mechanism
+behind #69).
+
+### Added
+- `extraction/registry.py`: deterministic `resolve_subject` (self-ref -> curated
+  alias -> validated LLM handoff -> exact match -> mint; ambiguous refuses to
+  standalone; no embeddings, no cosine).
+- Supersession now keys on `(scope_key, subject_type, subject_id, aspect)`;
+  cross-session match keys on `subject_id`.
+- Known-subject handoff: the extractor LLM may reuse an existing `subject_id`,
+  validated exactly against the active set (select-only).
+- `ExtractionConfig.subject_aliases` for explicit, deterministic binding.
+- `extraction/migration.py::backfill_subject_ids` and a `Memory.update_metadata`
+  facade delegate.
+
+### Upgrade note (important)
+- Existing stores: run `backfill_subject_ids(stele.memory, scope)` after upgrading.
+  Pre-0.6.4 memories carry no `subject_id`, so cross-session consolidation against
+  them will not fire until they are backfilled. The backfill is additive and
+  idempotent (metadata only; text, supersession links, and `as_of` are untouched).
+
+### Status
+- The registry mechanism is proven by contract tests. The LLM-handoff efficacy is
+  best-effort and not yet validated at scale (local n=8 inconclusive); the #69
+  efficacy claim awaits the downstream bento harness, so #69 stays open.
+
 ## [0.6.3] - 2026-06-20
 
 Evolving-fact consolidation, the #62 pitfall extraction fix, and the pg-raggraph

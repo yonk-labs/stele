@@ -10,6 +10,13 @@ from __future__ import annotations
 import re
 import unicodedata
 
+# Subject type vocabulary the extractor is asked to prefer. Unknown types stay
+# distinct (lowercased), never folded, biasing to false-negatives.
+SEEDED_SUBJECT_TYPES: tuple[str, ...] = (
+    "service", "component", "project", "package", "person", "user", "config",
+    "environment", "entity",
+)
+
 # Aspect vocabulary the extractor is asked to prefer. Synonyms fold in; unknown
 # aspects are kept DISTINCT (never folded to a shared bucket), biasing toward
 # false-negatives over false merges.
@@ -52,3 +59,20 @@ def canonical_aspect(aspect: str) -> str:
         return ""
     s = _WS.sub(" ", _PUNCT.sub(" ", s)).strip().replace(" ", "_")
     return _ASPECT_SYNONYMS.get(s, s)
+
+
+_SELF_REFERENTIAL: frozenset[str] = frozenset({
+    "i", "me", "my", "myself", "mine", "the user", "current user",
+})
+
+
+def canonical_subject_type(subject_type: str) -> str:
+    """Normalize a subject_type. Empty -> 'entity'. Unknown types are kept
+    distinct (lowercased token), never folded, biasing to false-negatives."""
+    s = canonical_subject(subject_type)
+    return s.replace(" ", "_") if s else "entity"
+
+
+def is_self_referential(label: str) -> bool:
+    """True when the subject label refers to the scope's user ('I', 'me', ...)."""
+    return canonical_subject(label) in _SELF_REFERENTIAL

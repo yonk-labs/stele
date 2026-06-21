@@ -167,3 +167,11 @@ def test_retrieval_config_accepts_vector_and_hybrid() -> None:
     cfg_h = StashConfig.load({"retrieval": {"default_mode": "hybrid"}})
     assert cfg_v.retrieval.default_mode == "vector"
     assert cfg_h.retrieval.default_mode == "hybrid"
+
+
+def test_extraction_config_subject_aliases_default_empty() -> None:
+    from stele.core.config import ExtractionConfig
+
+    assert ExtractionConfig().subject_aliases == {}
+    cfg = ExtractionConfig(subject_aliases={"production": "service:postgres"})
+    assert cfg.subject_aliases["production"] == "service:postgres"

@@ -281,6 +281,15 @@ class Memory:
     def get(self, memory_id: str) -> MemoryRecord | None:
         return self._store.get(memory_id)
 
+    def update_metadata(
+        self,
+        memory_id: str,
+        metadata_patch: dict[str, object],
+    ) -> MemoryRecord:
+        """Replace a record's metadata (labels/derived index only; never the fact text).
+        Used by the registry backfill. Memory text immutability is unaffected."""
+        return self._store.update_metadata(memory_id, metadata_patch)
+
     def update(
         self,
         memory_id: str,
