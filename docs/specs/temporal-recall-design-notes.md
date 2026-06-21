@@ -77,6 +77,34 @@ Design rules for refresh:
   scope confusion (don't refresh historical-state memories), silent mutation (make
   refresh explicit/audited).
 
+## New idea 3 — short-term vs long-term (the horizon axis)
+
+This is the **memory-tier** axis = open issues **#10** (two-tier
+provisional/consolidated + episode framing) and **#11** (per-call `memory_tier`
+kwarg). stele ALSO already has a short-term substrate: **WorkGraph** ("Runtime
+working memory", Phase 6, a first-class record type distinct from memory/artifacts).
+
+- **Long-term** = durable memory store: full supersession chains, all states,
+  `as_of`, evidence refs. The complete archive ("prove it / whole history").
+- **Short-term** = distilled, recency-weighted, ACTIVE-only working view ("what's
+  current/relevant now"). Realize either as a preset/view over durable memory
+  (active + distill + recency-weight + recent window — lazy, no new storage) or via
+  the existing WorkGraph substrate.
+
+**Unifying picture — three ORTHOGONAL access axes over ONE store** (compose as
+params/presets; do NOT build three subsystems):
+1. **shape** — `temporal_mode`: state (chain) vs knowledge (neighborhood). *What.*
+2. **horizon** — `memory_tier`: short (distilled/recent/active) vs long (full/as_of).
+   *How much.*
+3. **freshness** — refresh/TTL: validated vs stale. *Is it still true.*
+
+Caution (same don't-blur lesson): horizon ≠ freshness. A long-term memory can be
+fresh; a short-term one can be stale. Keep them separate knobs.
+
+Open decision (#10/#11): is short-term a VIEW over durable memory, the WorkGraph
+substrate, or both (WorkGraph = session-hot; distilled-view = recency-weighted
+durable)? Reconcile with WorkGraph; don't build a parallel short-term store.
+
 ## Recommended shape + build order (lazy)
 
 ```python
