@@ -224,6 +224,10 @@ class ExtractionConfig(BaseModel):
     reduce_error_chars: int | None = 220
     reduce_tool_chars: int | None = 200
     reduce_drop_success_results: bool = False
+    # Explicit alias map: normalized subject label -> subject_id. The deterministic
+    # bind for cross-session entities the LLM names differently (the #69 fix).
+    # Empty by default; never auto-populated. Keys are canonical_subject() output.
+    subject_aliases: dict[str, str] = {}
 
 
 class DistillConfig(BaseModel):

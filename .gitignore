@@ -31,3 +31,7 @@ uv.lock
 # e2e harness captured run reports
 tests/e2e/evidence/
 benchmarks/.cache/
+
+# throwaway local stele stores + preserved benchmark scratch (never commit)
+.stele/
+benchmarks/external/preserved/

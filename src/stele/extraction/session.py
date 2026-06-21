@@ -36,9 +36,11 @@ class SessionMemory:
     kind: str  # a MemoryKind value
     summary: str
     detail: str
-    do_instead: str = ""      # pitfall remediation; surfaced by distill.rules (#62)
-    subject_label: str = ""   # human-visible entity name; code canonicalizes the key
-    aspect: str = ""          # which attribute of the subject this fact is about
+    do_instead: str = ""           # pitfall remediation; surfaced by distill.rules (#62)
+    subject_label: str = ""        # human-visible entity name; code canonicalizes the key
+    aspect: str = ""               # which attribute of the subject this fact is about
+    subject_type: str = "entity"   # LLM-proposed type hint for registry (Task 0)
+    subject_id: str | None = None  # LLM-proposed canonical id; None = not yet resolved
 
 
 @dataclass(frozen=True)
@@ -292,10 +294,35 @@ def minify_transcript(src: object, *, caveman: bool = False, max_chars: int = 20
     return "\n".join(out)[:max_chars]
 
 
-def extract_session_memories(llm: LLM, window: str) -> list[SessionMemory]:
+def build_extract_prompt(
+    window: str,
+    known_subjects: list[tuple[str, str]] | None = None,
+) -> str:
+    """Build the extraction prompt for one window. When `known_subjects` is
+    non-empty, appends a deterministic block listing each (subject_id, name)
+    pair so the LLM can select an existing id instead of inventing one.
+    When empty or None the prompt is byte-identical to the bare template."""
+    base = _EXTRACT_PROMPT.format(window=window[:8000])
+    if not known_subjects:
+        return base
+    lines = ["KNOWN SUBJECTS (use these exact ids when the fact is about them):"]
+    for sid, name in known_subjects:
+        lines.append(f"  {sid} ({name})")
+    lines.append(
+        "If a fact is about one of these known subjects, set its `subject_id` to"
+        " that exact id; otherwise leave `subject_id` null."
+    )
+    return base + "\n" + "\n".join(lines) + "\n"
+
+
+def extract_session_memories(
+    llm: LLM,
+    window: str,
+    known_subjects: list[tuple[str, str]] | None = None,
+) -> list[SessionMemory]:
     """Ask the injected LLM to extract durable kinded memories from one window.
     Defensive JSON parsing; unknown kinds dropped. Returns [] on parse failure."""
-    match = re.search(r"\[.*\]", llm(_EXTRACT_PROMPT.format(window=window[:8000])), re.DOTALL)
+    match = re.search(r"\[.*\]", llm(build_extract_prompt(window, known_subjects)), re.DOTALL)
     if not match:
         return []
     try:
@@ -310,10 +337,13 @@ def extract_session_memories(llm: LLM, window: str) -> list[SessionMemory]:
         summary = str(obj.get("summary", "")).strip()
         if kind in KIND_VALUES and summary:
             detail = str(obj.get("detail", "")).strip()
+            raw_sid = obj.get("subject_id")
             out.append(SessionMemory(
                 kind=kind, summary=summary, detail=detail,
                 do_instead=str(obj.get("do_instead", "")).strip(),
                 subject_label=str(obj.get("subject_label", "")).strip(),
                 aspect=str(obj.get("aspect", "")).strip(),
+                subject_type=str(obj.get("subject_type", "entity")).strip() or "entity",
+                subject_id=str(raw_sid).strip() if raw_sid is not None else None,
             ))
     return out
