@@ -228,6 +228,14 @@ class ExtractionConfig(BaseModel):
     # bind for cross-session entities the LLM names differently (the #69 fix).
     # Empty by default; never auto-populated. Keys are canonical_subject() output.
     subject_aliases: dict[str, str] = {}
+    # EXPERIMENTAL, isolated: cross-session currency for atomic "evolving facts"
+    # (Postgres 16 -> 17). The memory-value thesis (and downstream bento intel)
+    # found re-derivable atomic facts are low/negative value to cache and evolve;
+    # this machinery (slotting + supersession of `fact` kind in from_session) is the
+    # low-value corner, parked behind this flag for later rework. Default True keeps
+    # shipped behavior; set False to commit facts standalone (no supersession). See
+    # docs/benchmarks/findings/memory-value-thesis-2026-06-21.md.
+    experimental_evolving_facts: bool = True
 
 
 class DistillConfig(BaseModel):
