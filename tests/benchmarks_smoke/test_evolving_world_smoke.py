@@ -1,10 +1,12 @@
 """Smoke + core-claim regression for the evolving-world agent simulation.
 
-Pins the headline claims the benchmark exists to prove (on sqlite, fast):
-- stele-full surfaces stale values no more often than naive-append (supersession
-  beats blind append in an evolving world);
+Pins the headline claims and the issue #72 gates (on sqlite, fast):
 - stele-full's recall payload is no larger than naive-append's (token win);
-- memory-backed arms re-explore less than no-memory (turn win).
+- memory-backed arms re-explore less than no-memory (turn win);
+- store-side: stele-full leaves no MORE active staleness than naive-append, and
+  the residual staleness is concentrated in the value-named (#72) class, not the
+  stable-subject class the registry already handles;
+- precision gate: stele-full never over-merges distinct entities (rate == 0).
 """
 
 from __future__ import annotations
@@ -21,10 +23,10 @@ def _arms_by_name(report: dict[str, object]) -> dict[str, dict[str, object]]:
     return {cast("str", a["arm"]): a for a in arms}
 
 
-def test_evolving_world_headline_claims() -> None:
+def test_evolving_world_headline_and_72_gates() -> None:
     with tempfile.TemporaryDirectory() as d:
         backend: dict[str, object] = {"type": "sqlite", "path": str(Path(d) / "ew.db")}
-        report = run(n_sessions=120, backend=backend)
+        report = run(n_sessions=132, backend=backend)
 
     arms = _arms_by_name(report)
     assert set(arms) == set(ARMS)
@@ -32,16 +34,23 @@ def test_evolving_world_headline_claims() -> None:
     def metric(arm: str, key: str) -> float:
         return cast("float", arms[arm][key])
 
-    # Every arm actually ran the full session stream.
-    assert metric("stele-full", "sessions") == report["sessions"] == 120
+    assert metric("stele-full", "sessions") == report["sessions"] == 132
 
-    # Core claim (b): the new machinery does not surface stale values MORE than
-    # blind append, and should generally surface them less.
-    assert metric("stele-full", "stale_action_rate") <= metric("naive-append", "stale_action_rate")
-
-    # Core claim (c): clean current-state recall is no more token-heavy than the
-    # ever-growing naive-append payload.
+    # (c) clean current-state recall is no more token-heavy than ever-growing append.
     assert metric("stele-full", "tokens") <= metric("naive-append", "tokens")
 
-    # Core claim (a): memory cuts re-exploration turns vs having no memory at all.
+    # (a) memory cuts re-exploration turns vs having no memory at all.
     assert metric("stele-full", "turns") <= metric("no-memory", "turns")
+
+    # store-side (#72): the new machinery leaves no MORE active staleness than blind append.
+    full_stale = metric("stele-full", "active_staleness_rate")
+    naive_stale = metric("naive-append", "active_staleness_rate")
+    assert full_stale <= naive_stale
+
+    # precision gate: distinct entities must never be wrongly merged.
+    assert metric("stele-full", "over_merge_rate") == 0.0
+
+    # #72 localization: for stele-full, residual staleness lives in the value-named
+    # class, not the stable-subject class the registry already resolves cleanly.
+    sbc = cast("dict[str, float]", arms["stele-full"]["stale_by_class"])
+    assert sbc.get("stable", 0.0) <= sbc.get("value", 0.0)
