@@ -5,6 +5,28 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.6.6] - 2026-06-21
+
+Memory-value reframe: the durable, valuable memory is the agent's non-re-derivable
+process history (decisions, dead-ends, procedure), not cheaply re-derivable atomic
+facts. A 3-model debate plus a real-LLM proof (storing a stale value is strictly
+worse than storing nothing) motivate isolating the atomic-fact machinery and
+re-centering on a process/precedent benchmark. Findings:
+[memory-value-thesis-2026-06-21.md](docs/benchmarks/findings/memory-value-thesis-2026-06-21.md).
+
+### Added
+- `ExtractionConfig.experimental_evolving_facts` (default `True`, behavior-preserving):
+  isolates the atomic evolving-fact slotting + supersession in `from_session` behind
+  an experimental flag. Set `False` to commit facts standalone (no supersession) while
+  the low-value atomic-fact-currency corner is reworked. Decisions/procedure paths are
+  unaffected (already committed standalone).
+- Benchmarks: `return_format` (proves the staleness trap: a stored stale value yields
+  0% accuracy under efficiency pressure vs 100% for no-memory or a stored verification
+  method), `process_memory` (positive proof: process-memory lifts decision consistency
+  1.0 vs 0.25 and removes wasted re-investigation turns), `evolving_world` +
+  `evolving_world_llm` (the #69/#72 lab oracle and real-LLM extraction-staleness lane,
+  marked experimental). Plus the evolving-world simulation design + findings docs.
+
 ## [0.6.5] - 2026-06-21
 
 ### Added
