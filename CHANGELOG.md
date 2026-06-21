@@ -5,6 +5,17 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [0.6.5] - 2026-06-21
+
+### Added
+- `extract.from_session(..., extra_subjects=)`: an optional caller-supplied
+  `list[ExistingSubject]` unioned with the internally-derived active set (caller
+  entries win on `subject_id` collision). Re-exposes the per-call known-subject hook
+  that v0.6.4 made internal-only. Enables cross-scope / federated identity, injecting
+  a distilled top-N past the 500-record ceiling, and deterministic harness seeding
+  (which unblocks the three-arm bento test for #69 efficacy). Default `None` keeps
+  behaviour byte-identical. Requested downstream (#71).
+
 ## [0.6.4] - 2026-06-21
 
 Temporal Recall Phase 1: a deterministic, scoped Subject Registry that resolves
