@@ -316,13 +316,19 @@ class MemoryExtractor:
         llm: Callable[[str], str],
         max_windows: int = 3,
         source_ref: str | None = None,
+        extra_subjects: list[ExistingSubject] | None = None,
     ) -> ExtractionReport:
         """Distill durable memory from a real agent transcript (Claude .jsonl, a
         generic message list, or pre-parsed Turns). The deterministic extractor
         does not fit conversational, tool-heavy transcripts, so this is
         LLM-driven: parse, window (failures first), and ask the injected `llm`
         to extract kinded memories with evidence. Commits via the memory facade
-        (PII scrubbing inherited); the transcript is stashed as the source ref."""
+        (PII scrubbing inherited); the transcript is stashed as the source ref.
+
+        `extra_subjects` (#71): caller-supplied subjects unioned with the scope's
+        internally-derived active set, for cross-scope identity, a distilled top-N
+        past the 500-record ceiling, or a deterministic harness seed. Caller entries
+        win on subject_id collision. Default None keeps behaviour unchanged."""
         self._check_enabled()
         from stele.extraction.session import (
             ReduceConfig,
@@ -363,6 +369,14 @@ class MemoryExtractor:
             base_meta["session_mtime"] = session_mtime
         scope_key = _scope_key_no_session(scope)
         active = _active_subjects(self._memory, scope)
+        if extra_subjects:
+            # #71: caller entries win on subject_id collision so they can correct a
+            # stale label; they also reach the LLM handoff list and resolve_subject's
+            # `existing=` set, past the 500-record ceiling.
+            by_id = {e.subject_id: e for e in active}
+            for e in extra_subjects:
+                by_id[e.subject_id] = e
+            active = list(by_id.values())
         aliases = self._config.subject_aliases
         slotted: list[Slotted] = []
         known_subjects = [(e.subject_id, e.normalized_label) for e in active]

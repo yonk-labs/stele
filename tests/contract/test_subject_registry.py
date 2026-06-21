@@ -7,6 +7,7 @@ import json
 from stele.core.config import StashConfig
 from stele.core.memory_record import MemoryQuery, MemoryScope
 from stele.core.stash import Stele
+from stele.extraction.registry import ExistingSubject
 
 
 def _stele(tmp_path, **aliases: str) -> Stele:
@@ -196,3 +197,47 @@ def test_backfill_maps_legacy_chains(tmp_path):
     assert got.metadata["subject_id"] == "entity:postgres"
     assert got.metadata["subject_type"] == "entity"
     assert backfill_subject_ids(s.memory, scope) == 0   # idempotent: re-run is a no-op
+
+
+def _llm_handoff(subject_id: str):  # type: ignore[return]
+    # A fake that performs the handoff: returns an existing subject_id for a
+    # drifted label, as the real extractor LLM would when shown the active set.
+    def _fake(_window: str) -> str:
+        return json.dumps([{"kind": "fact", "summary": "Postgres 16", "detail": "",
+                            "subject_label": "production", "aspect": "version",
+                            "subject_id": subject_id}])
+    return _fake
+
+
+def test_extra_subjects_seeds_resolution(tmp_path):
+    # #71: a caller seeds a subject NOT present in this scope's memory; the handoff
+    # validates against it, so a drifted label resolves to the seeded subject_id.
+    s = _stele(tmp_path)
+    ns = "extra71"
+    seed = [ExistingSubject("service:postgres", "service", "postgres")]
+    s.extract.from_session(
+        transcript=[{"role": "user", "content": "prod upgraded " + "x" * 4100}],
+        scope=MemoryScope(namespace=ns, session_id="d1"),
+        llm=_llm_handoff("service:postgres"), source_ref=None,
+        extra_subjects=seed,
+    )
+    hits = s.memory.search(MemoryQuery(query="Postgres", scope=MemoryScope(namespace=ns),
+                                       limit=50, include_superseded=True))
+    sids = {m.metadata.get("subject_id") for m in hits}
+    assert "service:postgres" in sids   # resolved to the caller-seeded subject
+
+
+def test_without_extra_subjects_unknown_handoff_id_is_ignored(tmp_path):
+    # Control: same handoff id but NO extra_subjects -> not in the active set ->
+    # ignored, mints from the label. Proves extra_subjects is what enabled the merge.
+    s = _stele(tmp_path)
+    ns = "extra71b"
+    s.extract.from_session(
+        transcript=[{"role": "user", "content": "prod upgraded " + "y" * 4100}],
+        scope=MemoryScope(namespace=ns, session_id="d1"),
+        llm=_llm_handoff("service:postgres"), source_ref=None,
+    )
+    hits = s.memory.search(MemoryQuery(query="Postgres", scope=MemoryScope(namespace=ns), limit=50))
+    sids = {m.metadata.get("subject_id") for m in hits}
+    assert "service:postgres" not in sids   # unknown handoff id ignored
+    assert "entity:production" in sids       # minted from the label instead
