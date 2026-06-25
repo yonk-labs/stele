@@ -6,13 +6,14 @@ Date: 2026-06-20 · Version: **0.6.3**
 
 **Compact return for structured payloads (2026-06-25, on `feat/compact-return`).**
 A tiered scheme for returning structured (JSON / DB-result) payloads compactly,
-debiting the `footprint_tokens` term of the cost model. **Tier 1 is shipped**:
-`summary/compact.py::compact_json` losslessly minifies top-level JSON containers
-inside `_content_to_summary_text`, so summaries of JSON spend their budget on
-signal not whitespace. Automatic, no config; stored bytes untouched (exact-bytes
-invariant holds); fail-safe (never raises into the summary path). Tiers 2-3
-(bounded structural digest; `headroom` heavy compression) are designed, not built.
-Design + data-safety model: [compact-return.md](../specs/compact-return.md).
+debiting the `footprint_tokens` term of the cost model. **Tiers 1-2 shipped**:
+`summary/compact.py::compact_or_digest` gives JSON content a compact summary that
+bypasses the prose summarizer: minified-if-it-fits (lossless), else a bounded
+structural digest (keys + types + array lengths + sample + fetch marker). A 74 KB
+JSON object collapses to a 1.2 KB summary. Automatic, no config; stored bytes
+untouched (exact-bytes invariant holds); fail-safe (bad input falls back to prose).
+Tier 3 (`headroom` heavy compression) and explicit tabular/DB-result digests are
+future work. Design + data-safety model: [compact-return.md](../specs/compact-return.md).
 
 **Recipe distiller + memory provenance (2026-06-05).** A `distill.recipes()` view
 that composes cross-kind memories (precedents + best practices + facts) into

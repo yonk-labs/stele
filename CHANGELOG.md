@@ -8,13 +8,18 @@ out of `0.x`.
 ## [Unreleased]
 
 ### Added
-- **Compact return (tier 1): lossless JSON minify in the summary path.** When an
-  artifact's content is a JSON object or array, structural whitespace is stripped
-  (a lossless `json` round-trip) before summarization, so the bounded summary spends
-  its char budget on signal rather than indentation. Fully automatic, no config, no
-  API change; non-JSON, scalars, and malformed JSON pass through unchanged. Stored
-  bytes are never touched (the exact-bytes invariant holds), and `compact_json` never
-  raises into the summary path. Foundation for tiers 2-3 (structural digest, headroom).
+- **Compact return (tiers 1-2): structure-aware summaries for JSON payloads.**
+  JSON object/array content now bypasses the prose summarizer and gets a compact
+  summary via `summary/compact.py::compact_or_digest`: if the losslessly-minified
+  payload fits `summary.max_chars` the summary *is* that minified JSON (exact);
+  otherwise it is a bounded structural digest (top-level keys + types, array
+  lengths, a sample, and a `fetch the stele:// ref` marker). A 74 KB / 2000-row
+  JSON object collapses to a 1.2 KB summary that still names every top-level key
+  and array length. Fully automatic, no config, no API change; non-JSON is
+  unchanged (still summarized by `lede`). Stored bytes are never touched (the
+  exact-bytes invariant holds), and `compact_or_digest` never raises into the
+  summary path (bad input falls back to prose). Tier 3 (headroom heavy
+  compression) and explicit tabular/DB-result digests remain future work.
   Design and data-safety model: [docs/specs/compact-return.md](docs/specs/compact-return.md).
 
 ## [0.6.5] - 2026-06-21

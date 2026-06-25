@@ -1,15 +1,22 @@
 # Spec: compact return for structured payloads
 
-Status: tier 1 shipped (2026-06-25, branch `feat/compact-return`); tiers 2-3 proposed. Owner: stele core.
+Status: tiers 1-2 shipped (2026-06-25, branch `feat/compact-return`); tier 3 proposed. Owner: stele core.
 
-## Using it (tier 1)
+## Using it (tiers 1-2)
 
-Nothing to configure. Tier 1 runs automatically inside every `store()` /
-`stash_tool_result()`: JSON object/array payloads are minified before the summary
-is generated. No flag, no API change, no behavioural change for non-JSON content.
-Note that tier 1 changes the summary *input*, not the stored bytes and not the
-summary's bounded size; its effect is a denser (higher-signal) summary of JSON and
-a foundation for the lossy tiers. The size wins arrive with tiers 2-3.
+Nothing to configure. It runs automatically inside every `store()` /
+`stash_tool_result()` via `_summarize_content`: a JSON object/array payload gets a
+compact summary and bypasses the prose summarizer entirely. No flag, no API change,
+no behavioural change for non-JSON content. The dispatch (`compact_or_digest`):
+
+- If the losslessly-minified payload fits the summary budget (`summary.max_chars`),
+  the summary **is** that minified JSON. Lossless, exact.
+- Otherwise the summary is a bounded structural digest: top-level keys + types,
+  array lengths, a minified sample, and a `fetch the stele:// ref` marker. Lossy
+  hint; the full payload is one `fetch` away. Example: a 74 KB / 2000-row JSON
+  object collapses to a 1.2 KB summary that still names every top-level key, its
+  type, and the array length.
+- Non-JSON (prose, code) is unchanged: it still goes to the `lede` summarizer.
 
 ## How data loss is prevented
 
@@ -25,8 +32,9 @@ Three layers, in order:
    the truth, and the agent recovers exact bytes with `fetch`. A summary can lose
    detail; the source never does.
 
-Fail-safe: `compact_json` never raises into the summary path. Any parse or dump
-failure returns the input unchanged, so a malformed payload cannot break a stash.
+Fail-safe: `compact_or_digest` never raises into the summary path. Malformed or
+non-JSON input returns `None` and falls back to the prose summarizer, so a bad
+payload cannot break a stash.
 
 ## Problem
 
@@ -52,12 +60,14 @@ agent expands via `fetch`. This is the paper's "hint vs truth" rule, reused.
 
 1. **JSON minify (lossless).** `json.loads` then `json.dumps(separators=(",",":"),
    ensure_ascii=False)`. Free, lossless, ~2-4x on pretty-printed JSON. Applies
-   only to top-level `dict`/`list` (containers, where whitespace lives). **This
-   is slice 3, shipping first.**
+   only to top-level `dict`/`list` (containers, where whitespace lives).
+   **Shipped** (`compact_json`, and the fits-branch of `compact_or_digest`).
 2. **Structural digest (bounded, lossy).** When minified JSON still exceeds the
-   summary budget: emit top-level keys + value types + array lengths + the first
-   K sample elements minified, with a `"… N more"` marker. For tabular: column
-   names + types + K sample rows + row count.
+   summary budget: emit top-level keys + value types + array lengths + a minified
+   sample, with a `(+N more keys)` cap and a fetch marker. **Shipped**
+   (`compact_or_digest` -> `_structural_digest`). Tabular/DB-result handling
+   (column names + types + K sample rows + row count) is still future work; a
+   DB result serialized as a JSON array already gets the array digest.
 3. **headroom tier (heavy, lossy-on-structure).** Route JSON/log payloads through
    `headroom` (already a sibling tool, rung-4 dependency, not new) for 89-95%
    compression when the structural digest is still too large.

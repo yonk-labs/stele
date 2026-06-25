@@ -79,7 +79,8 @@ from stele.storage.mariadb import MariaDBStorageBackend
 from stele.storage.memory import MemoryStorageBackend
 from stele.storage.postgres import PostgresStorageBackend
 from stele.storage.sqlite import SQLiteStorageBackend
-from stele.summary.compact import compact_json
+from stele.summary.base import SummaryProvider
+from stele.summary.compact import compact_or_digest
 from stele.summary.lede_adapter import LedeSummaryProvider
 
 if TYPE_CHECKING:
@@ -378,10 +379,8 @@ class Stele:
         del index
         artifact_id = uuid.uuid4().hex
         reference = make_reference(namespace, artifact_id).canonical_without_params
-        raw_text = _content_to_summary_text(content)
-        raw_summary = self.summary_provider.summarize(
-            raw_text,
-            max_chars=self.config.summary.max_chars,
+        raw_summary = _summarize_content(
+            content, self.summary_provider, self.config.summary.max_chars
         )
         scrubbed_summary = self._scrub_text(raw_summary).text
         now = utc_now()
@@ -461,10 +460,8 @@ class Stele:
         for item in items:
             artifact_id = uuid.uuid4().hex
             reference = make_reference(item.namespace, artifact_id).canonical_without_params
-            raw_text = _content_to_summary_text(item.content)
-            raw_summary = self.summary_provider.summarize(
-                raw_text,
-                max_chars=self.config.summary.max_chars,
+            raw_summary = _summarize_content(
+                item.content, self.summary_provider, self.config.summary.max_chars
             )
             scrubbed_summary = self._scrub_text(raw_summary).text
             now = utc_now()
@@ -1194,8 +1191,22 @@ def _normalize_content_type(value: ContentType | str | None) -> ContentType:
 
 
 def _content_to_summary_text(content: str | bytes) -> str:
-    text = content if isinstance(content, str) else content.decode("utf-8", errors="replace")
-    # Tier 1 of compact-return: losslessly minify JSON payloads before they are
-    # summarized, so the bounded summary spends its budget on signal, not
-    # whitespace. Non-JSON passes through unchanged. See docs/specs/compact-return.md.
-    return compact_json(text)
+    if isinstance(content, str):
+        return content
+    return content.decode("utf-8", errors="replace")
+
+
+def _summarize_content(
+    content: str | bytes, provider: SummaryProvider, max_chars: int
+) -> str:
+    """Pick the summary for an artifact's content (compact-return dispatch).
+
+    JSON containers get a compact form (minified-if-it-fits, else a bounded
+    structural digest) and bypass the prose summarizer entirely; everything else
+    goes to ``provider``. See docs/specs/compact-return.md.
+    """
+    raw_text = _content_to_summary_text(content)
+    compact = compact_or_digest(raw_text, max_chars=max_chars)
+    if compact is not None:
+        return compact
+    return provider.summarize(raw_text, max_chars=max_chars)
