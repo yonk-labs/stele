@@ -1,62 +1,198 @@
-"""Bounded code reads, slices 0-1: span + in-file deps + outline + handles.
+"""Bounded code reads: span + resolved deps + outline + expansion handles.
 
-The over-fetch fix (see docs/specs/bounded-code-read-design.md). Given Python
-source and a requested span (a line range or symbol name), returns:
+The over-fetch fix (see docs/specs/bounded-code-read-design.md). Code structure
+is resolved through a pluggable ``Resolver`` (the provider pattern): the
+``StdlibResolver`` (stdlib ``ast``, canonical for Python) is the default and
+zero-dependency fallback; ``CodeparseResolver`` delegates to
+``chunkshop.codeparse`` for other languages, reusing its multi-language parser
+rather than reinventing one. A future graph-backed resolver (pg-raggraph's CALLS
+graph) slots in the same way for cross-file resolution.
 
-  1. the requested span, verbatim;
-  2. resolved in-file dependencies (the module-level defs/assignments the span
-     references, included with their bodies) -- the load-bearing leg the
-     falsification proved mandatory (a span without its referenced defs breaks
-     the task);
-  3. a signature outline of the *remaining* top-level symbols (no bodies);
-  4. expansion handles so the agent keeps agency to escalate.
-
-Python-only, dependency-free (stdlib ``ast``), one level of resolution. Cross-file
-resolution (the graph path) is slice 2; recursion and multi-language are later.
-Never raises: malformed or unresolvable input degrades to a head-of-file view.
+``codeview`` itself is only the bounded-VIEW assembler: it shapes what the model
+sees at a Read (span verbatim + referenced same-file defs with bodies + signature
+outline of the rest + expansion handles, under a char budget), and owns none of
+the parsing or indexing. Never raises: malformed/unresolvable input degrades to a
+head-of-file view.
 """
 
 from __future__ import annotations
 
 import ast
+import os
+import tempfile
+from dataclasses import dataclass
+from typing import Any, Protocol, cast
 
 Span = tuple[int, int]
 _Def = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+_OUTLINEABLE = {"function", "class"}
+_EXT = {"python": ".py", "javascript": ".js", "typescript": ".ts", "go": ".go", "rust": ".rs"}
 
 
-def bounded_python(source: str, *, want: Span | str, max_chars: int = 2000) -> str:
-    """Return a bounded view of Python ``source`` around ``want``.
+@dataclass(frozen=True)
+class SymbolInfo:
+    name: str
+    kind: str  # function | class | method | assign | symbol
+    line_start: int
+    line_end: int
+    signature: str
+    parent: str | None = None
 
-    ``want`` is a 1-based inclusive ``(start, end)`` line range or a symbol name.
-    """
+
+class Resolver(Protocol):
+    def symbols(self, source: str) -> list[SymbolInfo]: ...
+    def referenced(self, source: str, span: Span) -> set[str]: ...
+
+
+class _ParseResult(Protocol):
+    symbols: list[Any]
+    call_sites: list[Any]
+
+
+# --------------------------------------------------------------------------- #
+# Providers
+# --------------------------------------------------------------------------- #
+
+
+class StdlibResolver:
+    """Canonical Python resolver via the stdlib ``ast`` module."""
+
+    def symbols(self, source: str) -> list[SymbolInfo]:
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            return []
+        lines = source.splitlines()
+        out: list[SymbolInfo] = []
+        for node in tree.body:
+            if isinstance(node, _Def):
+                s, e = _node_range(node)
+                kind = "class" if isinstance(node, ast.ClassDef) else "function"
+                out.append(SymbolInfo(node.name, kind, s, e, _sig(node)))
+                if isinstance(node, ast.ClassDef):
+                    for m in node.body:
+                        if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                            ms, me = _node_range(m)
+                            out.append(SymbolInfo(m.name, "method", ms, me, _sig(m), node.name))
+            elif isinstance(node, ast.Assign):
+                for tgt in node.targets:
+                    if isinstance(tgt, ast.Name):
+                        s, e = _node_range(node)
+                        out.append(SymbolInfo(tgt.id, "assign", s, e, _line(lines, s)))
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                s, e = _node_range(node)
+                out.append(SymbolInfo(node.target.id, "assign", s, e, _line(lines, s)))
+        return out
+
+    def referenced(self, source: str, span: Span) -> set[str]:
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            return set()
+        start, end = span
+        names: set[str] = set()
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Name)
+                and isinstance(node.ctx, ast.Load)
+                and start <= node.lineno <= end
+            ):
+                names.add(node.id)
+        return names
+
+
+class CodeparseResolver:
+    """Multi-language resolver via chunkshop.codeparse (tree-sitter, regex fallback)."""
+
+    def __init__(self, language: str) -> None:
+        self.language = language
+
+    def _parse(self, source: str) -> _ParseResult:
+        from chunkshop.codeparse import parse_file
+
+        suffix = _EXT.get(self.language, ".txt")
+        with tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False) as f:
+            f.write(source)
+            path = f.name
+        try:
+            return cast(_ParseResult, parse_file(path, language=self.language))
+        finally:
+            os.unlink(path)
+
+    def symbols(self, source: str) -> list[SymbolInfo]:
+        result = self._parse(source)
+        raw = sorted(result.symbols, key=lambda s: s.line_start)
+        lines = source.splitlines()
+        out: list[SymbolInfo] = []
+        for i, sym in enumerate(raw):
+            end = sym.line_end
+            if end <= sym.line_start:  # regex mode: no body span -> heuristic end
+                end = raw[i + 1].line_start - 1 if i + 1 < len(raw) else len(lines)
+            out.append(
+                SymbolInfo(sym.name, sym.symbol_type or "symbol", sym.line_start, end,
+                           _line(lines, sym.line_start), sym.parent_name)
+            )
+        return out
+
+    def referenced(self, source: str, span: Span) -> set[str]:
+        result = self._parse(source)
+        start, end = span
+        return {
+            cs.callee_name
+            for cs in result.call_sites
+            if start <= cs.line <= end and cs.callee_name
+        }
+
+
+def _select_resolver(language: str) -> Resolver:
+    if language == "python":
+        return StdlibResolver()
+    try:
+        import chunkshop.codeparse  # noqa: F401
+    except ImportError:
+        return StdlibResolver()
+    return CodeparseResolver(language)
+
+
+# --------------------------------------------------------------------------- #
+# Public API
+# --------------------------------------------------------------------------- #
+
+
+def bounded_view(
+    source: str, *, want: Span | str, language: str = "python", max_chars: int = 2000
+) -> str:
+    """Bounded view of ``source`` around ``want`` (a line range or symbol name)."""
     lines = source.splitlines()
     n = len(lines)
-    try:
-        tree = ast.parse(source)
-    except SyntaxError:
-        return _fallback(lines, n, max_chars)
-    span = _resolve_span(tree, want, n)
+    resolver = _select_resolver(language)
+    syms = resolver.symbols(source)
+    span = _resolve_span(syms, want, n)
     if span is None:
         return _fallback(lines, n, max_chars, note=f"symbol {want!r} not found")
     start, end = span
     span_text = "\n".join(lines[start - 1 : end])
-    defs = _module_defs(tree)
-    referenced = _referenced_names(tree, span)
-    deps = _resolve_deps(defs, referenced, span)
-    dep_names = {name for name, _ in deps}
-    outline = _outline(tree, span, dep_names)
+    by_name = {s.name: s for s in syms}
+    deps: list[SymbolInfo] = []
+    for name in resolver.referenced(source, span):
+        sym = by_name.get(name)
+        if sym and not (sym.line_start >= start and sym.line_end <= end):
+            deps.append(sym)
+    deps.sort(key=lambda s: s.line_start)
+    dep_names = {s.name for s in deps}
+    outline = _outline(syms, span, dep_names)
     label = want if isinstance(want, str) else f"lines {want[0]}-{want[1]}"
     return _assemble(label, span_text, lines, deps, outline, n, max_chars)
 
 
-def _resolve_span(tree: ast.Module, want: Span | str, n: int) -> Span | None:
-    if isinstance(want, tuple):
-        start, end = want
-        return (max(1, start), min(n, end))
-    for node in ast.walk(tree):
-        if isinstance(node, _Def) and node.name == want:
-            return _node_range(node)
-    return None
+def bounded_python(source: str, *, want: Span | str, max_chars: int = 2000) -> str:
+    """Bounded view of Python ``source`` (shim over :func:`bounded_view`)."""
+    return bounded_view(source, want=want, language="python", max_chars=max_chars)
+
+
+# --------------------------------------------------------------------------- #
+# Helpers
+# --------------------------------------------------------------------------- #
 
 
 def _node_range(node: ast.stmt) -> Span:
@@ -67,49 +203,8 @@ def _node_range(node: ast.stmt) -> Span:
     return (start, node.end_lineno or node.lineno)
 
 
-def _module_defs(tree: ast.Module) -> dict[str, tuple[ast.stmt, Span]]:
-    """Top-level name -> (node, line range) for defs, classes, and assignments."""
-    defs: dict[str, tuple[ast.stmt, Span]] = {}
-    for node in tree.body:
-        if isinstance(node, _Def):
-            defs[node.name] = (node, _node_range(node))
-        elif isinstance(node, ast.Assign):
-            for tgt in node.targets:
-                if isinstance(tgt, ast.Name):
-                    defs[tgt.id] = (node, _node_range(node))
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            defs[node.target.id] = (node, _node_range(node))
-    return defs
-
-
-def _referenced_names(tree: ast.Module, span: Span) -> set[str]:
-    """Names loaded within the span (the attribute root is a Name, so it counts)."""
-    start, end = span
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Name)
-            and isinstance(node.ctx, ast.Load)
-            and start <= node.lineno <= end
-        ):
-            names.add(node.id)
-    return names
-
-
-def _resolve_deps(
-    defs: dict[str, tuple[ast.stmt, Span]], referenced: set[str], span: Span
-) -> list[tuple[str, Span]]:
-    start, end = span
-    deps: list[tuple[str, Span]] = []
-    for name in referenced:
-        if name not in defs:
-            continue
-        _, (ds, de) = defs[name]
-        if ds >= start and de <= end:
-            continue  # the definition is already inside the span
-        deps.append((name, (ds, de)))
-    deps.sort(key=lambda d: d[1][0])
-    return deps
+def _line(lines: list[str], n: int) -> str:
+    return lines[n - 1].strip() if 0 < n <= len(lines) else ""
 
 
 def _sig(node: ast.AST) -> str:
@@ -123,20 +218,29 @@ def _sig(node: ast.AST) -> str:
     return ""
 
 
-def _outline(tree: ast.Module, span: Span, dep_names: set[str]) -> list[str]:
+def _resolve_span(syms: list[SymbolInfo], want: Span | str, n: int) -> Span | None:
+    if isinstance(want, tuple):
+        return (max(1, want[0]), min(n, want[1]))
+    matches = [s for s in syms if s.name == want]
+    if not matches:
+        return None
+    top = next((s for s in matches if s.parent is None), matches[0])
+    return (top.line_start, top.line_end)
+
+
+def _outline(syms: list[SymbolInfo], span: Span, dep_names: set[str]) -> list[str]:
     start, end = span
     rows: list[str] = []
-    for node in tree.body:
-        if not isinstance(node, _Def) or node.name in dep_names:
+    for sym in syms:
+        if sym.parent is not None or sym.kind not in _OUTLINEABLE or sym.name in dep_names:
             continue
-        node_end = node.end_lineno or node.lineno
-        if node.lineno >= start and node_end <= end:
-            continue  # already shown verbatim in the span
-        rows.append(f"L{node.lineno}\t{_sig(node)}")
-        if isinstance(node, ast.ClassDef):
-            for m in node.body:
-                if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    rows.append(f"L{m.lineno}\t    {_sig(m)}")
+        if sym.line_start >= start and sym.line_end <= end:
+            continue
+        rows.append(f"L{sym.line_start}\t{sym.signature}")
+        if sym.kind == "class":
+            for m in syms:
+                if m.parent == sym.name:
+                    rows.append(f"L{m.line_start}\t    {m.signature}")
     return rows
 
 
@@ -144,7 +248,7 @@ def _assemble(
     label: str,
     span_text: str,
     lines: list[str],
-    deps: list[tuple[str, Span]],
+    deps: list[SymbolInfo],
     outline: list[str],
     n: int,
     max_chars: int,
@@ -158,8 +262,8 @@ def _assemble(
     used = len(head) + len(handles) + 8
 
     dep_texts: list[str] = []
-    for i, (_, (ds, de)) in enumerate(deps):
-        txt = "\n".join(lines[ds - 1 : de])
+    for i, dep in enumerate(deps):
+        txt = "\n".join(lines[dep.line_start - 1 : dep.line_end])
         if dep_texts and used + len(txt) + 40 > max_chars:
             dep_texts.append(f"(+{len(deps) - i} more deps; expand)")
             break
@@ -195,5 +299,5 @@ def _fallback(lines: list[str], n: int, max_chars: int, note: str | None = None)
         used += len(ln) + 1
     note_s = f" ({note})" if note else ""
     handles = f"## expand\n- could not bound{note_s}; read the full file ({n} lines) without bounds"
-    out = f"# bounded view ({n} lines, head)\n" + "\n".join(body_lines) + "\n\n" + handles
-    return out[:max_chars]
+    head = f"# bounded view ({n} lines, head)\n"
+    return (head + "\n".join(body_lines) + "\n\n" + handles)[:max_chars]
