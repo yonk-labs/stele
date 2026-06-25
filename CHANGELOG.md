@@ -27,6 +27,11 @@ out of `0.x`.
   `Stele.read_bounded(manifest=...)` prepend a banner when a file changed since it was
   last indexed (checked via `FileManifest.is_stale`), so the agent re-reads for the
   latest. CodeGraph's safety signal; the manifest is the source of truth.
+- **`stele_read_bounded` MCP tool.** Exposes `Stele.read_bounded` over the MCP server
+  (a code-explore surface, CodeGraph's `codegraph_explore` analogue): `source` (a
+  `stele://` ref, file path, or raw source) + `want` (a symbol name or `start-end` line
+  range) returns the bounded view. Agents get surgical code context in one call instead
+  of reading whole files. The full file stays available via `stele_fetch`.
 - **Bounded code reads, slices 0-2 (`stele.codeview`).** The over-fetch fix:
   given source and a requested span (line range or symbol name), returns the span
   verbatim + **resolved dependencies** (the symbols the span references, with their
