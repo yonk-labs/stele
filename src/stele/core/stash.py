@@ -84,6 +84,7 @@ from stele.summary.compact import compact_or_digest
 from stele.summary.lede_adapter import LedeSummaryProvider
 
 if TYPE_CHECKING:
+    from stele.codeintel.manifest import FileManifest
     from stele.core.memory import Memory
     from stele.distill.facade import Distill
     from stele.extraction.extractor import MemoryExtractor
@@ -566,6 +567,7 @@ class Stele:
         want: tuple[int, int] | str,
         language: str | None = None,
         max_chars: int | None = None,
+        manifest: FileManifest | None = None,
     ) -> str:
         """Return a dependency-aware bounded view of code (the over-fetch fix).
 
@@ -573,20 +575,27 @@ class Stele:
         path to a file on disk, or raw source text. ``want`` is a 1-based
         inclusive ``(start, end)`` line range or a symbol name. The full content
         stays available via ``fetch``; the view advertises expansion handles so
-        the agent keeps agency to escalate. See docs/specs/bounded-code-read-design.md.
+        the agent keeps agency to escalate. If a ``manifest`` is supplied and a
+        path source is stale against it, the view is flagged with a staleness
+        banner. See docs/specs/bounded-code-read-design.md.
         """
         from pathlib import Path
 
         from stele.codeview import bounded_view, language_for_path
 
+        stale = False
         if source.startswith("stele://"):
             text = str(self.fetch(source).content)
         elif "\n" not in source and Path(source).is_file():
             text = Path(source).read_text(errors="replace")
             language = language or language_for_path(source)
+            if manifest is not None:
+                stale = manifest.is_stale(source)
         else:
             text = source
-        return bounded_view(text, want=want, language=language or "python", max_chars=max_chars)
+        return bounded_view(
+            text, want=want, language=language or "python", max_chars=max_chars, stale=stale
+        )
 
     def search(
         self,
