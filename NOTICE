@@ -1,0 +1,19 @@
+# NOTICE
+
+stele includes design ported from third-party MIT-licensed software. No source
+was copied; the designs below were reimplemented in Python.
+
+## CodeGraph — github.com/colbymchenry/codegraph (MIT)
+
+```
+MIT License
+Copyright (c) 2026 Colby Mchenry
+```
+
+The file-watcher policy and the content-hash file manifest in
+`src/stele/codeintel/` are a Python reimplementation of CodeGraph's design:
+its `watcher.ts` platform/WSL2 watch policy and its SQLite `files` table
+(path, content_hash, mtime, indexed_at) that gates re-indexing and powers
+staleness reporting. CodeGraph is TypeScript; stele's port is independent
+Python over `watchfiles` + stdlib `sqlite3`. Full license:
+https://github.com/colbymchenry/codegraph/blob/main/LICENSE
