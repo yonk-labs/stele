@@ -79,6 +79,7 @@ from stele.storage.mariadb import MariaDBStorageBackend
 from stele.storage.memory import MemoryStorageBackend
 from stele.storage.postgres import PostgresStorageBackend
 from stele.storage.sqlite import SQLiteStorageBackend
+from stele.summary.compact import compact_json
 from stele.summary.lede_adapter import LedeSummaryProvider
 
 if TYPE_CHECKING:
@@ -1193,6 +1194,8 @@ def _normalize_content_type(value: ContentType | str | None) -> ContentType:
 
 
 def _content_to_summary_text(content: str | bytes) -> str:
-    if isinstance(content, str):
-        return content
-    return content.decode("utf-8", errors="replace")
+    text = content if isinstance(content, str) else content.decode("utf-8", errors="replace")
+    # Tier 1 of compact-return: losslessly minify JSON payloads before they are
+    # summarized, so the bounded summary spends its budget on signal, not
+    # whitespace. Non-JSON passes through unchanged. See docs/specs/compact-return.md.
+    return compact_json(text)
