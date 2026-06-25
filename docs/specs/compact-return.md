@@ -1,6 +1,32 @@
 # Spec: compact return for structured payloads
 
-Status: proposed (2026-06-25). Owner: stele core.
+Status: tier 1 shipped (2026-06-25, branch `feat/compact-return`); tiers 2-3 proposed. Owner: stele core.
+
+## Using it (tier 1)
+
+Nothing to configure. Tier 1 runs automatically inside every `store()` /
+`stash_tool_result()`: JSON object/array payloads are minified before the summary
+is generated. No flag, no API change, no behavioural change for non-JSON content.
+Note that tier 1 changes the summary *input*, not the stored bytes and not the
+summary's bounded size; its effect is a denser (higher-signal) summary of JSON and
+a foundation for the lossy tiers. The size wins arrive with tiers 2-3.
+
+## How data loss is prevented
+
+Three layers, in order:
+
+1. Storage is upstream and immutable. Compaction only ever runs on a model-visible
+   *derivative* (the summary). The artifact is stored byte-for-byte first
+   (`digest_sha256`, `byte_size` computed from the original); the exact-bytes
+   invariant is guarded by `tests/unit/test_architecture.py`.
+2. Tier 1 is lossless regardless: minify is a `json.loads` / `json.dumps`
+   round-trip, so the data is identical and only whitespace differs.
+3. For the lossy tiers (2-3), the compact form is a *hint*, the `stele://` ref is
+   the truth, and the agent recovers exact bytes with `fetch`. A summary can lose
+   detail; the source never does.
+
+Fail-safe: `compact_json` never raises into the summary path. Any parse or dump
+failure returns the input unchanged, so a malformed payload cannot break a stash.
 
 ## Problem
 

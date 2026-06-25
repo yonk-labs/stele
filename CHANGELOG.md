@@ -5,6 +5,18 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [Unreleased]
+
+### Added
+- **Compact return (tier 1): lossless JSON minify in the summary path.** When an
+  artifact's content is a JSON object or array, structural whitespace is stripped
+  (a lossless `json` round-trip) before summarization, so the bounded summary spends
+  its char budget on signal rather than indentation. Fully automatic, no config, no
+  API change; non-JSON, scalars, and malformed JSON pass through unchanged. Stored
+  bytes are never touched (the exact-bytes invariant holds), and `compact_json` never
+  raises into the summary path. Foundation for tiers 2-3 (structural digest, headroom).
+  Design and data-safety model: [docs/specs/compact-return.md](docs/specs/compact-return.md).
+
 ## [0.6.5] - 2026-06-21
 
 ### Added

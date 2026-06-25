@@ -2,7 +2,17 @@
 
 Date: 2026-06-20 · Version: **0.6.3**
 
-## Proposed / in design (not shipped)
+## Proposed / in design (partially shipped)
+
+**Compact return for structured payloads (2026-06-25, on `feat/compact-return`).**
+A tiered scheme for returning structured (JSON / DB-result) payloads compactly,
+debiting the `footprint_tokens` term of the cost model. **Tier 1 is shipped**:
+`summary/compact.py::compact_json` losslessly minifies top-level JSON containers
+inside `_content_to_summary_text`, so summaries of JSON spend their budget on
+signal not whitespace. Automatic, no config; stored bytes untouched (exact-bytes
+invariant holds); fail-safe (never raises into the summary path). Tiers 2-3
+(bounded structural digest; `headroom` heavy compression) are designed, not built.
+Design + data-safety model: [compact-return.md](../specs/compact-return.md).
 
 **Recipe distiller + memory provenance (2026-06-05).** A `distill.recipes()` view
 that composes cross-kind memories (precedents + best practices + facts) into
