@@ -5,6 +5,23 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
+## [Unreleased]
+
+### Added
+- **Compact return (tiers 1-2): structure-aware summaries for JSON payloads.**
+  JSON object/array content now bypasses the prose summarizer and gets a compact
+  summary via `summary/compact.py::compact_or_digest`: if the losslessly-minified
+  payload fits `summary.max_chars` the summary *is* that minified JSON (exact);
+  otherwise it is a bounded structural digest (top-level keys + types, array
+  lengths, a sample, and a `fetch the stele:// ref` marker). A 74 KB / 2000-row
+  JSON object collapses to a 1.2 KB summary that still names every top-level key
+  and array length. Fully automatic, no config, no API change; non-JSON is
+  unchanged (still summarized by `lede`). Stored bytes are never touched (the
+  exact-bytes invariant holds), and `compact_or_digest` never raises into the
+  summary path (bad input falls back to prose). Tier 3 (headroom heavy
+  compression) and explicit tabular/DB-result digests remain future work.
+  Design and data-safety model: [docs/specs/compact-return.md](docs/specs/compact-return.md).
+
 ## [0.6.5] - 2026-06-21
 
 ### Added
