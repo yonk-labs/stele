@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import platform
+import threading
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
@@ -44,29 +45,36 @@ def watch(
     *,
     ignore: Callable[[Path], bool] | None = None,
     debounce_ms: int = 2000,
+    stop_event: threading.Event | None = None,
     _source: Iterable[set[str]] | None = None,
 ) -> None:
     """Block, calling ``on_change(paths)`` for each debounced batch of changed files.
 
-    Raises :class:`WatchUnavailable` if watching is disabled for ``root``.
-    ``_source`` is a test seam (an iterable of path-sets); production uses
-    ``watchfiles``.
+    Raises :class:`WatchUnavailable` if watching is disabled for ``root``. Pass a
+    ``stop_event`` (a :class:`threading.Event`) to break the loop cleanly from
+    another thread; without it the loop runs until the process ends, which is
+    unclean during interpreter teardown. ``_source`` is a test seam (an iterable
+    of path-sets); production uses ``watchfiles``.
     """
     reason = watching_disabled(root)
     if reason:
         raise WatchUnavailable(reason)
     ignore = ignore or default_ignore
-    source = _source if _source is not None else _watchfiles_source(root, debounce_ms)
+    source = (
+        _source if _source is not None else _watchfiles_source(root, debounce_ms, stop_event)
+    )
     for batch in source:
         changed = {p for p in batch if not ignore(Path(p))}
         if changed:
             on_change(changed)
 
 
-def _watchfiles_source(root: str | Path, debounce_ms: int) -> Iterable[set[str]]:
-    # ponytail: thin adapter over watchfiles; the testable logic lives in watch()
-    # and FileManifest, so this loop is exercised manually, not in unit tests.
+def _watchfiles_source(
+    root: str | Path, debounce_ms: int, stop_event: threading.Event | None
+) -> Iterable[set[str]]:
+    # Thin adapter over watchfiles; stop_event makes the loop cleanly cancellable
+    # (watchfiles checks it each step), which is what keeps shutdown from aborting.
     from watchfiles import watch as _wf_watch
 
-    for events in _wf_watch(str(root), debounce=debounce_ms):
+    for events in _wf_watch(str(root), debounce=debounce_ms, stop_event=stop_event):
         yield {path for _change, path in events}
