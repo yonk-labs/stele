@@ -5,9 +5,24 @@ All notable changes to `stele-core` are recorded here. Format follows
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) once
 out of `0.x`.
 
-## [Unreleased]
+## [0.6.6] - 2026-06-25
 
 ### Added
+- **Outcome reuse in `Stele.memory` (experimental).** Cost-gated, dependency-checked
+  reuse of expensive multi-step outcomes, with a broad-fingerprint canary, a tiered
+  refinement, settable TTL, and an `is_stale` context gate (`core/reuse.py`,
+  `core/memory.py`). Validated in deterministic simulation (flat ~54% turn saving at
+  zero false-valid reuse across 200 drift schedules); **real-coding-agent value is
+  unproven and the feature is flagged accordingly.** See
+  [agent-memory-research-summary.md](docs/measurements/agent-memory-research-summary.md).
+- **`recall.shortcut` cascade.** A 3-tier fall-through (outcome -> context -> procedure)
+  for reusing prior work, with TTL and source-hash freshness gating
+  (`recall/shortcut.py`, design in `docs/specs/recall-shortcut-cascade-design.md`).
+- **`kind_filter` on memory search** across all five storage backends.
+- **Context & Protocol Ledger memory kinds** (`core/ledger.py`, schema in
+  `docs/specs/ledger-record-spec.md`).
+- Reproducible benchmarks: `benchmarks/outcome_reuse.py`, `benchmarks/evolving_world.py`,
+  `benchmarks/return_format.py`, and the over-fetch audit `benchmarks/session_reuse_audit.py`.
 - **Compact return (tiers 1-2): structure-aware summaries for JSON payloads.**
   JSON object/array content now bypasses the prose summarizer and gets a compact
   summary via `summary/compact.py::compact_or_digest`: if the losslessly-minified

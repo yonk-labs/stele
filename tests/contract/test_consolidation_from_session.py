@@ -94,3 +94,25 @@ def test_committed_facts_carry_subject_id(tmp_path):
     hits = s.memory.search(MemoryQuery(query="Test 1", scope=scope, limit=50,
                                        include_superseded=True))
     assert all(m.metadata.get("subject_id") for m in hits if m.metadata.get("aspect"))
+
+
+def test_experimental_flag_off_disables_fact_consolidation(tmp_path):
+    """experimental_evolving_facts=False isolates the low-value atomic-fact currency
+    machinery: facts are committed standalone, so an earlier state is NOT superseded
+    (both stay active). See docs/benchmarks/findings/memory-value-thesis-2026-06-21.md."""
+    cfg = StashConfig.model_validate({
+        "backend": {"type": "sqlite", "path": str(tmp_path / "stele.db")},
+        "extraction": {"enabled": True, "experimental_evolving_facts": False},
+    })
+    s = Stele(cfg)
+    scope = MemoryScope(namespace="t", session_id="s1")
+    transcript = [
+        {"role": "user", "content": "Test 1 not run; covers RAG. " + "x" * 4100},
+        {"role": "assistant", "content": "Test 1 passed; covers RAG and graph. " + "y" * 4100},
+    ]
+    s.extract.from_session(transcript=transcript, scope=scope, llm=_fake_llm, source_ref=None)
+    summaries = {m.summary for m in s.memory.search(
+        MemoryQuery(query="Test 1", scope=scope, limit=50))}
+    # consolidation OFF -> earlier state survives (no supersession chain)
+    assert "Test 1 not run" in summaries
+    assert "Test 1 passed" in summaries

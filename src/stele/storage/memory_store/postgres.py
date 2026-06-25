@@ -112,6 +112,19 @@ BEGIN
     ALTER TABLE memories ADD CONSTRAINT memories_kind_check
       CHECK (kind IN ({_KINDS_SQL}));
   END IF;
+
+  -- Context & Protocol Ledger kinds (added with stele 0.7.x). If the CHECK
+  -- constraint does not yet include 'dead_end', drop and recreate it with
+  -- the full current kind list derived from the MemoryKind Literal.
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'memories_kind_check'
+      AND pg_get_constraintdef(oid) LIKE '%dead_end%'
+  ) THEN
+    ALTER TABLE memories DROP CONSTRAINT IF EXISTS memories_kind_check;
+    ALTER TABLE memories ADD CONSTRAINT memories_kind_check
+      CHECK (kind IN ({_KINDS_SQL}));
+  END IF;
 END
 $do$;
 """
@@ -364,6 +377,7 @@ class PostgresMemoryStore:
         *,
         limit: int = 5,
         source_ref_filter: str | None = None,
+        kind_filter: str | None = None,
     ) -> list[ScoredMemoryHit]:
         if not query.strip():
             return []
@@ -371,7 +385,8 @@ class PostgresMemoryStore:
             # Vector-enabled store: blend a semantic leg via RRF. Falls back to
             # this keyword body for any store without an embedder.
             return self._search_hybrid(
-                query, scope, limit=limit, source_ref_filter=source_ref_filter
+                query, scope, limit=limit, source_ref_filter=source_ref_filter,
+                kind_filter=kind_filter,
             )
         # Newest-valid view (as_of = now, include_superseded = False) via
         # the shared predicate so this never diverges from search(). BUG-1.
@@ -406,6 +421,9 @@ class PostgresMemoryStore:
                 "  )"
             )
             params.append(source_ref_filter)
+        if kind_filter is not None:
+            sql_parts.append("  AND kind = %s")
+            params.append(kind_filter)
         sql_parts.append("ORDER BY raw_score DESC")
         sql_parts.append("LIMIT %s")
         params.append(limit)
@@ -448,6 +466,7 @@ class PostgresMemoryStore:
         *,
         limit: int,
         source_ref_filter: str | None = None,
+        kind_filter: str | None = None,
     ) -> list[ScoredMemoryHit]:
         """RRF fusion of the tsvector keyword leg and a pgvector semantic leg.
         Same newest-valid scope/temporal predicate as the keyword path (BUG-1),
@@ -485,6 +504,9 @@ class PostgresMemoryStore:
                 " WHERE e = %(sref)s)"
             )
             params["sref"] = source_ref_filter
+        if kind_filter is not None:
+            pred.append("AND kind = %(kind)s")
+            params["kind"] = kind_filter
         predicate = "\n          ".join(pred)
         sql = f"""
             WITH kw AS (

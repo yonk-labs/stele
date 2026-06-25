@@ -5,17 +5,24 @@ from __future__ import annotations
 import pathlib
 from datetime import UTC, datetime
 
-from stele.core.memory_record import MemoryRecord, MemoryScope, ScoredMemoryHit
+from stele.core.memory_record import (
+    MemoryKind,
+    MemoryRecord,
+    MemoryScope,
+    ScoredMemoryHit,
+)
 from stele.storage.memory_store.memory import InProcessMemoryStore
 from stele.storage.memory_store.sqlite import SQLiteMemoryStore
 
 
-def _record(id_: str, text: str, refs: list[str]) -> MemoryRecord:
+def _record(
+    id_: str, text: str, refs: list[str], kind: MemoryKind = "fact"
+) -> MemoryRecord:
     now = datetime.now(UTC)
     return MemoryRecord(
         id=id_,
         text=text,
-        kind="fact",
+        kind=kind,
         scope=MemoryScope(user_id="alice"),
         source_refs=refs,
         created_at=now,
@@ -103,6 +110,36 @@ def test_sqlite_search_with_score_filters_by_source_ref(tmp_path: pathlib.Path) 
     )
     assert len(hits) == 1
     assert hits[0].record.id == "m1"
+
+
+def test_in_process_search_with_score_filters_by_kind() -> None:
+    # same text, different kinds: the matcher must route to one kind only.
+    store = InProcessMemoryStore()
+    store.add(_record("p1", "run the tests", ["stele://default/a"], kind="procedure"), [])
+    store.add(_record("o1", "run the tests", ["stele://default/b"], kind="outcome"), [])
+
+    hits = store.search_with_score(
+        "run the tests",
+        scope=MemoryScope(user_id="alice"),
+        limit=5,
+        kind_filter="procedure",
+    )
+    assert [h.record.id for h in hits] == ["p1"]
+
+
+def test_sqlite_search_with_score_filters_by_kind(tmp_path: pathlib.Path) -> None:
+    store = _make_sqlite_store(tmp_path)
+    store.initialize()
+    store.add(_record("p1", "run the tests", ["stele://default/a"], kind="procedure"), [])
+    store.add(_record("o1", "run the tests", ["stele://default/b"], kind="outcome"), [])
+
+    hits = store.search_with_score(
+        "run the tests",
+        scope=MemoryScope(user_id="alice"),
+        limit=5,
+        kind_filter="procedure",
+    )
+    assert [h.record.id for h in hits] == ["p1"]
 
 
 def test_sqlite_search_with_score_handles_fts5_special_chars(

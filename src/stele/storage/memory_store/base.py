@@ -123,11 +123,15 @@ class MemoryStore(Protocol):
         *,
         limit: int = 5,
         source_ref_filter: str | None = None,
+        kind_filter: str | None = None,
     ) -> builtins.list[ScoredMemoryHit]:
         """Like search, but returns hits with normalized score in [0, 1].
 
         source_ref_filter: when set, hits are filtered (in the backend) to
         memories whose source_refs include this URI. None = no filter.
+        kind_filter: when set, hits are filtered (in the backend) to memories
+        of this kind. None = no filter. Used by recall.shortcut to route an
+        intent to one memory kind (outcome/observation/procedure).
         """
         ...
 

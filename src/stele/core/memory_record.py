@@ -26,6 +26,19 @@ MemoryKind = Literal[
     "workaround",  # L2: how it was worked around
     "tool_recommendation",  # L3: a tool that addresses it
     "tool_gap",  # L4: synthesized "missing tool" signal
+    # Context & Protocol Ledger kinds: non-re-derivable process history,
+    # append-only. See docs/specs/context-protocol-ledger-plan.md.
+    "dead_end",            # an approach tried that failed (with the failure reason)
+    "completion",          # a task/review done ("already reviewed spec X")
+    "procedure",           # learned how-to / tips / sequence for a workflow
+    "constraint",          # a standing policy/limit ("never use Redis")
+    "verification_method",  # how to re-derive a volatile value ("run SELECT version()")
+    "observation",         # a DIRECTLY-OBSERVED fact bound to a process ("PG16 used in
+                           # workflow X at T"); governance/audit evidence, recalled as
+                           # context not truth. Inferred facts ("user prefers JSON") are
+                           # NOT observations: route them to preference/decision.
+    "outcome",             # a cached multi-step OUTCOME, reused via a broad-fingerprint
+                           # canary gate when its environment has not drifted (core/reuse.py).
 ]
 
 # The kind values a DB CHECK constraint must accept. Derived from the Literal

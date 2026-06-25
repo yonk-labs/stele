@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import builtins
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from stele.core import reuse as _reuse
 from stele.core.exceptions import CapabilityError
 from stele.core.memory_record import (
     AddRequest,
@@ -23,6 +25,17 @@ from stele.pii.regex import RegexPIIScrubber
 from stele.pii.scrubber import DisabledPIIScrubber
 from stele.revisor.base import NoOpRevisor, Revisor
 from stele.storage.memory_store.base import MemoryStore
+
+
+@dataclass(frozen=True)
+class ReuseResult:
+    """Verdict from :meth:`Memory.reuse_outcome`: whether a cached outcome is still valid to
+    reuse, the candidate record it judged (None on a cache miss), and why."""
+
+    reuse: bool
+    record: MemoryRecord | None
+    reason: str  # "fingerprint-match" | "drift" | "reused-noise" | "not-worth-reuse"
+    #            | "expired" | "miss"
 
 
 class Memory:
@@ -154,6 +167,223 @@ class Memory:
             record=stored,
             duplicate_of=dup_id,
             superseded_ids=superseded_ids,
+        )
+
+    def record_outcome(
+        self,
+        *,
+        text: str,
+        source_refs: list[str],
+        scope: MemoryScope,
+        env: dict[str, str],
+        declared_deps: list[str] | None = None,
+        fingerprint_dims: tuple[str, ...] | None = None,
+        cost: dict[str, object] | None = None,
+        ttl_seconds: float | None = None,
+        summary: str | None = None,
+        supersedes: list[str] | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> MemoryAddResult:
+        """Store a cached multi-step OUTCOME with the canary anchors needed to reuse it safely:
+        a broad fingerprint of ``env`` (the validity gate), the declared dependency set plus its
+        values at derivation (for the later tiered narrow check), an optional cost spine, and an
+        optional ``ttl_seconds`` (the time bound on the canary's semantic blind spot; ``None`` =
+        no expiry, the back-compatible default). The anchors live in ``metadata`` so they
+        round-trip on every backend. Reuse is decided later by :meth:`reuse_outcome`."""
+        declared = list(declared_deps or [])
+        # store the FULL env at derivation as the baseline, so a dimension learned later
+        # (promoted into the declared set) already has its derivation value to compare against.
+        deps_at_derivation = dict(env)
+        meta: dict[str, object] = dict(metadata or {})
+        meta[_reuse.META_FINGERPRINT] = _reuse.fingerprint(env, fingerprint_dims)
+        if fingerprint_dims is not None:
+            meta[_reuse.META_FINGERPRINT_DIMS] = list(fingerprint_dims)
+        meta[_reuse.META_DECLARED_DEPS] = declared
+        meta[_reuse.META_DEPS_AT_DERIVATION] = deps_at_derivation
+        if cost is not None:
+            meta[_reuse.META_COST] = cost
+        if ttl_seconds is not None:
+            meta[_reuse.META_TTL] = ttl_seconds
+        return self.add(
+            text=text,
+            kind="outcome",
+            source_refs=source_refs,
+            scope=scope,
+            summary=summary,
+            supersedes=supersedes,
+            metadata=meta,
+        )
+
+    def record_procedure(
+        self,
+        *,
+        text: str,
+        intent: str,
+        source_refs: list[str],
+        scope: MemoryScope,
+        env: dict[str, str] | None = None,
+        summary: str | None = None,
+        supersedes: list[str] | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> MemoryAddResult:
+        """Store a learned PROCEDURE (the steps for a workflow) so recall.shortcut can return it
+        as advisory steps to re-run. ``intent`` is the trigger this procedure answers (kept for
+        routing/diagnostics); ``env`` is an optional applicability snapshot at recording time so a
+        later recall can flag env drift. No validity gate: the procedure tier is advisory, the
+        agent re-runs the steps."""
+        meta: dict[str, object] = dict(metadata or {})
+        meta[_reuse.META_INTENT] = intent
+        if env is not None:
+            meta[_reuse.META_ENV] = dict(env)
+        return self.add(
+            text=text,
+            kind="procedure",
+            source_refs=source_refs,
+            scope=scope,
+            summary=summary,
+            supersedes=supersedes,
+            metadata=meta,
+        )
+
+    def record_context(
+        self,
+        *,
+        text: str,
+        source_ref: str,
+        source: str,
+        intent: str,
+        scope: MemoryScope,
+        ttl_seconds: float | None = None,
+        summary: str | None = None,
+        supersedes: list[str] | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> MemoryAddResult:
+        """Store recalled CONTEXT (what a source is/does) with the freshness anchors
+        recall.shortcut needs: a content hash of ``source`` (the observable-drift gate) and an
+        optional ``ttl_seconds`` backstop. ``intent`` is the trigger this context answers
+        (routing/diagnostics). Freshness is decided later by :func:`reuse.is_stale`."""
+        meta: dict[str, object] = dict(metadata or {})
+        meta[_reuse.META_INTENT] = intent
+        meta[_reuse.META_SOURCE_HASH] = _reuse.source_hash(source)
+        if ttl_seconds is not None:
+            meta[_reuse.META_TTL] = ttl_seconds
+        return self.add(
+            text=text,
+            kind="observation",
+            source_refs=[source_ref],
+            scope=scope,
+            summary=summary,
+            supersedes=supersedes,
+            metadata=meta,
+        )
+
+    def _latest_outcome(self, scope: MemoryScope) -> MemoryRecord | None:
+        """The most recent active outcome in scope (the current cached result to test)."""
+        active_only: list[MemoryStatus] = ["active"]
+        rows = self.list(scope, status_filter=active_only, limit=1000)
+        outcomes = [r for r in rows if r.kind == "outcome"]
+        if not outcomes:
+            return None
+        return max(outcomes, key=lambda r: r.created_at)
+
+    def _outcome_candidates(
+        self, scope: MemoryScope, intent: str | None, *, top_n: int = 5
+    ) -> builtins.list[MemoryRecord]:
+        """The outcomes to test, best-first. With an ``intent``, route by semantic match over
+        kind=outcome (so a broad scope cannot reuse an unrelated task's result); without one,
+        the single latest-in-scope outcome (back-compatible)."""
+        if intent is None:
+            latest = self._latest_outcome(scope)
+            return [latest] if latest is not None else []
+        hits = self.search_with_score(intent, scope, limit=top_n, kind_filter="outcome")
+        return [h.record for h in hits]
+
+    def _gate_outcome(
+        self,
+        candidate: MemoryRecord,
+        env: dict[str, str],
+        mode: str,
+        now: datetime | None,
+    ) -> ReuseResult:
+        """Apply the TTL backstop then the canary/tiered fingerprint gate to ONE outcome. TTL is
+        checked first: an outcome aged past it returns ``"expired"`` regardless of fingerprint."""
+        meta = candidate.metadata
+        ttl_raw = meta.get(_reuse.META_TTL)
+        ttl = (
+            ttl_raw
+            if isinstance(ttl_raw, (int, float)) and not isinstance(ttl_raw, bool)
+            else None
+        )
+        when = now if now is not None else datetime.now(UTC)
+        if _reuse.is_expired(candidate.created_at, ttl, when):
+            return ReuseResult(reuse=False, record=candidate, reason="expired")
+        stored_fp = meta.get(_reuse.META_FINGERPRINT)
+        dims_raw = meta.get(_reuse.META_FINGERPRINT_DIMS)
+        dims = tuple(str(d) for d in dims_raw) if isinstance(dims_raw, list) else None
+        cost_raw = meta.get(_reuse.META_COST)
+        cost: dict[str, object] | None = cost_raw if isinstance(cost_raw, dict) else None
+        if mode == "tiered":
+            declared_raw = meta.get(_reuse.META_DECLARED_DEPS)
+            declared = (
+                [str(d) for d in declared_raw] if isinstance(declared_raw, list) else []
+            )
+            deps_raw = meta.get(_reuse.META_DEPS_AT_DERIVATION)
+            deps_at: dict[str, object] = deps_raw if isinstance(deps_raw, dict) else {}
+            decision = _reuse.decide_tiered(stored_fp, dims, declared, deps_at, env, cost)
+        else:
+            decision = _reuse.decide_canary(stored_fp, env, dims, cost)
+        return ReuseResult(reuse=decision.reuse, record=candidate, reason=decision.reason)
+
+    def reuse_outcome(
+        self,
+        scope: MemoryScope,
+        env: dict[str, str],
+        *,
+        mode: str = "canary",
+        now: datetime | None = None,
+        intent: str | None = None,
+    ) -> ReuseResult:
+        """Decide whether a cached outcome in ``scope`` is still valid to reuse under ``env``.
+
+        With ``intent``, candidate outcomes are routed by intent (semantic match over
+        kind=outcome) and gated best-first; the first that reuses wins, so a broad scope cannot
+        reuse an unrelated task's result. Without ``intent``, the latest-in-scope outcome is gated
+        (back-compatible). ``canary`` reuses only when the stored broad fingerprint is unchanged;
+        ``tiered`` adds a narrow check that reuses an undeclared-only trip (``reused-noise``). A
+        recorded TTL is checked FIRST (``"expired"`` beats a fingerprint match). ``now`` defaults
+        to the current UTC time. Returns reuse=False reason ``"miss"`` when nothing is cached."""
+        if mode not in ("canary", "tiered"):
+            raise ValueError(f"unknown reuse mode: {mode!r}")
+        candidates = self._outcome_candidates(scope, intent)
+        if not candidates:
+            return ReuseResult(reuse=False, record=None, reason="miss")
+        result = ReuseResult(reuse=False, record=None, reason="miss")
+        for candidate in candidates:
+            result = self._gate_outcome(candidate, env, mode, now)
+            if result.reuse:
+                return result
+        return result  # no candidate reused: the best candidate's reason (drift/expired/...)
+
+    def learn_dependencies(self, record_id: str, env: dict[str, str]) -> MemoryRecord:
+        """Teach a cached outcome a dependency it under-declared, from a reuse that proved
+        stale. Any dimension whose value at ``env`` differs from the derivation baseline and is
+        not already declared is promoted into the declared set, so future ``tiered`` checks
+        re-derive on that dimension instead of reusing through it. This is the post-miss
+        learning loop, driven by caller-supplied detection (stele has no oracle of its own)."""
+        rec = self.get(record_id)
+        if rec is None:
+            raise KeyError(f"no memory with id {record_id!r}")
+        declared_raw = rec.metadata.get(_reuse.META_DECLARED_DEPS)
+        declared = [str(d) for d in declared_raw] if isinstance(declared_raw, list) else []
+        deps_raw = rec.metadata.get(_reuse.META_DEPS_AT_DERIVATION)
+        deps_at: dict[str, object] = deps_raw if isinstance(deps_raw, dict) else {}
+        missed = [
+            d for d in env if d not in declared and str(env.get(d)) != str(deps_at.get(d))
+        ]
+        if not missed:
+            return rec
+        return self.update_metadata(
+            record_id, {_reuse.META_DECLARED_DEPS: declared + missed}
         )
 
     def add_many(self, items: list[AddRequest]) -> list[MemoryAddResult]:
@@ -362,12 +592,14 @@ class Memory:
         *,
         limit: int = 5,
         source_ref_filter: str | None = None,
+        kind_filter: str | None = None,
     ) -> builtins.list[ScoredMemoryHit]:
         return self._store.search_with_score(
             query,
             scope,
             limit=limit,
             source_ref_filter=source_ref_filter,
+            kind_filter=kind_filter,
         )
 
     def by_source_ref(

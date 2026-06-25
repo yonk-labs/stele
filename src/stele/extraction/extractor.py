@@ -385,7 +385,8 @@ class MemoryExtractor:
                 extract_session_memories(llm, window, known_subjects)
             ):
                 slot = None
-                if mem.kind == "fact" and canonical_subject(mem.subject_label):
+                if (self._config.experimental_evolving_facts
+                        and mem.kind == "fact" and canonical_subject(mem.subject_label)):
                     stype = canonical_subject_type(mem.subject_type or "entity")
                     try:
                         sid = resolve_subject(

@@ -15,6 +15,14 @@ untouched (exact-bytes invariant holds); fail-safe (bad input falls back to pros
 Tier 3 (`headroom` heavy compression) and explicit tabular/DB-result digests are
 future work. Design + data-safety model: [compact-return.md](../specs/compact-return.md).
 
+**Outcome reuse + recall.shortcut + ledger kinds (0.6.6, 2026-06-25).** Curated
+from the evolving-world research workstream: `Stele.memory` outcome reuse
+(canary/tiered/cost-gated, settable TTL, `is_stale` gate; experimental, real-coding
+value unproven), the `recall.shortcut` 3-tier cascade, `kind_filter` across all five
+backends, and Context & Protocol Ledger memory kinds. The research is digested in
+[agent-memory-research-summary.md](../measurements/agent-memory-research-summary.md);
+the full raw workstream stays on the `design/evolving-world-sim-benchmark` branch.
+
 **Recipe distiller + memory provenance (2026-06-05).** A `distill.recipes()` view
 that composes cross-kind memories (precedents + best practices + facts) into
 agent-skill-shaped recipes, plus a memory **provenance/authority** axis (human vs
