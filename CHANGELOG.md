@@ -25,6 +25,12 @@ out of `0.x`.
   runs in regex mode unless `chunkshop[code]` (tree-sitter grammars) is installed.
   Design and evidence:
   [docs/specs/bounded-code-read-design.md](docs/specs/bounded-code-read-design.md).
+- **`Stele.read_bounded(source, *, want, language=, max_chars=)`.** Facade verb that
+  routes a read through `codeview`: `source` may be a `stele://` reference (the
+  artifact is fetched), a file path (language inferred from the extension), or raw
+  source. Returns the bounded view; the full content stays available via `fetch`,
+  so expansion handles resolve to real bytes. Makes bounded code reads usable
+  end-to-end.
 
 ## [0.6.6] - 2026-06-25
 
