@@ -18,6 +18,14 @@ out of `0.x`.
   so callers can fall back to git hooks. New optional extra `stele-core[codeintel]`
   (watchfiles). The live loop is covered by a real-filesystem integration test.
   Foundation for staleness banners and incremental graph re-indexing (later slices).
+- **codeintel: cross-file graph resolver (`GraphResolver`).** Wraps pg-raggraph's
+  `code_impact` to resolve a symbol's cross-file callees/callers over the
+  `CALLS`/`INHERITS`/`IMPLEMENTS` graph. Degrades to `[]` without a graph DB, so it is a
+  safe optional tier over `codeview`'s in-file resolver. pg-raggraph is imported lazily
+  (the `postgres-graph` extra); the caller supplies the DB handle. This is the query
+  side; the graph must be ingested first (pg-raggraph `backfill_code_graph`), and feeding
+  cross-file callee bodies into the bounded view plus re-indexing on manifest `Changes`
+  is the remaining integration.
 - **Adaptive output budget for bounded reads.** `codeview.budget_for_lines` scales
   `max_chars` by file size (CodeGraph's explore-budget tiers, applied per file: <50
   lines -> 1200, <200 -> 2000, <800 -> 3500, <3000 -> 6000, else 9000).

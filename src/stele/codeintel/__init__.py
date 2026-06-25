@@ -9,12 +9,14 @@ indexing and staleness reporting build on.
 
 from __future__ import annotations
 
+from stele.codeintel.graph import GraphResolver
 from stele.codeintel.manifest import Changes, FileManifest, default_ignore
 from stele.codeintel.watcher import WatchUnavailable, is_wsl, watch, watching_disabled
 
 __all__ = [
     "Changes",
     "FileManifest",
+    "GraphResolver",
     "WatchUnavailable",
     "default_ignore",
     "is_wsl",
