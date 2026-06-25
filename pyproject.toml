@@ -54,6 +54,12 @@ postgres-graph = [
 judge = [
   "openai>=1.0,<2",
 ]
+# Code-intelligence sync layer (codeintel): a file watcher that keeps a
+# content-hash manifest fresh. watchfiles (Rust/notify) gives cross-platform
+# recursive watching + debounce; the manifest itself is stdlib sqlite3.
+codeintel = [
+  "watchfiles>=0.24,<2",
+]
 all-backends = [
   "psycopg[binary]>=3.2,<4",
   "pymysql>=1.1,<2",

@@ -8,6 +8,15 @@ out of `0.x`.
 ## [Unreleased]
 
 ### Added
+- **codeintel: file watcher + content-hash manifest (`stele.codeintel`).** First slice
+  of the CodeGraph best-of-both merge (a Python design port under MIT; see NOTICE).
+  `FileManifest` (stdlib `sqlite3`, dependency-free) does content-hash change detection
+  (`scan` -> added/modified/deleted, `is_stale`, `mark_indexed`); `watch()` wraps
+  `watchfiles` with CodeGraph's hard-won policy: ignore scoping (prunes ignored dirs),
+  a WSL2-disable guard (drvfs recursive watch is too slow), debounce, and graceful
+  `WatchUnavailable` refusal so callers can fall back to git hooks. New optional extra
+  `stele-core[codeintel]` (watchfiles). Foundation for staleness banners and incremental
+  graph re-indexing (later slices).
 - **Bounded code reads, slices 0-2 (`stele.codeview`).** The over-fetch fix:
   given source and a requested span (line range or symbol name), returns the span
   verbatim + **resolved dependencies** (the symbols the span references, with their
