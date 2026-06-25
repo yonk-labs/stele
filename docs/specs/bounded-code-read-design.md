@@ -92,10 +92,20 @@ Exact-bytes invariant holds in both: the artifact is the full file; expansion is
 
 - **Adoption.** The verb is opt-in; the interception transform is automatic but
   task-blind. Which is the default for the first slice?
-- **The Unknown bucket.** 82% of measured reads are un-adjudicable from
-  transcripts; we do not know how many whole-file reads genuinely needed the whole
-  file. Item #3 (intent-classify the 4.45M source-single reads with a local model)
-  sharpens the addressable upside before heavy build.
+- **The Unknown bucket (sized, 2026-06-25).** 82% of measured reads are
+  un-adjudicable directly from transcripts. We intent-classified a 160-read sample
+  of the single-read source bucket with a local code model (Qwen3-Coder): ~98% of
+  tokens were TARGETED (one function/section) or SCAN (orientation), ~2% WHOLE. A
+  6-case calibration probe scored 5/6 (the classifier does recognize obvious
+  whole-file tasks, so the high fraction is not pure bias), and the result is
+  mechanistically sensible: read-once, never-edited files are reference lookups,
+  while whole-file refactor targets get edited and fall in the edit-anchored
+  bucket instead. Read it as "the large majority is addressable" (~80-95%+), not
+  the literal 98%. Caveats: an LLM proxy for intent, not the counterfactual; sample
+  not census; token weights use post-truncation read sizes. This triangulates with
+  the already-run counterfactual (bounded approximates full at 10-30% tokens) and
+  the falsification (dependency-aware required). **Net: the lever is real and the
+  bucket is largely addressable; slice 0 is justified.**
 - **Counterfactual ceiling.** Bounded approximate full at 10-30% tokens on a
   40-case sample; the production saving depends on how much real work is
   localizable, which #3 informs.
