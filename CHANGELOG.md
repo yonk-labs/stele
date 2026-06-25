@@ -8,16 +8,22 @@ out of `0.x`.
 ## [Unreleased]
 
 ### Added
-- **Bounded code reads, slices 0-1 (`stele.codeview.bounded_python`).** The
-  over-fetch fix: given Python source and a requested span (line range or symbol
-  name), returns the span verbatim + **resolved in-file dependencies** (the
-  module-level defs/assignments the span references, included with their bodies)
-  + a signature outline of the remaining top-level symbols (no bodies) + expansion
-  handles so the agent keeps agency to escalate. The dependency leg is the
-  load-bearing one (a span without its referenced defs is the falsification's
-  1/30 failure mode). Python-only, stdlib `ast`, one level of resolution, never
-  raises (degrades to a head view). Cross-file (graph path) is slice 2; recursion
-  and multi-language are later. Design and evidence:
+- **Bounded code reads, slices 0-2 (`stele.codeview`).** The over-fetch fix:
+  given source and a requested span (line range or symbol name), returns the span
+  verbatim + **resolved dependencies** (the symbols the span references, with their
+  bodies) + a signature outline of the remaining top-level symbols (no bodies) +
+  expansion handles so the agent keeps agency to escalate. The dependency leg is
+  load-bearing (a span without its referenced defs is the falsification's 1/30
+  failure mode). Structure is resolved through a pluggable **provider** (`Resolver`):
+  `StdlibResolver` (stdlib `ast`, canonical for Python, zero-dependency default) and
+  `CodeparseResolver` (delegates to `chunkshop.codeparse` for other languages,
+  reusing its multi-language parser + call-sites rather than reinventing one).
+  `codeview` owns only the bounded-VIEW assembly, not parsing or indexing. Public
+  API: `bounded_view(source, *, want, language=, max_chars=)` and the
+  `bounded_python` shim. A graph-backed resolver (pg-raggraph CALLS graph) for
+  cross-file resolution slots in the same way (future). Note: `chunkshop.codeparse`
+  runs in regex mode unless `chunkshop[code]` (tree-sitter grammars) is installed.
+  Design and evidence:
   [docs/specs/bounded-code-read-design.md](docs/specs/bounded-code-read-design.md).
 
 ## [0.6.6] - 2026-06-25
