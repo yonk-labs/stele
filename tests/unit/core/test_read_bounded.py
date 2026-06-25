@@ -41,3 +41,17 @@ def test_read_bounded_from_path_infers_language(tmp_path) -> None:
 def test_read_bounded_line_range() -> None:
     out = _stele().read_bounded(SRC, want=(1, 2))
     assert "def helper(n):" in out
+
+
+def test_read_bounded_staleness_banner(tmp_path) -> None:
+    from stele.codeintel.manifest import FileManifest
+
+    p = tmp_path / "mod.py"
+    p.write_text(SRC)
+    m = FileManifest()
+    m.update(p)  # record current hash
+    fresh = _stele().read_bounded(str(p), want="main", manifest=m)
+    assert "stale" not in fresh.lower()
+    p.write_text(SRC + "\n\ndef extra():\n    return 0\n")  # change on disk
+    stale = _stele().read_bounded(str(p), want="main", manifest=m)
+    assert "stale" in stale.lower()  # banner fires

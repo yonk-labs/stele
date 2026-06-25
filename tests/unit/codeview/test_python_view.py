@@ -98,6 +98,20 @@ def test_adaptive_budget_scales_with_file_size() -> None:
     assert len(out_large) > 1200  # big file earns a bigger view than the tiny tier
 
 
+# --- staleness banner (slice C) ---
+
+
+def test_stale_banner_prepended() -> None:
+    out = bounded_view("def a():\n    return 1\n", want="a", stale=True)
+    assert "stale" in out.lower()[:60]  # banner up top
+    assert "def a():" in out  # content still present
+
+
+def test_no_banner_when_fresh() -> None:
+    out = bounded_view("def a():\n    return 1\n", want="a", stale=False)
+    assert "stale" not in out.lower()
+
+
 # --- slice 1: in-file dependency resolution ---
 
 DEPS_SRC = '''import os

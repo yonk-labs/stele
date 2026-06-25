@@ -23,6 +23,10 @@ out of `0.x`.
   `bounded_view(max_chars=None)` and `Stele.read_bounded` (now adaptive by default) use
   it, so a tiny helper gets a tight view and a large module earns more deps + outline
   before the agent should just read the whole file.
+- **Staleness banner for bounded reads.** `bounded_view(stale=True)` and
+  `Stele.read_bounded(manifest=...)` prepend a banner when a file changed since it was
+  last indexed (checked via `FileManifest.is_stale`), so the agent re-reads for the
+  latest. CodeGraph's safety signal; the manifest is the source of truth.
 - **Bounded code reads, slices 0-2 (`stele.codeview`).** The over-fetch fix:
   given source and a requested span (line range or symbol name), returns the span
   verbatim + **resolved dependencies** (the symbols the span references, with their

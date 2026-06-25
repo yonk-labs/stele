@@ -174,12 +174,29 @@ def budget_for_lines(n_lines: int) -> int:
     return _BUDGET_MAX
 
 
+_STALE_BANNER = (
+    "## ⚠️ stale\n- this file changed since it was last indexed; the bounded "
+    "view may be out of date. Re-read the file for the latest."
+)
+
+
+def _with_banner(view: str, stale: bool) -> str:
+    return f"{_STALE_BANNER}\n\n{view}" if stale else view
+
+
 def bounded_view(
-    source: str, *, want: Span | str, language: str = "python", max_chars: int | None = 2000
+    source: str,
+    *,
+    want: Span | str,
+    language: str = "python",
+    max_chars: int | None = 2000,
+    stale: bool = False,
 ) -> str:
     """Bounded view of ``source`` around ``want`` (a line range or symbol name).
 
     ``max_chars=None`` selects an adaptive budget scaled to the file's line count.
+    ``stale=True`` prepends a banner telling the agent the view may be out of date
+    (CodeGraph's staleness signal; the source of truth is the manifest).
     """
     lines = source.splitlines()
     n = len(lines)
@@ -188,7 +205,7 @@ def bounded_view(
     syms = resolver.symbols(source)
     span = _resolve_span(syms, want, n)
     if span is None:
-        return _fallback(lines, n, budget, note=f"symbol {want!r} not found")
+        return _with_banner(_fallback(lines, n, budget, note=f"symbol {want!r} not found"), stale)
     start, end = span
     span_text = "\n".join(lines[start - 1 : end])
     by_name = {s.name: s for s in syms}
@@ -201,7 +218,7 @@ def bounded_view(
     dep_names = {s.name for s in deps}
     outline = _outline(syms, span, dep_names)
     label = want if isinstance(want, str) else f"lines {want[0]}-{want[1]}"
-    return _assemble(label, span_text, lines, deps, outline, n, budget)
+    return _with_banner(_assemble(label, span_text, lines, deps, outline, n, budget), stale)
 
 
 def bounded_python(source: str, *, want: Span | str, max_chars: int | None = 2000) -> str:
