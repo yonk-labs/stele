@@ -75,3 +75,50 @@ def test_bounded_to_max_chars() -> None:
     big = "\n\n".join(f"def f{i}(a, b, c):\n    return a" for i in range(500))
     out = bounded_python(big, want="f0", max_chars=600)
     assert len(out) <= 600
+
+
+# --- slice 1: in-file dependency resolution ---
+
+DEPS_SRC = '''import os
+
+HELPER_CONST = 42
+
+
+def _helper(n):
+    return n * HELPER_CONST
+
+
+def target(x):
+    return _helper(x) + 1
+
+
+def unrelated(y):
+    return y - 1
+'''
+
+
+def test_referenced_def_pulled_in_with_body() -> None:
+    out = bounded_python(DEPS_SRC, want="target")
+    assert "def _helper(n):" in out
+    assert "return n * HELPER_CONST" in out  # the BODY, not just a signature
+
+
+def test_unreferenced_def_stays_signature_only() -> None:
+    out = bounded_python(DEPS_SRC, want="target")
+    assert "def unrelated(y)" in out  # signature in the outline
+    assert "return y - 1" not in out  # body excluded (not referenced)
+
+
+def test_referenced_module_constant_pulled_in() -> None:
+    out = bounded_python(DEPS_SRC, want="_helper")
+    assert "HELPER_CONST = 42" in out  # referenced module-level assignment resolved
+
+
+def test_dependency_section_labeled() -> None:
+    out = bounded_python(DEPS_SRC, want="target")
+    assert "dependencies" in out.lower()
+
+
+def test_dep_not_duplicated_in_outline() -> None:
+    out = bounded_python(DEPS_SRC, want="target")
+    assert out.count("def _helper") == 1  # shown as a dep, not also outlined
