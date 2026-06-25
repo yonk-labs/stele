@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from stele.codeview import bounded_python
+from stele.codeview import bounded_python, bounded_view, budget_for_lines
 
 SRC = '''import os
 
@@ -75,6 +75,27 @@ def test_bounded_to_max_chars() -> None:
     big = "\n\n".join(f"def f{i}(a, b, c):\n    return a" for i in range(500))
     out = bounded_python(big, want="f0", max_chars=600)
     assert len(out) <= 600
+
+
+# --- adaptive output budget (slice B) ---
+
+
+def test_budget_for_lines_tiers() -> None:
+    assert budget_for_lines(10) == 1200
+    assert budget_for_lines(100) == 2000
+    assert budget_for_lines(500) == 3500
+    assert budget_for_lines(2000) == 6000
+    assert budget_for_lines(10000) == 9000
+
+
+def test_adaptive_budget_scales_with_file_size() -> None:
+    tiny = "def a():\n    return 1\n"
+    large = "\n".join(f"def f{i}(a, b, c):\n    return a" for i in range(2000))
+    out_tiny = bounded_view(tiny, want="a", max_chars=None)
+    out_large = bounded_view(large, want="f0", max_chars=None)
+    assert len(out_tiny) <= 1200  # tiny tier
+    assert len(out_large) <= 9000  # large tier cap
+    assert len(out_large) > 1200  # big file earns a bigger view than the tiny tier
 
 
 # --- slice 1: in-file dependency resolution ---

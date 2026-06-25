@@ -17,6 +17,12 @@ out of `0.x`.
   `WatchUnavailable` refusal so callers can fall back to git hooks. New optional extra
   `stele-core[codeintel]` (watchfiles). Foundation for staleness banners and incremental
   graph re-indexing (later slices).
+- **Adaptive output budget for bounded reads.** `codeview.budget_for_lines` scales
+  `max_chars` by file size (CodeGraph's explore-budget tiers, applied per file: <50
+  lines -> 1200, <200 -> 2000, <800 -> 3500, <3000 -> 6000, else 9000).
+  `bounded_view(max_chars=None)` and `Stele.read_bounded` (now adaptive by default) use
+  it, so a tiny helper gets a tight view and a large module earns more deps + outline
+  before the agent should just read the whole file.
 - **Bounded code reads, slices 0-2 (`stele.codeview`).** The over-fetch fix:
   given source and a requested span (line range or symbol name), returns the span
   verbatim + **resolved dependencies** (the symbols the span references, with their

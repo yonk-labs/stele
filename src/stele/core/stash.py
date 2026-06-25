@@ -565,7 +565,7 @@ class Stele:
         *,
         want: tuple[int, int] | str,
         language: str | None = None,
-        max_chars: int = 2000,
+        max_chars: int | None = None,
     ) -> str:
         """Return a dependency-aware bounded view of code (the over-fetch fix).
 

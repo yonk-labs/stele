@@ -159,17 +159,36 @@ def _select_resolver(language: str) -> Resolver:
 # --------------------------------------------------------------------------- #
 
 
+# Adaptive output budget, by file size (CodeGraph's explore-budget tiers, applied
+# per-file): a 30-line helper deserves a tight view; a 2000-line module can afford
+# more deps + outline before the agent should just read the whole thing.
+_BUDGET_TIERS = ((50, 1200), (200, 2000), (800, 3500), (3000, 6000))
+_BUDGET_MAX = 9000
+
+
+def budget_for_lines(n_lines: int) -> int:
+    """Adaptive ``max_chars`` for a file of ``n_lines`` lines."""
+    for ceiling, budget in _BUDGET_TIERS:
+        if n_lines < ceiling:
+            return budget
+    return _BUDGET_MAX
+
+
 def bounded_view(
-    source: str, *, want: Span | str, language: str = "python", max_chars: int = 2000
+    source: str, *, want: Span | str, language: str = "python", max_chars: int | None = 2000
 ) -> str:
-    """Bounded view of ``source`` around ``want`` (a line range or symbol name)."""
+    """Bounded view of ``source`` around ``want`` (a line range or symbol name).
+
+    ``max_chars=None`` selects an adaptive budget scaled to the file's line count.
+    """
     lines = source.splitlines()
     n = len(lines)
+    budget = budget_for_lines(n) if max_chars is None else max_chars
     resolver = _select_resolver(language)
     syms = resolver.symbols(source)
     span = _resolve_span(syms, want, n)
     if span is None:
-        return _fallback(lines, n, max_chars, note=f"symbol {want!r} not found")
+        return _fallback(lines, n, budget, note=f"symbol {want!r} not found")
     start, end = span
     span_text = "\n".join(lines[start - 1 : end])
     by_name = {s.name: s for s in syms}
@@ -182,10 +201,10 @@ def bounded_view(
     dep_names = {s.name for s in deps}
     outline = _outline(syms, span, dep_names)
     label = want if isinstance(want, str) else f"lines {want[0]}-{want[1]}"
-    return _assemble(label, span_text, lines, deps, outline, n, max_chars)
+    return _assemble(label, span_text, lines, deps, outline, n, budget)
 
 
-def bounded_python(source: str, *, want: Span | str, max_chars: int = 2000) -> str:
+def bounded_python(source: str, *, want: Span | str, max_chars: int | None = 2000) -> str:
     """Bounded view of Python ``source`` (shim over :func:`bounded_view`)."""
     return bounded_view(source, want=want, language="python", max_chars=max_chars)
 
