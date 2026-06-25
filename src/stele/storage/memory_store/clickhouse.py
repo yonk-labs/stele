@@ -37,8 +37,9 @@ class ClickHouseMemoryStore:
         *,
         limit: int = 5,
         source_ref_filter: str | None = None,
+        kind_filter: str | None = None,
     ) -> list[ScoredMemoryHit]:
-        del query, scope, limit, source_ref_filter
+        del query, scope, limit, source_ref_filter, kind_filter
         raise CapabilityError(
             "memory.search_with_score is not implemented for the ClickHouse backend"
         )

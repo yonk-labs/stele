@@ -425,6 +425,7 @@ class SQLiteMemoryStore:
         *,
         limit: int = 5,
         source_ref_filter: str | None = None,
+        kind_filter: str | None = None,
     ) -> list[ScoredMemoryHit]:
         if not query.strip():
             return []
@@ -455,6 +456,10 @@ class SQLiteMemoryStore:
                 ")"
             )
             params.append(source_ref_filter)
+        kind_sql = ""
+        if kind_filter is not None:
+            kind_sql = " AND m.kind = ?"
+            params.append(kind_filter)
         params.append(limit)
 
         sql = f"""
@@ -464,6 +469,7 @@ class SQLiteMemoryStore:
               {temporal_sql}
               {scope_clause}
               {source_ref_sql}
+              {kind_sql}
             ORDER BY raw_score DESC
             LIMIT ?
         """

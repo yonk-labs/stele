@@ -22,6 +22,7 @@ from stele.recall.models import (
     StrategyName,
 )
 from stele.recall.raw_fetch import RawFetchStrategy
+from stele.recall.shortcut import ShortcutResult, run_shortcut
 from stele.recall.summary_only import SummaryOnlyStrategy
 
 if TYPE_CHECKING:
@@ -194,6 +195,37 @@ class Recall:
         if reason is not None:
             object.__setattr__(req, "_abstain_reason", reason)
         return self._registry["abstain"].execute(req, self._deps)
+
+    def shortcut(
+        self,
+        *,
+        intent: str,
+        env: dict[str, str],
+        scope: MemoryScope,
+        key: str | None = None,
+        source: str | None = None,
+        now: datetime | None = None,
+    ) -> ShortcutResult:
+        """The 3-tier fall-through cascade: outcome -> context -> procedure -> work. Routes the
+        ``intent`` (plus ``env`` for the outcome canary and ``source`` for the context freshness
+        hash) through each short-circuit tier most-reliable-first, returning the first reusable hit
+        or ``tier="work"`` on a miss. ``key`` is an exact identifier (e.g. the file's
+        ``source_ref``) tried before semantic routing in the context tier (hybrid).
+        See :mod:`stele.recall.shortcut`."""
+        if not self._deps.config.enabled:
+            raise CapabilityError("recall is disabled in config")
+        cf = self._deps.config.confidence_floor
+        return run_shortcut(
+            self._deps.memory,
+            intent=intent,
+            env=env,
+            scope=scope,
+            key=key,
+            source=source,
+            floors={"observation": cf, "procedure": cf},
+            top_n=self._deps.config.max_memory_hits,
+            now=now,
+        )
 
     def close(self) -> None:
         # The facade owns no resources beyond the deps struct.

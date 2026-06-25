@@ -4,11 +4,12 @@ import os
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 from stele import Stele
-from stele.core.memory_record import MemoryQuery, MemoryScope
+from stele.core.memory_record import MemoryKind, MemoryQuery, MemoryScope
 
 BACKENDS = ["memory", "sqlite"]
 if os.environ.get("STELE_PG_DSN"):
@@ -700,3 +701,32 @@ def test_by_source_ref_excludes_superseded_by_default(
         scope, episode_ref, status_filter=("active", "superseded")
     )
     assert {m.id for m in widened} == {old.record.id, new.record.id}
+
+
+# Context & Protocol Ledger kinds (Task 1, Phase 1 re-scope).
+LEDGER_KINDS = [
+    "decision",
+    "dead_end",
+    "completion",
+    "procedure",
+    "constraint",
+    "verification_method",
+    "observation",
+]
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("kind", LEDGER_KINDS)
+def test_ledger_kind_roundtrips(tmp_path: Path, backend: str, kind: str) -> None:
+    """Each ledger kind must store and round-trip unchanged on every backend."""
+    s = _stele(tmp_path, backend)
+    scope = MemoryScope(namespace="ledger")
+    ref = str(s.store("evidence blob", namespace="ledger").reference)
+    result = s.memory.add(
+        text=f"a {kind} record",
+        kind=cast(MemoryKind, kind),
+        source_refs=[ref],
+        scope=scope,
+    )
+    got = s.memory.get(result.record.id)
+    assert got is not None and got.kind == kind

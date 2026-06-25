@@ -259,6 +259,7 @@ class InProcessMemoryStore:
         *,
         limit: int = 5,
         source_ref_filter: str | None = None,
+        kind_filter: str | None = None,
     ) -> builtins.list[ScoredMemoryHit]:
         terms = [t for t in query.lower().split() if t]
         if not terms:
@@ -273,6 +274,8 @@ class InProcessMemoryStore:
             ):
                 continue
             if source_ref_filter is not None and source_ref_filter not in record.source_refs:
+                continue
+            if kind_filter is not None and record.kind != kind_filter:
                 continue
             text_lower = record.indexable_text.lower()
             score = sum(text_lower.count(t) for t in terms)
