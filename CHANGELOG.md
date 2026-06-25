@@ -8,12 +8,16 @@ out of `0.x`.
 ## [Unreleased]
 
 ### Added
-- **Bounded code reads, slice 0 (`stele.codeview.bounded_python`).** First step of
-  the over-fetch fix: given Python source and a requested span (line range or symbol
-  name), returns the span verbatim + a signature outline of the other top-level
-  symbols (no bodies) + expansion handles so the agent keeps agency to escalate.
-  Python-only, dependency-free, never raises (degrades to a head view). In-file and
-  cross-file dependency resolution are slices 1-2. Design and evidence:
+- **Bounded code reads, slices 0-1 (`stele.codeview.bounded_python`).** The
+  over-fetch fix: given Python source and a requested span (line range or symbol
+  name), returns the span verbatim + **resolved in-file dependencies** (the
+  module-level defs/assignments the span references, included with their bodies)
+  + a signature outline of the remaining top-level symbols (no bodies) + expansion
+  handles so the agent keeps agency to escalate. The dependency leg is the
+  load-bearing one (a span without its referenced defs is the falsification's
+  1/30 failure mode). Python-only, stdlib `ast`, one level of resolution, never
+  raises (degrades to a head view). Cross-file (graph path) is slice 2; recursion
+  and multi-language are later. Design and evidence:
   [docs/specs/bounded-code-read-design.md](docs/specs/bounded-code-read-design.md).
 
 ## [0.6.6] - 2026-06-25
