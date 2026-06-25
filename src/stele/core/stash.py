@@ -559,6 +559,35 @@ class Stele:
             created_at=record.created_at,
         )
 
+    def read_bounded(
+        self,
+        source: str,
+        *,
+        want: tuple[int, int] | str,
+        language: str | None = None,
+        max_chars: int = 2000,
+    ) -> str:
+        """Return a dependency-aware bounded view of code (the over-fetch fix).
+
+        ``source`` may be a ``stele://`` reference (the artifact is fetched), a
+        path to a file on disk, or raw source text. ``want`` is a 1-based
+        inclusive ``(start, end)`` line range or a symbol name. The full content
+        stays available via ``fetch``; the view advertises expansion handles so
+        the agent keeps agency to escalate. See docs/specs/bounded-code-read-design.md.
+        """
+        from pathlib import Path
+
+        from stele.codeview import bounded_view, language_for_path
+
+        if source.startswith("stele://"):
+            text = str(self.fetch(source).content)
+        elif "\n" not in source and Path(source).is_file():
+            text = Path(source).read_text(errors="replace")
+            language = language or language_for_path(source)
+        else:
+            text = source
+        return bounded_view(text, want=want, language=language or "python", max_chars=max_chars)
+
     def search(
         self,
         reference: str,

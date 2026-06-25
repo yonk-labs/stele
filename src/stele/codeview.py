@@ -190,6 +190,15 @@ def bounded_python(source: str, *, want: Span | str, max_chars: int = 2000) -> s
     return bounded_view(source, want=want, language="python", max_chars=max_chars)
 
 
+_LANG_BY_EXT = {ext: lang for lang, ext in _EXT.items()}
+
+
+def language_for_path(path: str) -> str:
+    """Best-effort language from a file extension (defaults to ``python``)."""
+    _, ext = os.path.splitext(path)
+    return _LANG_BY_EXT.get(ext, "python")
+
+
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
