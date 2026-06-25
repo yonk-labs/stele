@@ -14,6 +14,7 @@ EXPECTED_TOOLS = {
     "stele_query",
     "stele_list",
     "stele_delete",
+    "stele_read_bounded",
     "stele_memory_add",
     "stele_memory_get",
     "stele_memory_search",

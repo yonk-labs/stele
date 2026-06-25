@@ -106,6 +106,18 @@ TOOLS: list[ToolSpec] = [
         "Delete a stored artifact by reference.",
         _obj({"ref": _STR}, ["ref"]),
     ),
+    ToolSpec(
+        "stele_read_bounded",
+        "Dependency-aware bounded read of a code file: returns the requested symbol "
+        "or line range PLUS the definitions it references, a signature outline of the "
+        "rest, and expansion handles -- instead of the whole file. `source` is a "
+        "stele:// ref, a file path, or raw source; `want` is a symbol name or a "
+        "'start-end' line range. The full file stays available via stele_fetch.",
+        _obj(
+            {"source": _STR, "want": _STR, "language": _STR, "max_chars": _INT},
+            ["source", "want"],
+        ),
+    ),
     # ---- memory surface ----
     ToolSpec(
         "stele_memory_add",
@@ -423,6 +435,24 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
         }
 
     @guard
+    def read_bounded(
+        source: str,
+        want: str,
+        language: str | None = None,
+        max_chars: int | None = None,
+    ) -> dict[str, Any]:
+        import re
+
+        match = re.fullmatch(r"\s*(\d+)\s*-\s*(\d+)\s*", want)
+        target: tuple[int, int] | str = (
+            (int(match.group(1)), int(match.group(2))) if match else want
+        )
+        view = stele.read_bounded(
+            source, want=target, language=language, max_chars=max_chars
+        )
+        return {"view": view}
+
+    @guard
     def search(
         ref: str,
         query: str,
@@ -730,6 +760,7 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
         "stele_query": query,
         "stele_list": list_,
         "stele_delete": delete,
+        "stele_read_bounded": read_bounded,
         "stele_memory_add": memory_add,
         "stele_memory_get": memory_get,
         "stele_memory_search": memory_search,
