@@ -7,6 +7,8 @@ out of `0.x`.
 
 ## [Unreleased]
 
+## [0.6.8] - 2026-06-26
+
 ### Added
 - **`stele_memory_find_precedent` MCP tool + `stele memory find-precedent` CLI verb.**
   Exposes `Memory.find_precedent` over the MCP server and CLI (the 26th tool):
@@ -14,6 +16,15 @@ out of `0.x`.
   active matching records. Same `bind_handlers()` engine backs both surfaces. The
   lifecycle/bulk surfaces (`purge`/`export`/`import_namespace`, `store_many`,
   `add_many`) were already exposed; this closes the last library-only memory primitive.
+
+### Docs
+- Schema sections for the three newer MCP tools (`stele_read_bounded`,
+  `stele_distill`, `stele_memory_find_precedent`) in the tools reference, so the
+  26-tool surface is fully documented.
+- Current-state read-model investigated and **downgraded** (do not build): bento's
+  `admin.agent_memory` duplication is driven by its ACL/multi-tenant read path, not a
+  stele read-model gap, so a stele read-model would not let bento drop it. See
+  `docs/specs/current-state-read-model-design.md`.
 
 ## [0.6.7] - 2026-06-26
 
