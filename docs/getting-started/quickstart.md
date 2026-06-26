@@ -10,6 +10,15 @@ This guide takes you from zero to a Claude Code agent that uses stele for eviden
 
 ## 1. Install
 
+> **Not on PyPI yet** (publishing is a tracked follow-up). stele is a public repo,
+> so until then install from git:
+> ```bash
+> pip install "stele-core @ git+https://github.com/yonk-labs/stele.git"
+> # with a backend extra:
+> pip install "stele-core[postgres] @ git+https://github.com/yonk-labs/stele.git"
+> ```
+> Once published, the shorter `pip install stele-core` forms below work directly.
+
 ```bash
 pip install stele-core
 ```

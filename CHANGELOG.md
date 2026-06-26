@@ -7,6 +7,12 @@ out of `0.x`.
 
 ## [Unreleased]
 
+### Docs
+- Install docs now note that `stele-core` is not on PyPI yet (a tracked follow-up).
+  Until then, install from the public repo:
+  `pip install "stele-core @ git+https://github.com/yonk-labs/stele.git"`. The
+  `pip install stele-core` examples remain (correct once published).
+
 ## [0.6.8] - 2026-06-26
 
 ### Added

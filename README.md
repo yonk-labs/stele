@@ -234,6 +234,9 @@ namespace lifecycle `stele_{purge,export,import}_namespace`),
 interception of oversize tool output, `stele_read_bounded` for bounded code
 reads, and `stele_distill` for composed memory views.
 
+> **Not on PyPI yet** (tracked follow-up). Until then, install from the public repo:
+> `pip install "stele-core @ git+https://github.com/yonk-labs/stele.git"`.
+
 ```bash
 pip install stele-core
 stele init                              # write .stele/config.yaml
