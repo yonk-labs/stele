@@ -4,7 +4,7 @@ EXPERIMENTAL / parked: this measures cross-session currency of atomic re-derivab
 facts, which the memory-value thesis found to be the low-value corner (storing the
 volatile value is a trap; see docs/benchmarks/findings/memory-value-thesis-2026-06-21.md
 and return_format.py). Isolated behind ExtractionConfig.experimental_evolving_facts;
-the high-value direction is process_memory.py (decisions/dead-ends/procedure). Kept
+the high-value direction is durable process memory (decisions/dead-ends/procedure). Kept
 for the #69/#72 record and for whenever the atomic-fact machinery is reworked.
 
 Simulates a long-running agent over many sessions while the world changes

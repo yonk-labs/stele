@@ -206,7 +206,12 @@ class Recall:
         source: str | None = None,
         now: datetime | None = None,
     ) -> ShortcutResult:
-        """The 3-tier fall-through cascade: outcome -> context -> procedure -> work. Routes the
+        """The 3-tier fall-through cascade: outcome -> context -> procedure -> work.
+
+        **Experimental, opt-in.** Not the default recall strategy (that is ``adaptive``); value on
+        real coding work is unproven (see ``docs/measurements/agent-memory-research-summary.md``).
+
+        Routes the
         ``intent`` (plus ``env`` for the outcome canary and ``source`` for the context freshness
         hash) through each short-circuit tier most-reliable-first, returning the first reusable hit
         or ``tier="work"`` on a miss. ``key`` is an exact identifier (e.g. the file's

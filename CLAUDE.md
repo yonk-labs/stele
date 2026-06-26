@@ -40,8 +40,10 @@ scripts/test-postgres.sh      # Postgres contract + showcase
 scripts/test-backends.sh      # all backends: contract + showcase + recall
 
 # Benchmarks (all also exposed as console scripts under .venv/bin/)
-.venv/bin/python -m benchmarks.showcase         # writes benchmarks/runs/<date>/Showcase.{md,json}
-.venv/bin/python -m benchmarks.recall           # writes Recall.{md,json}
+.venv/bin/python -m benchmarks.showcase             # writes benchmarks/runs/<date>/Showcase.{md,json}
+.venv/bin/python -m benchmarks.recall               # writes Recall.{md,json}
+.venv/bin/python -m benchmarks.memory_value_proof   # retention value-proof (deterministic); MemoryValueProof.{md,json}
+.venv/bin/python -m benchmarks.evolving_fact_proof  # temporal-correctness value-proof (deterministic); EvolvingFactProof.{md,json}
 .venv/bin/python -m benchmarks.longrun          # deterministic long run; see scripts/run-long-benchmarks.sh
 .venv/bin/python -m benchmarks.answer_workflow  # LLM-judged; see scripts/run-answer-workflow-judge.sh
 ```

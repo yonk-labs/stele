@@ -1,6 +1,6 @@
 # Stele MCP Tools — Reference
 
-This document is the **ground-truth reference** for the 18 tools the `stele-mcp` server exposes to MCP-capable agents. Schemas, types, and examples are derived from `src/stele/mcp/tools.py` — not from the design spec, which the implementation diverged from in deliberate ways (see [§ Drift from spec](#drift-from-spec)).
+This document is the **ground-truth reference** for the 25 tools the `stele-mcp` server exposes to MCP-capable agents. Schemas, types, and examples are derived from `src/stele/mcp/tools.py` — not from the design spec, which the implementation diverged from in deliberate ways (see [§ Drift from spec](#drift-from-spec)).
 
 **Every tool has a CLI equivalent.** The `stele` binary's data-plane subcommands call the same `bind_handlers()` engine over the same `Stele` instance and emit the same JSON shapes. Pick whichever surface fits the moment — MCP for agent-driven calls, CLI for shell scripts, pipelines, and debugging. See the [Tool table](#tool-table) for the mapping and [`docs/reference/cli-reference.md`](cli-reference.md) for the full CLI command reference with flags.
 
@@ -388,6 +388,12 @@ Route a tool's raw output through stele's interception. If the output exceeds th
 ## Lifecycle + bulk-write tools (added 2026-05-20)
 
 The following five tools were added on top of the original 18-tool surface as part of the 2026-05-20 hardening wave. Same `bind_handlers()` engine; same JSON shapes via CLI.
+
+> Two further tools shipped later and are not yet documented in detail here:
+> `stele_distill` (composed cross-kind memory views) and `stele_read_bounded`
+> (bounded code reads, see [§ Current Functional Surface](../../README.md)).
+> Their schemas live in `src/stele/mcp/tools.py`. That brings the surface to **25**.
+> Full schema docs for these two are a tracked follow-up.
 
 ### `stele_purge_namespace`
 

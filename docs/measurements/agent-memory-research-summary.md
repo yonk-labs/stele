@@ -3,9 +3,8 @@
 A condensed digest of the memory-lever research behind the features in this
 release. The full workstream (raw measurement logs, daily findings, the
 deterministic simulations, and the four-model design reviews) is archived on the
-`design/evolving-world-sim-benchmark` branch and synthesized in the
-"Process Is the Memory" white paper. This doc is the readable summary; the
-benchmarks named below are committed and reproducible.
+`design/evolving-world-sim-benchmark` branch. This doc is the readable summary;
+the benchmarks named below are committed and reproducible.
 
 ## The question
 

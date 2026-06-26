@@ -1,6 +1,39 @@
 # Current Status
 
-Date: 2026-06-20 · Version: **0.6.3**
+Date: 2026-06-25 · Version: **0.6.6**
+
+## Direction decision (2026-06-25, AAT)
+
+**Freeze code-graph ingestion. Prove the memory thesis in-repo next.**
+
+After an AAT direction critique (four independent sources converged: the
+`reference_codegraph_prior_art.md` memory, repo evidence, an abe debate
+across gemma+qwen+codex, and a Scout pass), the call is:
+
+- **Do NOT build** `backfill_code_graph`, the live re-indexing watcher loop,
+  or tree-sitter grammar installs. Owning a code graph is scope drift into a
+  commoditized space (Sourcegraph / LSP / ctags / aider repomap / codegraph)
+  where stele has no moat. `codeintel/GraphResolver` stays as the thin,
+  injectable query seam it already is (degrades to `[]`).
+- **Keep** `codeview` (bounded code reads). A bounded read is the interception
+  thesis applied to a `Read`, and it is the best-validated work in the repo
+  (1/30 naive-span vs 30/30 dependency-aware reproduction at ~6% tokens).
+- **Next session** = one in-repo, end-to-end value-proof that the memory layer
+  changes an agent outcome with cited evidence (no `bento` required), then let
+  the result pick the next committed bet. The real downstream consumer
+  (bento/Memex) pulls memory/recall/artifacts, not code intelligence.
+
+Detail: `skill-output/aat/AAT-BattlePlan.md` (+ Teardown, Rebuttal, TaskIndex).
+
+**Consumer-driven build #1: `Memory.find_precedent` (2026-06-26).** First feature
+chosen from a real downstream need rather than a benchmark. A bento/stele gap map
+showed bento's distiller hand-rolls the supersession-candidate lookup (list active
+facts, filter by `(subject, predicate)` metadata). `find_precedent(scope, *, match,
+kind=None)` returns the active memories in a scope whose metadata contains all
+`match` pairs, so the consumer can drop that glue. Facade-level (no new backend
+method), active-only, contract-tested on memory/sqlite/postgres. Two in-repo
+value-proofs back the broader thesis: `benchmarks/memory_value_proof.py`
+(retention) and `benchmarks/evolving_fact_proof.py` (temporal correctness).
 
 ## Proposed / in design (partially shipped)
 
@@ -257,7 +290,7 @@ Follow-up issues track CLI + MCP exposure.
 
 ### Packaging — Multi-platform MCP + slash-skill (2026-05-20, branch `feat/multiplatform-packaging`)
 
-- `stele-mcp` stdio server with the full 18-tool surface (`store`/`fetch`/`search`/`query`/`list`/`delete` + `memory_*` × 7 + `extract_*` × 3 + `recall` + `stash_tool_result`). Sanitized egress + structured `McpError` codes.
+- `stele-mcp` stdio server with the full 25-tool surface (`store`/`fetch`/`search`/`query`/`list`/`delete` + bulk `store_many`/`memory_add_many` + lifecycle `purge`/`export`/`import`_namespace + `memory_*` × 7 + `extract_*` × 3 + `recall` + `stash_tool_result` + `read_bounded` + `distill`). Sanitized egress + structured `McpError` codes.
 - `stele` CLI: `init`, `install`, `uninstall`, `status`, `doctor`, `mcp`.
 - Seven launch platforms driven by `src/stele/packaging/platforms.py:PLATFORM_CONFIG`:
   Claude Code, Codex, OpenCode, Cursor, Gemini CLI, Copilot, Aider.
@@ -267,15 +300,37 @@ Follow-up issues track CLI + MCP exposure.
 - Plan: `docs/archive/superpowers/plans/2026-05-20-stele-multiplatform-packaging.md`.
 - Smoke: `docs/contributing/release-smoke-checklist.md`. Auth model: `docs/operations/mcp-auth-model.md`.
 
-## What's next (authoritative — order-of-operations §2)
+## What's next
 
-| Phase | Scope |
+Superseded by the 2026-06-25 direction decision (see the `## Direction decision` block
+above): the near-term path is now **consumer-driven** (ordered by real bento/Memex pull),
+not the old phase roadmap. Full rationale + the gap map:
+[consumer-driven-backlog.md](consumer-driven-backlog.md).
+
+**Consumer-driven backlog (near-term, ordered by real pull):**
+
+| Item | Source of pull | Status |
+| --- | --- | --- |
+| `Memory.find_precedent` (supersession-candidate lookup) | bento distiller hand-rolls it | ✅ shipped 2026-06-26 |
+| Current-state read-model for a scope ("active facts" fast read) | bento duplicates facts into `admin.agent_memory` | design next |
+| Provenance/span linkage in `extract` | bento bookkeeps `source_refs` by hand | candidate |
+| LLM-provider abstraction for `extract.from_session` | shim builds the LLM callable from env | candidate |
+| Prove next memory lever in-repo before shipping to core | the value-proof discipline | standing rule |
+
+**Frozen (consumer shows zero pull):** code-graph ingestion for `codeintel`
+(`backfill_code_graph`, live re-indexing, FQN→body). The `GraphResolver` query seam stays.
+
+**Still valid, consumer-agnostic:**
+
+| Item | Scope |
 | --- | --- |
-| 8 | Source Catalog + Universal Search ⊕ T-RAM-009 (evidence-backed Topic/Session/Profile views). |
-| 9 | Plugin SDK productization (extract committed protocols once ≥3 external use cases). |
+| — | CLI + MCP exposure of the library-only lifecycle/bulk surfaces (`purge_namespace`, `export_namespace`, `import_namespace`, `store_many`, `add_many`, and now `find_precedent`). |
 | — | Gated cross-cutting: T-RAM-011 (runtime context-compression benchmark — blocks any public compression claim); T-RAM-010 (optional LLM proposal pipeline, post-deterministic, behind validators). |
-| — | CLI + MCP exposure of the library-only lifecycle and bulk-write surfaces (`purge_namespace`, `export_namespace`, `import_namespace`, `store_many`, `add_many`). Tracked as separate issues. |
-| — | Open study tickets: #10 (two-tier provisional/consolidated memory; design conversation), #11 (per-call `memory_tier` kwarg, paired with #10), #9 (runtime metadata-index management; low priority, needs an admin/UI consumer). |
+| — | Open study tickets: #10 (two-tier provisional/consolidated memory), #11 (per-call `memory_tier` kwarg, paired with #10), #9 (runtime metadata-index management; low priority). |
+
+The old phase roadmap (Phase 8 Source Catalog / Universal Search, Phase 9 Plugin SDK)
+is parked behind the consumer-driven backlog; revisit once the memory value story is
+proven and bento's needs are mapped.
 
 See [`docs/archive/superpowers/2026-05-17-order-of-operations.md`](../archive/superpowers/2026-05-17-order-of-operations.md)
 for the dependency graph and the full path, and
