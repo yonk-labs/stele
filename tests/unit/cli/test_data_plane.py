@@ -57,6 +57,44 @@ def test_store_fetch_roundtrip_via_cli(capsys: pytest.CaptureFixture[str]) -> No
     assert "hello" in str(fetched["content"])
 
 
+def test_memory_find_precedent_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
+    main(["init", "--backend", "memory"])
+    capsys.readouterr()
+
+    main(["store", "--text", "deploy day is Friday", "--content-type", "text"])
+    ref = _capture_json(capsys)["ref"]
+
+    main(
+        [
+            "memory",
+            "add",
+            "deploy day is Friday",
+            "--source-ref",
+            ref,
+            "--kind",
+            "fact",
+            "--metadata",
+            '{"subject": "deploy_day", "predicate": "is", "object": "Friday"}',
+        ]
+    )
+    capsys.readouterr()
+
+    rc = main(
+        [
+            "memory",
+            "find-precedent",
+            "--match",
+            '{"subject": "deploy_day", "predicate": "is"}',
+            "--kind",
+            "fact",
+        ]
+    )
+    out = _capture_json(capsys)
+    assert rc == 0
+    assert len(out["records"]) == 1
+    assert "deploy_day" in json.dumps(out["records"])
+
+
 def test_store_reads_stdin_when_dash(
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,

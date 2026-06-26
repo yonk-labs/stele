@@ -282,15 +282,14 @@ additive; no breaking signature changes.
 | #17 | #14 | `Stele.store_many(items: list[StoreRequest]) → list[StoredResult]` and `Memory.add_many(items: list[AddRequest]) → list[MemoryAddResult]`. Bulk-write API: postgres `executemany` in one transaction delivers **~10× speedup at N=1000** vs per-row baseline. Microbenchmark `benchmarks/bulk_write.py` (`stele-bulk-write-bench` console script). |
 | #20 | #15 | `stele doctor` pre-checks the optional extras matched to the configured backend (postgres → psycopg, mariadb → pymysql, clickhouse → clickhouse_connect, graph → pg_raggraph, chunkshop → chunkshop) and prints actionable `pip install` lines. Quickstart §2 documents the stdio + CWD-relative-config runtime model. cli-guide gains a Postgres-backend-notes subsection (schema evolution, `hybrid → keyword` silent-degrade conditions, `search_path` DSN tip). |
 
-**Gap deliberately tracked, not silently left:** the new lifecycle and
-bulk-write surfaces (`purge_namespace`, `export_namespace`,
-`import_namespace`, `store_many`, `add_many`) are **library-only** today
-— not yet exposed via the `stele` CLI or the `stele-mcp` server.
-Follow-up issues track CLI + MCP exposure.
+**Now exposed (was a tracked gap):** the lifecycle and bulk-write surfaces
+(`purge_namespace`, `export_namespace`, `import_namespace`, `store_many`,
+`add_many`), plus `memory_find_precedent`, are reachable via both the `stele`
+CLI and the `stele-mcp` server (the same `bind_handlers()` engine backs both).
 
 ### Packaging — Multi-platform MCP + slash-skill (2026-05-20, branch `feat/multiplatform-packaging`)
 
-- `stele-mcp` stdio server with the full 25-tool surface (`store`/`fetch`/`search`/`query`/`list`/`delete` + bulk `store_many`/`memory_add_many` + lifecycle `purge`/`export`/`import`_namespace + `memory_*` × 7 + `extract_*` × 3 + `recall` + `stash_tool_result` + `read_bounded` + `distill`). Sanitized egress + structured `McpError` codes.
+- `stele-mcp` stdio server with the full 26-tool surface (`store`/`fetch`/`search`/`query`/`list`/`delete` + bulk `store_many`/`memory_add_many` + lifecycle `purge`/`export`/`import`_namespace + `memory_*` × 7 + `memory_find_precedent` + `extract_*` × 3 + `recall` + `stash_tool_result` + `read_bounded` + `distill`). Sanitized egress + structured `McpError` codes.
 - `stele` CLI: `init`, `install`, `uninstall`, `status`, `doctor`, `mcp`.
 - Seven launch platforms driven by `src/stele/packaging/platforms.py:PLATFORM_CONFIG`:
   Claude Code, Codex, OpenCode, Cursor, Gemini CLI, Copilot, Aider.
@@ -324,7 +323,7 @@ not the old phase roadmap. Full rationale + the gap map:
 
 | Item | Scope |
 | --- | --- |
-| — | CLI + MCP exposure of the library-only lifecycle/bulk surfaces (`purge_namespace`, `export_namespace`, `import_namespace`, `store_many`, `add_many`, and now `find_precedent`). |
+| ✅ done | CLI + MCP exposure of the lifecycle/bulk surfaces (`purge`/`export`/`import`_namespace, `store_many`, `add_many`) and `memory_find_precedent` (26-tool surface). |
 | — | Gated cross-cutting: T-RAM-011 (runtime context-compression benchmark — blocks any public compression claim); T-RAM-010 (optional LLM proposal pipeline, post-deterministic, behind validators). |
 | — | Open study tickets: #10 (two-tier provisional/consolidated memory), #11 (per-call `memory_tier` kwarg, paired with #10), #9 (runtime metadata-index management; low priority). |
 

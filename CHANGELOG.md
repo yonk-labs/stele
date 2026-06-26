@@ -7,6 +7,14 @@ out of `0.x`.
 
 ## [Unreleased]
 
+### Added
+- **`stele_memory_find_precedent` MCP tool + `stele memory find-precedent` CLI verb.**
+  Exposes `Memory.find_precedent` over the MCP server and CLI (the 26th tool):
+  `match` (metadata pairs) + optional `namespace` / `kind` / `limit`, returns the
+  active matching records. Same `bind_handlers()` engine backs both surfaces. The
+  lifecycle/bulk surfaces (`purge`/`export`/`import_namespace`, `store_many`,
+  `add_many`) were already exposed; this closes the last library-only memory primitive.
+
 ## [0.6.7] - 2026-06-26
 
 ### Added

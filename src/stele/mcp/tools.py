@@ -167,6 +167,17 @@ TOOLS: list[ToolSpec] = [
         ),
     ),
     ToolSpec(
+        "stele_memory_find_precedent",
+        "Find active memories in a scope whose metadata contains all given pairs -- the "
+        "supersession-candidate lookup. A new memory whose identifying attributes are "
+        "`match` (e.g. {\"subject\": \"deploy_day\", \"predicate\": \"is\"}) should supersede "
+        "what this returns. Optional `kind` restricts to one kind (e.g. \"fact\").",
+        _obj(
+            {"match": _OBJ_ANY, "namespace": _STR, "kind": _STR, "limit": _INT},
+            ["match"],
+        ),
+    ),
+    ToolSpec(
         "stele_memory_update",
         "Update metadata of a memory record. Text changes are rejected; use add(supersedes=).",
         _obj({"memory_id": _STR, "metadata": _OBJ_ANY}, ["memory_id"]),
@@ -570,6 +581,21 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
         return {"records": [_to_jsonable(r) for r in records]}
 
     @guard
+    def memory_find_precedent(
+        match: dict[str, Any],
+        namespace: str | None = None,
+        kind: str | None = None,
+        limit: int = 1000,
+    ) -> dict[str, Any]:
+        records = stele.memory.find_precedent(
+            _build_scope(namespace),
+            match=match,
+            kind=kind,
+            limit=limit,
+        )
+        return {"records": [_to_jsonable(r) for r in records]}
+
+    @guard
     def memory_update(
         memory_id: str, metadata: dict[str, Any] | None = None
     ) -> dict[str, Any]:
@@ -765,6 +791,7 @@ def bind_handlers(stele: Any) -> list[ToolSpec]:
         "stele_memory_get": memory_get,
         "stele_memory_search": memory_search,
         "stele_memory_list": memory_list,
+        "stele_memory_find_precedent": memory_find_precedent,
         "stele_memory_update": memory_update,
         "stele_memory_delete": memory_delete,
         "stele_memory_retract": memory_retract,

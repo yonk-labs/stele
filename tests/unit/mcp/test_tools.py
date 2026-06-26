@@ -22,6 +22,7 @@ EXPECTED_TOOLS = {
     "stele_memory_update",
     "stele_memory_delete",
     "stele_memory_retract",
+    "stele_memory_find_precedent",
     "stele_extract_from_text",
     "stele_extract_from_messages",
     "stele_extract_from_artifact",
@@ -76,6 +77,18 @@ def test_bind_handlers_wires_store() -> None:
     result = handler(payload="hello", content_type="text/plain")
     fake_stele.store.assert_called_once()
     assert result == {"ref": "stele://x/abc"}
+
+
+def test_bind_handlers_wires_find_precedent() -> None:
+    fake_stele = MagicMock()
+    fake_stele.memory.find_precedent.return_value = []
+    bound = bind_handlers(fake_stele)
+    handler = next(b for b in bound if b.name == "stele_memory_find_precedent").handler
+    assert handler is not None
+    handler(match={"subject": "deploy_day", "predicate": "is"}, namespace="kb1", kind="fact")
+    _args, kwargs = fake_stele.memory.find_precedent.call_args
+    assert kwargs["match"] == {"subject": "deploy_day", "predicate": "is"}
+    assert kwargs["kind"] == "fact"
 
 
 def test_query_handler_passes_filters_and_parses_dates() -> None:

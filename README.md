@@ -118,7 +118,7 @@ The current runnable slice includes:
 
 **Multi-platform packaging**
 
-- `stele-mcp` stdio MCP server — full 25-tool read/write surface over the
+- `stele-mcp` stdio MCP server — full 26-tool read/write surface over the
   `Stele` facade with sanitized egress and structured error codes
 - `stele` CLI — two groups of subcommands:
   - **operator**: `init` / `install` / `uninstall` / `status` / `doctor` / `mcp`
@@ -223,11 +223,11 @@ Runnable: `STELE_PG_RAGGRAPH_DSN=… scripts/demo-living-knowledge.sh`.
 (stdio MCP server), and `stele-ingest` (reduce a Claude session transcript to
 its keep120 signal and store it as one artifact; meant for a SessionEnd hook,
 see [docs/guides/memory-distillation-guide.md](docs/guides/memory-distillation-guide.md)). The MCP server
-presents 25 tools over the public Stele
+presents 26 tools over the public Stele
 facade — `stele_store` / `stele_fetch` / `stele_search` / `stele_query` /
 `stele_list` / `stele_delete` for artifacts (plus bulk `stele_store_many` and
 namespace lifecycle `stele_{purge,export,import}_namespace`),
-`stele_memory_{add,get,search,list,update,delete,retract}` and bulk
+`stele_memory_{add,get,search,list,update,delete,retract,find_precedent}` and bulk
 `stele_memory_add_many` for evidence-cited memory,
 `stele_extract_from_{text,messages,artifact}` for deterministic extraction,
 `stele_recall` for policy-driven recall, `stele_stash_tool_result` for

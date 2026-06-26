@@ -46,6 +46,21 @@ def add_subparser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     )
     p_list.set_defaults(func=run_list)
 
+    p_find = mem.add_parser(
+        "find-precedent",
+        help="Find active memories whose metadata matches all pairs (supersession lookup)",
+    )
+    p_find.add_argument(
+        "--match",
+        type=json.loads,
+        required=True,
+        help='JSON metadata pairs, e.g. \'{"subject":"deploy_day","predicate":"is"}\'',
+    )
+    p_find.add_argument("--namespace", default=None)
+    p_find.add_argument("--kind", default=None)
+    p_find.add_argument("--limit", type=int, default=1000)
+    p_find.set_defaults(func=run_find_precedent)
+
     p_update = mem.add_parser("update", help="Update memory metadata")
     p_update.add_argument("memory_id")
     p_update.add_argument("--metadata", type=json.loads, default=None)
@@ -114,6 +129,15 @@ def run_list(args: argparse.Namespace) -> int:
     if args.status_filter is not None:
         kwargs["status_filter"] = args.status_filter
     return invoke("stele_memory_list", kwargs, pretty=args.pretty)
+
+
+def run_find_precedent(args: argparse.Namespace) -> int:
+    kwargs: dict[str, Any] = {"match": args.match, "limit": args.limit}
+    if args.namespace is not None:
+        kwargs["namespace"] = args.namespace
+    if args.kind is not None:
+        kwargs["kind"] = args.kind
+    return invoke("stele_memory_find_precedent", kwargs, pretty=args.pretty)
 
 
 def run_update(args: argparse.Namespace) -> int:
