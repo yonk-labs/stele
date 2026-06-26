@@ -389,13 +389,10 @@ Route a tool's raw output through stele's interception. If the output exceeds th
 
 The following five tools were added on top of the original 18-tool surface as part of the 2026-05-20 hardening wave. Same `bind_handlers()` engine; same JSON shapes via CLI.
 
-> Three further tools shipped later and are not yet documented in detail here:
+> Three further tools shipped after this wave, bringing the surface to **26**:
 > `stele_distill` (composed cross-kind memory views), `stele_read_bounded`
-> (bounded code reads, see [§ Current Functional Surface](../../README.md)), and
-> `stele_memory_find_precedent` (active memories whose metadata matches given
-> pairs — the supersession-candidate lookup; `match` object + optional `namespace`
-> / `kind` / `limit`). Their schemas live in `src/stele/mcp/tools.py`. That brings
-> the surface to **26**. Full schema docs for these three are a tracked follow-up.
+> (bounded code reads), and `stele_memory_find_precedent` (supersession-candidate
+> lookup). Their schemas are in [§ Newer tools](#newer-tools) below.
 
 ### `stele_purge_namespace`
 
@@ -471,6 +468,61 @@ Bulk-write N memory rows in one transaction.
 ```
 
 Each item mirrors the per-row `stele_memory_add` kwargs with `scope` as a nested object. Per-row supersession works inside a batch via the `supersedes` field. Returns `{results: [MemoryAddResult, ...]}`.
+
+---
+
+## Newer tools
+
+The three tools added after the lifecycle wave.
+
+### `stele_read_bounded`
+
+Dependency-aware bounded read of a code file: the requested symbol or line range plus the definitions it references, a signature outline of the rest, and expansion handles — instead of the whole file.
+
+```json
+{"source": "stele://repo/abc123", "want": "parse_config", "language": "python", "max_chars": 2000}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `source` | string | yes | A `stele://` ref (artifact is fetched), a file path (language inferred from extension), or raw source. |
+| `want` | string | yes | A symbol name (e.g. `parse_config`) or a `start-end` line range (e.g. `40-72`). |
+| `language` | string | no | Override when `source` is raw or the extension is ambiguous. |
+| `max_chars` | integer | no | Output budget; omitted = adaptive by file size. The full file stays available via `stele_fetch`. |
+
+Returns the layered bounded view as text. Escalation handles in the view resolve to real bytes via `stele_fetch`.
+
+### `stele_distill`
+
+Distill a memory mode into a structured `DistilledView`.
+
+```json
+{"mode": "facts", "namespace": "tenant-a"}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mode` | string | yes | One of `facts`, `precedents`, `state`, `skills`, `best_practices`, `rules`, `episodes`, `timeline`, `spans`. Unknown mode returns a `VALIDATION` error. |
+| `namespace` | string | no | Scopes the distillation. |
+
+Returns `{view: <DistilledView>}`. Note: `skills` / `best_practices` / `rules` degrade to empty without an LLM configured; `spans` needs an embedder.
+
+### `stele_memory_find_precedent`
+
+Active memories in a scope whose metadata contains all the given pairs — the supersession-candidate lookup. A new memory whose identifying attributes are `match` should supersede what this returns.
+
+```json
+{"match": {"subject": "deploy_day", "predicate": "is"}, "namespace": "tenant-a", "kind": "fact", "limit": 1000}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `match` | object | yes | Metadata key/value pairs; a record matches when its `metadata` contains all of them. |
+| `namespace` | string | no | Scopes the lookup. |
+| `kind` | string | no | Restrict to one memory kind (e.g. `fact`). |
+| `limit` | integer | no | Max active records scanned (default 1000). |
+
+Returns `{records: [MemoryRecord, ...]}` — only active records (superseded ones are never precedents).
 
 ---
 
