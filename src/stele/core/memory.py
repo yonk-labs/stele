@@ -345,6 +345,10 @@ class Memory:
     ) -> ReuseResult:
         """Decide whether a cached outcome in ``scope`` is still valid to reuse under ``env``.
 
+        **Experimental, opt-in.** Real-coding value is unproven (see
+        ``docs/measurements/agent-memory-research-summary.md``). Never invoked by the default
+        recall path (``recall.default_strategy="adaptive"``); call it explicitly to use it.
+
         With ``intent``, candidate outcomes are routed by intent (semantic match over
         kind=outcome) and gated best-first; the first that reuses wins, so a broad scope cannot
         reuse an unrelated task's result. Without ``intent``, the latest-in-scope outcome is gated
@@ -507,6 +511,35 @@ class Memory:
         as_of: datetime | None = None,
     ) -> list[MemoryRecord]:
         return self._store.list(scope, status_filter, limit, as_of=as_of)
+
+    def find_precedent(
+        self,
+        scope: MemoryScope,
+        *,
+        match: dict[str, object],
+        kind: MemoryKind | None = None,
+        limit: int = 1000,
+    ) -> builtins.list[MemoryRecord]:
+        """Active memories in ``scope`` whose ``metadata`` contains all ``match`` pairs.
+
+        The supersession-candidate lookup: a new memory whose identifying attributes
+        are ``match`` (e.g. ``{"subject": "deploy_day", "predicate": "is"}``) should
+        supersede the records returned here. Pass ``kind`` to restrict to one kind
+        (e.g. ``"fact"``). Returns ``[]`` when nothing matches. Absorbs the
+        list-active-then-filter glue a consumer would otherwise reimplement to find
+        what a new fact replaces.
+        """
+        # ponytail: O(n) scan over up to `limit` active records in scope — the same
+        # cost as the caller-side filter it replaces. Push `match` into the store
+        # query if a single scope ever holds enough active memories for it to matter.
+        active: builtins.list[MemoryStatus] = ["active"]
+        records = self._store.list(scope, active, limit, as_of=None)
+        return [
+            r
+            for r in records
+            if (kind is None or r.kind == kind)
+            and all((r.metadata or {}).get(k) == v for k, v in match.items())
+        ]
 
     def get(self, memory_id: str) -> MemoryRecord | None:
         return self._store.get(memory_id)

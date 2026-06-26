@@ -730,3 +730,58 @@ def test_ledger_kind_roundtrips(tmp_path: Path, backend: str, kind: str) -> None
     )
     got = s.memory.get(result.record.id)
     assert got is not None and got.kind == kind
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_find_precedent_matches_active_by_metadata(tmp_path: Path, backend: str) -> None:
+    """find_precedent returns the active records whose metadata matches all pairs.
+
+    This is the supersession-candidate lookup a consumer (e.g. bento's distiller)
+    otherwise reimplements: list active facts, filter by (subject, predicate).
+    """
+    s = _stele(tmp_path, backend)
+    scope = MemoryScope(user_id=_unique_user())
+    deploy = s.memory.add(
+        text="deploy day is Friday",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=scope,
+        metadata={"subject": "deploy_day", "predicate": "is", "object": "Friday"},
+    )
+    s.memory.add(
+        text="owner is alice",
+        kind="fact",
+        source_refs=["stele://default/b"],
+        scope=scope,
+        metadata={"subject": "owner", "predicate": "is", "object": "alice"},
+    )
+    hits = s.memory.find_precedent(
+        scope, match={"subject": "deploy_day", "predicate": "is"}, kind="fact"
+    )
+    assert [h.id for h in hits] == [deploy.record.id]
+    assert s.memory.find_precedent(scope, match={"subject": "nope"}) == []
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_find_precedent_excludes_superseded(tmp_path: Path, backend: str) -> None:
+    """Only the current active record is a precedent; superseded ones are gone."""
+    s = _stele(tmp_path, backend)
+    scope = MemoryScope(user_id=_unique_user())
+    meta = {"subject": "deploy_day", "predicate": "is"}
+    old = s.memory.add(
+        text="deploy day is Friday",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=scope,
+        metadata={**meta, "object": "Friday"},
+    )
+    new = s.memory.add(
+        text="deploy day is Tuesday",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=scope,
+        metadata={**meta, "object": "Tuesday"},
+        supersedes=[old.record.id],
+    )
+    hits = s.memory.find_precedent(scope, match=meta, kind="fact")
+    assert [h.id for h in hits] == [new.record.id]
