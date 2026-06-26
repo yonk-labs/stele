@@ -7,7 +7,26 @@ out of `0.x`.
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-06-26
+
 ### Added
+- **`Memory.find_precedent(scope, *, match, kind=None)`.** The supersession-candidate
+  lookup as a first-class facade method: returns the active memories in a scope whose
+  `metadata` contains all `match` pairs (e.g. `{"subject": "deploy_day", "predicate":
+  "is"}`), optionally restricted to one `kind`. Absorbs the list-active-then-filter glue
+  a consumer otherwise hand-rolls to find what a new fact supersedes. First feature chosen
+  from a real downstream need (the bento/stele gap map, see
+  [docs/project/consumer-driven-backlog.md](docs/project/consumer-driven-backlog.md)).
+  Contract-tested on memory/sqlite/postgres.
+- **In-repo memory value-proofs (deterministic, no LLM judge).**
+  `benchmarks/memory_value_proof.py` measures the **retention** lever: a fact buried in an
+  early tool output that scrolls out of the context window. A no-memory agent loses it at
+  realistic budgets; stele recalls it correctly for ~6k tokens (62-70% fewer than the
+  baseline's keep-everything path). `benchmarks/evolving_fact_proof.py` measures **temporal
+  correctness** over a durable evolving decision: stele (supersession + `as_of`) is correct
+  on all three temporal questions where a no-memory baseline and a naive store-once memory
+  each score 1/3. Both fill the gap the showcase flagged ("does not measure answer accuracy
+  yet"); each has a smoke test.
 - **codeintel: file watcher + content-hash manifest (`stele.codeintel`).** First slice
   of the CodeGraph best-of-both merge (a Python design port under MIT; see NOTICE).
   `FileManifest` (stdlib `sqlite3`, dependency-free) does content-hash change detection
@@ -64,6 +83,23 @@ out of `0.x`.
   source. Returns the bounded view; the full content stays available via `fetch`,
   so expansion handles resolve to real bytes. Makes bounded code reads usable
   end-to-end.
+
+### Changed
+- **Outcome reuse marked experimental at the API surface.** `Memory.reuse_outcome` and
+  `Recall.shortcut` docstrings now state they are experimental, opt-in, and not on the
+  default recall path (`adaptive`), with real-coding value unproven. No behavior change:
+  outcome reuse was already opt-in (no config flag enables it).
+- **MCP tool count corrected to 25** across the README, current-status, and the tools
+  reference (previously documented as 18; the newest are `stele_read_bounded` and
+  `stele_distill`, plus the lifecycle/bulk tools). Two dangling doc references removed.
+
+### Direction
+- **Code-graph ingestion (`codeintel`) frozen.** Owning a code graph is scope drift into
+  a commoditized space; the consumer (bento) pulls memory, not code intelligence. The
+  `GraphResolver` query seam stays; `backfill_code_graph` / live re-indexing are deferred.
+  Rationale and the consumer-driven backlog:
+  [docs/project/consumer-driven-backlog.md](docs/project/consumer-driven-backlog.md) and
+  the `## Direction decision` block in current-status.
 
 ## [0.6.6] - 2026-06-25
 
