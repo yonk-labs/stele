@@ -59,14 +59,17 @@ black box), but every one has a named call site, which is what makes them better
 than benchmark-chosen work.
 
 1. **`Memory.find_precedent` — SHIPPED 2026-06-26.** See adoption note below.
-2. **Current-state read-model for a scope.** The deepest signal: bento writes facts
-   to stele AND projects each into a separate `admin.agent_memory` SQL table, because
-   `/v1/ask` needs a fast "active facts for this scope" read and stele's bi-temporal
-   recall was not the right shape for that hot path
-   (`bento/backend/api/ingredients/distiller.py:203-249`). A real consumer duplicated
-   stele's data to work around a missing read-model. This is the one place bento found
-   stele genuinely insufficient. Design candidate: a materialized current-state view so
-   bento can drop the parallel table.
+2. **Current-state read-model — DOWNGRADED after investigation (not a real gap).**
+   bento projects facts into a separate `admin.agent_memory` table, which looked like
+   "stele has no fast current-state read." Investigation found the real driver is
+   bento's **ACL / org-team-personal / project-partition** layer, not a stele gap: the
+   projection's own docstring says it exists to surface the current fact "without
+   rewriting the **ACL-aware** read path" (`distiller.py:203-249`; migrations
+   `0021_agent_memory_project_partition`, `0022_memory_acl`). A stele read-model would
+   NOT let bento drop the table (ACL still forces it), and multi-tenant ACL is a product
+   concern stele deliberately does not own. Conclusion: do not build it. Optional thin
+   `memory.active(scope, kind=)` sugar only. Full note:
+   [current-state-read-model-design.md](../specs/current-state-read-model-design.md).
 3. **Provenance/span linkage in `extract`.** bento manually stashes each turn as an
    artifact and threads the `stele://` ref as `source_refs`
    (`distiller.py:145-150`). stele's "every memory cites evidence" invariant could own
