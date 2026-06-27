@@ -52,3 +52,31 @@ def test_unknown_aspect_kept_distinct_not_other() -> None:
 
 def test_empty_aspect_is_empty() -> None:
     assert canonical_aspect("") == ""
+
+
+def test_implementation_cluster_folds_to_one_aspect() -> None:
+    # #72: the "what technology IS it" attribute is the one the LLM relabels most
+    # across sessions; fold the cluster so a value swap lands in one slot.
+    folded = {
+        canonical_aspect(a)
+        for a in ("engine", "runtime", "framework", "platform",
+                  "technology", "tech", "tool")
+    }
+    assert folded == {"implementation"}
+
+
+def test_scale_synonyms_fold() -> None:
+    assert canonical_aspect("replica_count") == canonical_aspect("replicas") == "replicas"
+    assert canonical_aspect("replica") == "replicas"
+
+
+def test_implementation_fold_does_not_swallow_distinct_aspects() -> None:
+    # Over-merge guard at the canonicalizer: folding the implementation cluster
+    # must NOT collapse genuinely-distinct attributes of the same subject.
+    impl = canonical_aspect("engine")
+    assert impl == "implementation"
+    for distinct in ("version", "location", "owner", "status", "coverage", "config"):
+        assert canonical_aspect(distinct) != impl
+    # seeded aspects still pass through untouched
+    assert canonical_aspect("version") == "version"
+    assert canonical_aspect("location") == "location"

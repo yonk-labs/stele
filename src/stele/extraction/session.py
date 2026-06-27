@@ -241,6 +241,15 @@ and "aspect" (which attribute the fact is about). Prefer an aspect from:
 status, coverage, version, owner, location, config. If none fits, use a short
 lowercase noun. Omit both for general facts with no named subject.
 
+The aspect names the ATTRIBUTE the value SETS, and MUST be identical for a value
+and any later replacement of it. A fact that an entity was migrated / moved /
+switched / replaced / upgraded / renamed to a new value is about that SAME
+attribute (e.g. "migrated the primary database to MySQL" and "the primary
+database is Postgres" share one aspect -- the database's engine; "renamed the
+branch to main" and "the default branch is master" share "name"). Do NOT relabel
+a change as "status" or "location"; reserve "status" for true state
+(passing/failing, enabled/disabled).
+
 kind is one of:
 - fact: a durable fact/result/state (e.g. "the API returns 400 when the id is missing")
 - decision: a choice + why (e.g. "chose Postgres 16 over MySQL for full-text search")

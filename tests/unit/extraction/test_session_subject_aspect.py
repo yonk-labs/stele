@@ -70,3 +70,22 @@ def test_session_prompt_requests_subject_label_and_aspect():
     prompt = delivered[0].lower()
     assert "subject_label" in prompt
     assert "aspect" in prompt
+
+
+def test_session_prompt_includes_aspect_stabilization_instruction():
+    """#72: the prompt must instruct that a value and its later replacement share
+    the SAME aspect, so evolving-fact states land in one slot and supersede rather
+    than leaving a stale sibling (the cross-session staleness #69/#72 target)."""
+    delivered: list[str] = []
+
+    def spy_llm(prompt: str) -> str:
+        delivered.append(prompt)
+        return "[]"
+
+    extract_session_memories(spy_llm, "[USER] we migrated the primary database to MySQL")
+
+    # collapse wrapping whitespace so phrase checks survive the prompt's line breaks
+    prompt = " ".join(delivered[0].lower().split())
+    assert "same attribute" in prompt
+    assert "migrated" in prompt
+    assert "do not relabel" in prompt

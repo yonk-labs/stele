@@ -71,3 +71,40 @@ def test_is_newer():
     assert is_newer(10.0, 5.0) is True
     assert is_newer(5.0, 10.0) is False
     assert is_newer(None, 5.0) is False   # unknown recency never supersedes on mtime
+
+
+def test_synonymous_implementation_aspects_share_one_slot():
+    # #72: same subject, drifting-but-synonymous aspect nouns (engine/technology)
+    # must land in the SAME slot so the value swap (Postgres -> MySQL) supersedes
+    # instead of leaving a stale sibling active.
+    a = slot_for(_fact("primary db is Postgres", "primary database", "engine"),
+                 scope_key="ns=proj", subject_id="entity:primary database",
+                 subject_type="entity")
+    b = slot_for(_fact("migrated primary db to MySQL", "primary database", "technology"),
+                 scope_key="ns=proj", subject_id="entity:primary database",
+                 subject_type="entity")
+    assert a is not None and a == b
+
+
+def test_distinct_aspects_of_same_subject_stay_separate():
+    # Over-merge guard (aspect-db coexist): an implementation fact and a location
+    # fact about the SAME subject must NOT merge.
+    impl = slot_for(_fact("primary db is Postgres", "primary database", "engine"),
+                    scope_key="ns=proj", subject_id="entity:primary database",
+                    subject_type="entity")
+    loc = slot_for(_fact("primary db in us-east-1", "primary database", "location"),
+                   scope_key="ns=proj", subject_id="entity:primary database",
+                   subject_type="entity")
+    assert impl != loc
+
+
+def test_same_aspect_distinct_subjects_stay_separate():
+    # Over-merge guard (two-dbs): two different entities sharing the implementation
+    # aspect must NOT merge -- the slot still keys on subject_id.
+    staging = slot_for(_fact("staging db is Postgres", "staging database", "engine"),
+                       scope_key="ns=proj", subject_id="entity:staging database",
+                       subject_type="entity")
+    prod = slot_for(_fact("prod db is MySQL", "production database", "engine"),
+                    scope_key="ns=proj", subject_id="entity:production database",
+                    subject_type="entity")
+    assert staging != prod

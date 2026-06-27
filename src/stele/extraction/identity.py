@@ -30,6 +30,19 @@ _ASPECT_SYNONYMS: dict[str, str] = {
     "path": "location", "dir": "location", "directory": "location",
     "ver": "version", "assignee": "owner", "responsible": "owner",
     "configuration": "config", "settings": "config",
+    # Implementation-identity cluster (#72): an entity's "what technology IS it"
+    # attribute is the one the LLM most often relabels across sessions
+    # (engine/runtime/framework/platform/technology/tool name the same slot), so a
+    # value swap (Postgres->MySQL, unittest->pytest, Jenkins->GitHub Actions) lands
+    # in one slot and supersedes instead of leaving a stale sibling. Safe under the
+    # 0% over-merge gate: the slot still keys on subject_id, so genuinely-distinct
+    # entities never collide on a shared aspect alone.
+    "engine": "implementation", "runtime": "implementation",
+    "framework": "implementation", "platform": "implementation",
+    "technology": "implementation", "tech": "implementation",
+    "tool": "implementation",
+    # Scale synonyms (#72): replica_count vs replicas drifted across sessions.
+    "replica_count": "replicas", "replica": "replicas",
 }
 
 _PUNCT = re.compile(r"[^\w\s]")
