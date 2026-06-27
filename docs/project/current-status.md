@@ -84,6 +84,22 @@ contract tests; not triggered on the small spot-check sample, as no slot collide
 Design/plan: [evolving-fact-consolidation-design.md](../specs/evolving-fact-consolidation-design.md),
 [evolving-fact-consolidation-plan.md](../specs/evolving-fact-consolidation-plan.md). Merged to main via PR #66 (0.6.3).
 
+**Cross-session currency — aspect stabilization (2026-06-27, 0.6.9; #69, #72).** The
+0.6.4 Subject Registry resolved entity *identity* across sessions, but a residual
+staleness class remained: when the LLM tagged a value and its later replacement with
+*different* aspects (`version` vs `config`, `engine` vs `technology`), the two states
+landed in different `(subject_id, aspect)` slots and neither superseded. Downstream
+measurement (bento harness, #72) localized the cause to aspect-emission drift, not
+subject identity. The fix is deterministic, false-negative-biased: a prompt instruction
+that a value and its replacement share one aspect (`extraction/session.py`), plus a
+synonym fold of the implementation-identity cluster
+(`engine`/`runtime`/`framework`/`platform`/`technology`/`tool` → `implementation`) and
+scale synonyms (`replica_count` → `replicas`) in `extraction/identity.py`. The 0%
+over-merge gate is preserved (the slot still keys on `subject_id`; guard tests cover the
+coexist and two-distinct-entities cases). The structural mechanism is unit/contract-proven;
+the live ≥90% same-slot efficacy number is owed from the downstream bento harness on the
+original 26B distribution — so **#69/#72 stay open** until that measurement lands.
+
 ## 0.6.1 (2026-06-04)
 
 Episodic recall, complete (issue #48, all 3 phases): an `episodic` recall

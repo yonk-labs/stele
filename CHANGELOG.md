@@ -13,6 +13,30 @@ out of `0.x`.
   `pip install "stele-core @ git+https://github.com/yonk-labs/stele.git"`. The
   `pip install stele-core` examples remain (correct once published).
 
+## [0.6.9] - 2026-06-27
+
+### Fixed
+- **Cross-session evolving-fact currency: aspect-emission stabilization (#69, #72).**
+  When the distill LLM tagged a value and its later replacement with *different* aspects
+  (`version` vs `config`, `engine` vs `technology`), the two states landed in different
+  `(subject_id, aspect)` slots and neither superseded — leaving a stale sibling active.
+  The 0.6.4 Subject Registry already resolved subject *identity* across sessions;
+  downstream measurement (bento harness, #72) localized the residual to aspect-emission
+  drift, not identity. The fix is deterministic and false-negative-biased:
+  - `_EXTRACT_PROMPT` now instructs that a value and any later
+    migration/replacement/upgrade/rename of it share ONE aspect, and that a change must
+    not be relabeled `status`/`location` (`extraction/session.py`).
+  - `_ASPECT_SYNONYMS` folds the implementation-identity cluster
+    (`engine`/`runtime`/`framework`/`platform`/`technology`/`tech`/`tool` →
+    `implementation`) and scale synonyms (`replica_count`/`replica` → `replicas`)
+    (`extraction/identity.py`).
+
+  The **0% over-merge gate is preserved** — the slot still keys on `subject_id`, so
+  genuinely-distinct entities that share an aspect never merge (guard tests added at the
+  canonicalizer and slot levels). The structural mechanism is unit- and contract-proven;
+  the live ≥90% same-slot efficacy number remains owed from the downstream bento harness
+  on the original 26B distribution, so #69/#72 stay open until that lands.
+
 ## [0.6.8] - 2026-06-26
 
 ### Added
