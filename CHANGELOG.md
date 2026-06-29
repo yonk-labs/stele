@@ -13,6 +13,33 @@ out of `0.x`.
   `pip install "stele-core @ git+https://github.com/yonk-labs/stele.git"`. The
   `pip install stele-core` examples remain (correct once published).
 
+## [0.6.10] - 2026-06-29
+
+### Added
+- **Asserted event-date supersession for cross-session evolving facts (#88).**
+  Cross-session supersession ordered purely by ingestion recency
+  (`session_mtime` / `effective_from`), so out-of-order or self-dated imports hit
+  stale-wins: a fact ingested later wrongly superseded a fresher one. Extraction
+  now captures an `event_date` (ISO-8601) from fact evidence when the window
+  states *when* it became true, persists it in `MemoryRecord.metadata`, and
+  prefers it in `_cross_session_superseded`. The compare stays false-negative
+  biased: an `event_date` only outranks *another* `event_date`; a dated fact
+  never supersedes an undated one on date alone. Gated by the existing
+  `experimental_evolving_facts` flag. (`extraction/session.py`,
+  `extraction/extractor.py`.)
+
+### Fixed
+- **Postgres lazy column guards were schema-blind (#89).** The
+  `confirmations`/`summary`/`embedding` column-existence checks used
+  `information_schema.columns WHERE table_name='memories'`, which matches the
+  column in *any* visible schema. When a role's `search_path` resolved bare
+  `memories` to a non-`public` schema (e.g. `bento.memories`) but
+  `public.memories` already had the column, the guard skipped the `ALTER` on the
+  real target — and with `STELE_MEMORY_VECTOR=1` every vector write then hit
+  `UndefinedColumn` and poisoned the pooled connection. All three guards now use
+  `'memories'::regclass` + `pg_attribute`, resolving the bare name through the
+  current `search_path` exactly as the DML does. (`storage/memory_store/postgres.py`.)
+
 ## [0.6.9] - 2026-06-27
 
 ### Fixed
