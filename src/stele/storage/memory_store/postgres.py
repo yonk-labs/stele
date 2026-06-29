@@ -81,8 +81,9 @@ CREATE INDEX IF NOT EXISTS idx_memories_search_tsv
 DO $do$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'memories' AND column_name = 'confirmations'
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = 'memories'::regclass
+      AND attname = 'confirmations' AND NOT attisdropped
   ) THEN
     ALTER TABLE memories ADD COLUMN confirmations  INTEGER NOT NULL DEFAULT 1;
     ALTER TABLE memories ADD COLUMN last_confirmed TIMESTAMPTZ;
@@ -90,8 +91,9 @@ BEGIN
   END IF;
 
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'memories' AND column_name = 'summary'
+    SELECT 1 FROM pg_attribute
+    WHERE attrelid = 'memories'::regclass
+      AND attname = 'summary' AND NOT attisdropped
   ) THEN
     ALTER TABLE memories ADD COLUMN summary TEXT;
     ALTER TABLE memories ADD COLUMN detail  TEXT;
@@ -253,8 +255,9 @@ class PostgresMemoryStore:
                     DO $do$
                     BEGIN
                       IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name = 'memories' AND column_name = 'embedding'
+                        SELECT 1 FROM pg_attribute
+                        WHERE attrelid = 'memories'::regclass
+                          AND attname = 'embedding' AND NOT attisdropped
                       ) THEN
                         ALTER TABLE memories ADD COLUMN embedding vector({self._embedder.dim});
                         CREATE INDEX IF NOT EXISTS idx_memories_embedding
