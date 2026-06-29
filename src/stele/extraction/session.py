@@ -41,6 +41,7 @@ class SessionMemory:
     aspect: str = ""               # which attribute of the subject this fact is about
     subject_type: str = "entity"   # LLM-proposed type hint for registry (Task 0)
     subject_id: str | None = None  # LLM-proposed canonical id; None = not yet resolved
+    event_date: str = ""           # ISO-8601 date the fact became TRUE (#88); "" = unknown
 
 
 @dataclass(frozen=True)
@@ -250,6 +251,11 @@ branch to main" and "the default branch is master" share "name"). Do NOT relabel
 a change as "status" or "location"; reserve "status" for true state
 (passing/failing, enabled/disabled).
 
+If the evidence states WHEN the fact became true (an explicit date or year, e.g.
+"in 2023 we switched to X", "moved to Paris on 2026-02-01"), ALSO include
+"event_date" as an ISO-8601 date ("2023", "2023-06", or "2023-06-01"). Omit it
+when the window does not state when the fact became true — do NOT guess a date.
+
 kind is one of:
 - fact: a durable fact/result/state (e.g. "the API returns 400 when the id is missing")
 - decision: a choice + why (e.g. "chose Postgres 16 over MySQL for full-text search")
@@ -354,5 +360,6 @@ def extract_session_memories(
                 aspect=str(obj.get("aspect", "")).strip(),
                 subject_type=str(obj.get("subject_type", "entity")).strip() or "entity",
                 subject_id=str(raw_sid).strip() if raw_sid is not None else None,
+                event_date=str(obj.get("event_date", "")).strip(),
             ))
     return out

@@ -96,6 +96,57 @@ def test_committed_facts_carry_subject_id(tmp_path):
     assert all(m.metadata.get("subject_id") for m in hits if m.metadata.get("aspect"))
 
 
+def _dated_llm(prompt: str) -> str:
+    """Emits a single dated location fact, keyed on the transcript city. NOTE: the
+    injected llm receives the FULL prompt (template + window), so we branch on
+    "London" — a token that appears only in the transcript, never the template."""
+    if "London" in prompt:
+        return json.dumps([
+            {"kind": "fact", "summary": "Home is in London", "detail": "",
+             "subject_label": "Home", "aspect": "location", "event_date": "2026-01-01"},
+        ])
+    return json.dumps([
+        {"kind": "fact", "summary": "Home is in Paris", "detail": "",
+         "subject_label": "Home", "aspect": "location", "event_date": "2026-02-01"},
+    ])
+
+
+def test_out_of_order_event_dates_stale_does_not_supersede(tmp_path):
+    """#88: ingest the NEWER-event fact (Paris, 2026-02) first, then the OLDER-event
+    fact (London, 2026-01). Without event_date the later-committed London wins on
+    ingestion recency (stale-wins bug). With event_date extraction, London's
+    earlier asserted date must NOT supersede Paris — Paris stays active."""
+    s = _stele(tmp_path)
+    ns = "evt"
+    paris = [{"role": "user", "content": "Moved — Home is in Paris now. " + "x" * 4100}]
+    s.extract.from_session(transcript=paris, scope=MemoryScope(namespace=ns, session_id="s_paris"),
+                           llm=_dated_llm, source_ref=None)
+    london = [{"role": "user", "content": "Back then Home is in London. " + "y" * 4100}]
+    s.extract.from_session(transcript=london, llm=_dated_llm, source_ref=None,
+                           scope=MemoryScope(namespace=ns, session_id="s_london"))
+    active = {m.summary for m in s.memory.search(
+        MemoryQuery(query="Home", scope=MemoryScope(namespace=ns), limit=50))}
+    assert "Home is in Paris" in active, "fresh (later-event) fact must survive stale ingest"
+
+
+def test_in_order_event_dates_newer_supersedes(tmp_path):
+    """#88 positive control: in chronological order (London 2026-01 then Paris 2026-02),
+    the newer-event fact still supersedes the older — the fix doesn't break the
+    normal case (event-date and ingestion recency agree here)."""
+    s = _stele(tmp_path)
+    ns = "evt2"
+    london = [{"role": "user", "content": "Home is in London for now. " + "x" * 4100}]
+    s.extract.from_session(transcript=london, llm=_dated_llm, source_ref=None,
+                           scope=MemoryScope(namespace=ns, session_id="s_london"))
+    paris = [{"role": "user", "content": "Update — Home is in Paris. " + "y" * 4100}]
+    s.extract.from_session(transcript=paris, scope=MemoryScope(namespace=ns, session_id="s_paris"),
+                           llm=_dated_llm, source_ref=None)
+    active = {m.summary for m in s.memory.search(
+        MemoryQuery(query="Home", scope=MemoryScope(namespace=ns), limit=50))}
+    assert "Home is in Paris" in active
+    assert "Home is in London" not in active, "newer-event fact supersedes the older"
+
+
 def test_experimental_flag_off_disables_fact_consolidation(tmp_path):
     """experimental_evolving_facts=False isolates the low-value atomic-fact currency
     machinery: facts are committed standalone, so an earlier state is NOT superseded

@@ -55,12 +55,34 @@ def _record_recency(metadata: dict[str, object], effective_from: datetime) -> fl
     return effective_from.timestamp()
 
 
+def _parse_event_date(value: object) -> float | None:
+    """ISO-8601 date the fact became true (#88) -> POSIX timestamp. Tolerant of a
+    bare year ("2023") or year-month ("2023-06"); returns None when absent or
+    unparseable (never guesses). ponytail: this covers the YYYY[-MM[-DD]] /
+    full-ISO forms the prompt asks for; wider natural-language grammar -> dateutil."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    s = value.strip()
+    if len(s) == 4:
+        s = f"{s}-01-01"
+    elif len(s) == 7:
+        s = f"{s}-01"
+    try:
+        d = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    return (d.replace(tzinfo=UTC) if d.tzinfo is None else d).timestamp()
+
+
 def _cross_session_superseded(
     memory: object, lookup_scope: MemoryScope, slot: SlotKey, this_recency: float,
+    this_event: float | None = None,
 ) -> list[str]:
     """Active memories in the SAME slot from other sessions that this session's
     fact supersedes. Bias to false-negatives: exact subject+aspect match AND
-    strictly newer (by recency)."""
+    strictly newer. Newness is decided by asserted event-date when BOTH facts
+    carry one (#88); otherwise by ingestion recency. A self-dated fact never
+    supersedes an undated one on date alone (preserves the false-negative bias)."""
     out: list[str] = []
     # Ceiling: 500 active records per namespace/slot. Exceeding this limit biases
     # toward false-negatives (cross-session match missed, both facts left active);
@@ -78,7 +100,12 @@ def _cross_session_superseded(
             continue
         if meta.get("aspect") != slot.aspect:
             continue
-        if not is_newer(this_recency, _record_recency(meta, r.effective_from)):
+        other_event = _parse_event_date(meta.get("event_date"))
+        if this_event is not None and other_event is not None:
+            # Both self-dated: asserted truth-time decides, not ingestion order.
+            if this_event <= other_event:
+                continue
+        elif not is_newer(this_recency, _record_recency(meta, r.effective_from)):
             continue
         out.append(r.id)
     return out
@@ -428,6 +455,9 @@ class MemoryExtractor:
                 # #62: carry the pitfall remediation so distill.rules can
                 # surface it (it reads metadata["do_instead"]).
                 meta["do_instead"] = mem.do_instead
+            if mem.event_date:
+                # #88: asserted truth-time, used by cross-session supersession.
+                meta["event_date"] = mem.event_date
             try:
                 result = self._memory.add(
                     text=mem.detail or mem.summary, kind=mem.kind,  # type: ignore[arg-type]
@@ -461,7 +491,11 @@ class MemoryExtractor:
                 "subject_id": slot.subject_id,
                 "subject_type": slot.subject_type,
             }
-            cross_ids = _cross_session_superseded(self._memory, lookup_scope, slot, this_recency)
+            # #88: this session's authoritative truth-time = its latest state's
+            # asserted event_date (chronological last); None when undated.
+            this_event = _parse_event_date(states[-1].memory.event_date)
+            cross_ids = _cross_session_superseded(
+                self._memory, lookup_scope, slot, this_recency, this_event)
             prev_id: str | None = None
             for it in states:  # already chronological from plan_chains
                 supersedes = [prev_id] if prev_id is not None else cross_ids
