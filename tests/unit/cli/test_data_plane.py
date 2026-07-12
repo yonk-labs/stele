@@ -376,6 +376,35 @@ def test_recall_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
     assert "response" in out
 
 
+def test_recall_hides_retracted_via_cli(capsys: pytest.CaptureFixture[str]) -> None:
+    """CLI round-trip of stele's most consequential axis: memory add -> recall
+    (hit) -> memory retract -> recall (miss). Uses an isolated `--backend
+    memory` instance per test (tmp_path cwd), so nothing shared is touched."""
+    main(["init", "--backend", "memory"])
+    capsys.readouterr()
+    ref = _seed_ref(capsys, text="test_stele: the deploy window is Friday 5pm.")
+    main(["memory", "add", "test_stele: the deploy window is Friday 5pm", "--source-ref", ref])
+    mid = _capture_json(capsys)["memory_id"]
+
+    rc = main(["recall", "deploy window", "--strategy", "memory_search"])
+    out = _capture_json(capsys)
+    assert rc == 0
+    citations = out["response"]["citations"]
+    assert any(c["id"] == mid for c in citations), "expected the memory recalled before retraction"
+
+    rc = main(["memory", "retract", str(mid), "--reason", "test_stele cleanup"])
+    assert rc == 0
+    capsys.readouterr()
+
+    rc = main(["recall", "deploy window", "--strategy", "memory_search"])
+    out = _capture_json(capsys)
+    assert rc == 0
+    citations_after = out["response"]["citations"]
+    assert not any(c["id"] == mid for c in citations_after), (
+        "retracted memory must be hidden from recall"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Interception
 # ---------------------------------------------------------------------------

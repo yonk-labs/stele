@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import tempfile
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -15,6 +17,11 @@ from stele.core.config import StashConfig
 from stele.core.memory_record import MemoryScope
 from stele.recall.episodic import SESSION_SOURCE
 from stele.retrieval.temporal import parse_temporal
+
+
+def _test_namespace() -> str:
+    """Isolated namespace for a test run: test_stele_<timestamp>_<random>."""
+    return f"test_stele_{int(time.time())}_{uuid.uuid4().hex[:8]}"
 
 
 def _backend_configs() -> list[tuple[str, dict[str, object]]]:
@@ -157,6 +164,94 @@ def test_recall_contract_episodic_returns_in_window_episode_with_memories(
             f"[{backend_name}] episode must carry its back-linked memories"
         )
     finally:
+        stele.close()
+
+
+@pytest.mark.parametrize("backend_name,config_dict", _backend_configs())
+def test_recall_hides_retracted(
+    backend_name: str, config_dict: dict[str, object]
+) -> None:
+    """Retraction is stele's most consequential axis: once a memory is
+    retracted it must stop showing up in recall. Round-trips
+    add -> recall (hit) -> retract -> recall (miss), isolated in a
+    throwaway test_stele_ namespace."""
+    cfg = StashConfig.load(config_dict)
+    stele = Stele(cfg)
+    try:
+        ns = _test_namespace()
+        scope = MemoryScope(namespace=ns)
+        added = stele.memory.add(
+            text="the on-call rotation runs Monday through Friday",
+            kind="fact",
+            source_refs=[f"stele://{ns}/a"],
+            scope=scope,
+        )
+
+        before = stele.recall(
+            query="on-call rotation", scope=scope, strategy="memory_search"
+        )
+        assert added.record.id in {c.id for c in before.citations}, (
+            f"[{backend_name}] expected the new memory to be recalled before retraction"
+        )
+
+        stele.memory.retract(added.record.id, reason="test_stele cleanup: superseded rotation")
+
+        after = stele.recall(
+            query="on-call rotation", scope=scope, strategy="memory_search"
+        )
+        assert added.record.id not in {c.id for c in after.citations}, (
+            f"[{backend_name}] retracted memory must be hidden from recall"
+        )
+    finally:
+        # Cleanup: hard-delete the throwaway namespace (memory backend has no
+        # purge_namespace support; sqlite/postgres do).
+        with contextlib.suppress(Exception):
+            stele.memory.delete_namespace(ns)
+        stele.close()
+
+
+@pytest.mark.parametrize("backend_name,config_dict", _backend_configs())
+def test_purge_superseded_removes_expired_rows_but_keeps_recent(
+    backend_name: str, config_dict: dict[str, object]
+) -> None:
+    """purge_superseded hard-deletes only superseded rows whose validity
+    window ended strictly before the caller's cutoff -- an earlier cutoff
+    must purge nothing, a later one must remove exactly the superseded row."""
+    cfg = StashConfig.load(config_dict)
+    stele = Stele(cfg)
+    try:
+        ns = _test_namespace()
+        scope = MemoryScope(namespace=ns)
+        old = stele.memory.add(
+            text="v1: the API rate limit is 100/min",
+            kind="fact",
+            source_refs=[f"stele://{ns}/a"],
+            scope=scope,
+        )
+        stele.memory.add(
+            text="v2: the API rate limit is 500/min",
+            kind="fact",
+            source_refs=[f"stele://{ns}/a"],
+            scope=scope,
+            supersedes=[old.record.id],
+        )
+        superseded = stele.memory.get(old.record.id)
+        assert superseded is not None and superseded.status == "superseded"
+
+        cutoff_before = datetime.now(UTC) - timedelta(days=1)
+        removed_none = stele.memory.purge_superseded(cutoff_before)
+        assert removed_none == 0, (
+            f"[{backend_name}] a cutoff before the supersession must purge nothing"
+        )
+        assert stele.memory.get(old.record.id) is not None
+
+        cutoff_after = datetime.now(UTC) + timedelta(days=1)
+        removed = stele.memory.purge_superseded(cutoff_after)
+        assert removed == 1, f"[{backend_name}] expected exactly the superseded row removed"
+        assert stele.memory.get(old.record.id) is None
+    finally:
+        with contextlib.suppress(Exception):
+            stele.memory.delete_namespace(ns)
         stele.close()
 
 
