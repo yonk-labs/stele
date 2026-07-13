@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 # follow-up, not a blocker for first publish.
 [project]
 name = "stele-core"
-version = "0.6.10"
+version = "0.6.11"
 description = "Sovereign, source-backed memory and living knowledge for LLM agents."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -38,18 +38,23 @@ clickhouse = [
 chunkshop = [
   "chunkshop[all-backends]>=0.6.1,<0.7",
 ]
-# pg-raggraph 0.5.0a17 — the Phase 5 living-knowledge consumer surface.
-# Bumped from 0.4.0a1 onto the 0.5 line: xact-scoped advisory-lock bootstrap
-# (multi-worker safe, no deadlock on a fresh DB) plus additive living_knowledge
-# knobs (opt-in). All PGRGConfig kwargs stele's revisor passes survive the bump;
-# the path is exercised by tests/integration/test_pg_raggraph_revisor.py.
-# Defaults are byte-identical; the new knobs are opt-in. Owner-controlled, so
-# the exact alpha is pinned.
-# Independent of [postgres]: the graph projection reuses the Postgres
-# artifact-backend DSN (no os.environ), but the dependency set is separate.
-# pg-raggraph brings its own psycopg[binary]/psycopg-pool/pgvector.
+# pg-raggraph 0.9.2 — the Phase 5 living-knowledge consumer surface.
+# Bumped from 0.5.0a17 across 0.7.0 (out of alpha, rrf-default fusion),
+# 0.8.0 (entity-merge audit/security), 0.9.0 (ef_search self-scale,
+# no_fuzzy_merge_types, defer_lexical_stats), 0.9.1 (hyphen-aware lexical
+# tokenizer), 0.9.2 (graph_analyze API, lexical entity-seed leg, rel_type
+# canonicalization). All PGRGConfig kwargs stele's revisor passes survive
+# the bump; the query/ingest/supersede/retract/status/delete signatures are
+# unchanged and the openai|ollama embedder still reads llm_base_url/llm_api_key
+# (verified in 0.9.2 embedding.py). The path is exercised by
+# tests/integration/test_pg_raggraph_revisor.py. stele defaults to
+# mode="smart" (fusion-default flip is inert there); scores are not thresholded.
+# Owner-controlled, so the exact version is pinned. Independent of [postgres]:
+# the graph projection reuses the Postgres artifact-backend DSN (no os.environ),
+# but the dependency set is separate. pg-raggraph brings its own
+# psycopg[binary]/psycopg-pool/pgvector.
 postgres-graph = [
-  "pg-raggraph==0.5.0a17",
+  "pg-raggraph==0.9.2",
 ]
 judge = [
   "openai>=1.0,<2",

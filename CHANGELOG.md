@@ -7,6 +7,39 @@ out of `0.x`.
 
 ## [Unreleased]
 
+## [0.6.11] - 2026-07-13
+
+### Changed
+- **`pg-raggraph` pin bumped `0.5.0a17` → `0.9.2`** (the `[postgres-graph]`
+  optional extra). API-compatible on every surface stele's Revisor touches
+  (`query`/`ingest_records`/`supersede`/`retract`/`status`/`delete`
+  signatures unchanged; all `PGRGConfig` kwargs stele passes survive; the
+  `openai`/`ollama` embedder still reads `llm_base_url`/`llm_api_key`, verified
+  in 0.9.2 `embedding.py`). The jump spans four releases stele inherits for
+  free — no stele code changes beyond the pin and version-pegged comments:
+  - **0.7.0** (out of alpha): `fusion` default flipped `linear`→`rrf`, but
+    stele defaults to `mode="smart"` whose routing probe is pinned to linear
+    and stele never thresholds on absolute scores, so behavior is unchanged.
+    Also added `graph_ready()`/`wait_for_graph_ready()` (not yet wired into
+    stele) and typed graph joins (`find_entities`/`traverse`/`graph_join`).
+  - **0.8.0**: entity-merge audit log + `split_entity` undo, version-suffixed
+    name merge guard, DSN-password redaction in connection errors (transparent
+    security win), `entity_description_max_chars` cap.
+  - **0.9.0**: `hnsw_ef_search` self-scales to the candidate set (transparent),
+    `no_fuzzy_merge_types`, `defer_lexical_stats` bulk-load path,
+    `ingest_records(defer_lexical_stats=True)`.
+  - **0.9.1**: hyphen-aware lexical query tokenizer (restores retrieval of
+    hyphenated identifiers like `INC-0001`, `us-east-1`).
+  - **0.9.2**: `graph_analyze()` set-seeded authority-scored retrieval API,
+    lexical entity-name seed leg (`pg_trgm word_similarity`), `rel_type`
+  canonicalized to `UPPER_SNAKE_CASE` at the extraction seam.
+  Verified end-to-end: the revisor integration suite
+  (`tests/integration/test_pg_raggraph_revisor.py`, 4/4) and the full Phase 5
+  living-knowledge e2e bar (`tests/e2e/test_living_knowledge.py`, 5/5 —
+  supersede / retract hide-flag-surface_both / `as_of` time-travel /
+  `version_filter` / every-hit-cites-`stele://`) run green against a live
+  pg-raggraph 0.9.2 + Postgres + pgvector stack.
+
 ### Docs
 - Install docs now note that `stele-core` is not on PyPI yet (a tracked follow-up).
   Until then, install from the public repo:

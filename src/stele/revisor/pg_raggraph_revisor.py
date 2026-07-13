@@ -77,13 +77,13 @@ class PgRaggraphRevisor:
         self._rerank = rerank
         # Opt-in remote embedding (WS1). Default "local" keeps the
         # per-worker fastembed model and a byte-identical _cfg() dict.
-        # pg-raggraph 0.5.0a17's get_embedding_provider() reads the openai|ollama
+        # pg-raggraph's get_embedding_provider() reads the openai|ollama
         # embedder endpoint from llm_base_url and the key from llm_api_key
-        # (verified: embedding.py get_embedding_provider). So stele's
-        # embedding_base_url/_api_key surface maps onto those cfg keys. a17 also
-        # added dedicated embedding_base_url/_api_key fields, but only for a new
-        # embedding_provider="http" that stele does not expose, so the mapping
-        # below stays correct for local|openai|ollama.
+        # (verified stable through 0.9.2: embedding.py get_embedding_provider).
+        # So stele's embedding_base_url/_api_key surface maps onto those cfg
+        # keys. 0.9.2 also has dedicated embedding_base_url/_api_key fields,
+        # but only for embedding_provider="http" which stele does not expose,
+        # so the mapping below stays correct for local|openai|ollama.
         self._embedding_provider = embedding_provider
         self._embedding_model = embedding_model
         self._embedding_dim = embedding_dim
@@ -131,9 +131,10 @@ class PgRaggraphRevisor:
             # pg-raggraph's openai|ollama embedder reads llm_base_url/llm_api_key.
             # Do not clobber an endpoint the LLM-extraction path already set:
             # the extraction-LLM endpoint intentionally wins. In pg-raggraph
-            # 0.5.0a17 the openai|ollama embedder still shares llm_base_url with
-            # extraction, so the two endpoints cannot differ here (see the
-            # GraphConfig embedding-fields note in core/config.py).
+            # 0.9.2 the openai|ollama embedder still shares llm_base_url with
+            # extraction (only provider="http" gets dedicated fields), so the
+            # two endpoints cannot differ here (see the GraphConfig
+            # embedding-fields note in core/config.py).
             if self._embedding_base_url is not None and "llm_base_url" not in cfg:
                 cfg["llm_base_url"] = self._embedding_base_url
             if self._embedding_api_key and "llm_api_key" not in cfg:
