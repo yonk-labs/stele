@@ -254,11 +254,18 @@ class GraphConfig(BaseModel):
     evolution_tier: Literal["structural", "fact_aware", "full"] = "structural"
     retracted_behavior: Literal["hide", "flag", "surface_both"] = "surface_both"
     supersession_behavior: Literal["hide", "prefer_new", "surface_both"] = "prefer_new"
-    # Opt-in, non-default graph extraction. "none" keeps the LLM-free
-    # default (no graph built). "llm" projects an entity/relationship graph
-    # via the endpoint below — the LLM stays inside the Revisor adapter, so
-    # recall/ remains LLM-free.
-    fact_extractor: Literal["none", "llm", "lede_spacy"] = "none"
+    # Opt-in graph extraction. "none" keeps the LLM-free default (no graph
+    # built). "llm" projects an entity/relationship graph via the endpoint
+    # below — the LLM stays inside the Revisor adapter, so recall/ remains
+    # LLM-free. "lede_spacy"/"lede_prose" are deterministic (no LLM endpoint
+    # needed): spaCy-NER / prose-head-lemma extractors from the lede line;
+    # they build a real entity graph on the default fastembed embedder.
+    # "llm+lede" unions the LLM leg with the deterministic lede_prose leg.
+    # Requires the lede/lede-spacy packages (shipped via pg-raggraph's
+    # [lede-spacy] extra or a direct install).
+    fact_extractor: Literal["none", "llm", "lede_spacy", "lede_prose", "llm+lede"] = (
+        "none"
+    )
     llm_base_url: str | None = None
     llm_model: str | None = None
     llm_api_key: str = ""

@@ -7,6 +7,63 @@ out of `0.x`.
 
 ## [Unreleased]
 
+## [0.6.12] - 2026-07-13
+
+### Fixed
+- **Deterministic graph extractors now actually build a graph (#91).**
+  `GraphConfig.fact_extractor="lede_spacy"` (and the newly-wired
+  `"lede_prose"`) silently produced a chunks-only store with **zero
+  entities** — degenerate cold-vector search masquerading as a graph. The
+  Revisor sent every ingest record with `skip_llm = not _llm_extraction`,
+  which was `True` for any non-`"llm"` extractor, and pg-raggraph's per-doc
+  `skip_llm_for_this_doc` gate short-circuits ALL extraction including the
+  deterministic lede leg. The fix splits two gates: `_needs_llm` (thread the
+  LLM provider into the graph cfg — `fact_extractor in {"llm","llm+lede"}` +
+  an endpoint) from `_extraction_active` (any extraction runs). The per-record
+  `skip_llm` is now `not _extraction_active` — `False` for deterministic
+  extractors — so the lede path runs. Proven against live pg-raggraph 0.9.2:
+  `lede_spacy` and `lede_prose` now project 5 entities from a 2-sentence
+  fixture (was 0); `fact_extractor="none"` stays pure-vector (0 entities),
+  preserving the LLM-free default. (`revisor/pg_raggraph_revisor.py`; new
+  DSN-gated integration spec
+  `tests/integration/test_revisor_deterministic_extraction.py`.)
+
+### Added
+- **`GraphConfig.fact_extractor` widened to `"lede_prose"` and `"llm+lede"`.**
+  Both ship in pg-raggraph's `LEDE_CAPABLE_EXTRACTORS`. `"lede_prose"` is the
+  deterministic prose extractor (full spaCy NER + noun-chunk head lemmas; no
+  LLM endpoint needed) — a better fit for stele's LLM-free default than
+  `"lede_spacy"`. `"llm+lede"` unions the LLM leg with the deterministic
+  `lede_prose` leg (needs an endpoint; degrades to the deterministic leg
+  without one). Requires the lede / lede-spacy packages. (`core/config.py`.)
+
+### Changed
+- **`chunkshop` pin bumped `0.6.1` → `1.0.0-rc4`** (the `[chunkshop]` optional
+  extra). API-compatible: every chunkshop symbol stele imports resolves
+  unchanged. The jump delivers transparent wins stele inherits for free — no
+  stele code changes beyond the pin:
+  - **0.9.0** symbol_aware path-less language detection — directly fixes
+    stele's codeintel: stele passes synthetic `stele://` URIs as doc ids,
+    which 0.6.x misclassified as `unsupported_language` (zero symbols for
+    ~45% of `.py` / ~90% of `.ts`); now resolves via a content heuristic.
+  - **0.9.0** read-connection pool default-on (~66% lower hybrid search
+    median latency, byte-identical ranking). **Note:** stele's chunk_store
+    uses `Sink.query_top_k`, not chunkshop's `search_common` path, so the
+    pool benefits chunkshop's own CLI/search tools rather than stele's
+    in-process store directly.
+  - **0.9.1** `symbol_aware` generated/minified guard + `max_symbols_per_file`
+    cap; **1.0.0-rc2/3** whitespace-preserving `fixed_overlap` (was
+    `" ".join(words)` — destroyed code structure), interrupted-download
+    self-heal; **1.0.0-rc3** `ef_search` query knob (on `search_common`, not
+    stele's `Sink.query_top_k` path); **1.0.0-rc4** hyphen-FTS fix, Rust
+    trait-default-method bodies. Pinned at rc4: rc5 is dep-fix-only
+    (lockfile/version, zero Python source changes) and unpublished.
+  - Verified: 291 chunkshop-gated contract/indexing/chunk-store tests pass.
+  pg-raggraph's chunkshop cap is extra-gated (`>=0.9.1,<0.10` under its own
+  `[all]`/`[chunkshop]`/`[dev]`); stele's `[postgres-graph]` extra pulls
+  pg-raggraph's core only, so there is **no resolver conflict** between
+  stele's `[chunkshop]` (1.0.0-rc4) and `[postgres-graph]` extras.
+
 ## [0.6.11] - 2026-07-13
 
 ### Changed

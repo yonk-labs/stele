@@ -65,11 +65,24 @@ class PgRaggraphRevisor:
         self._llm_base_url = llm_base_url
         self._llm_model = llm_model
         self._llm_api_key = llm_api_key
-        # Opt-in, non-default: LLM graph extraction fires only when
-        # explicitly selected AND an endpoint is supplied. Default ("none")
-        # keeps skip_extraction=True — stele's LLM-free invariant holds for
-        # the default path; the LLM lives only inside this adapter.
-        self._llm_extraction = fact_extractor == "llm" and bool(llm_base_url)
+        # Two distinct gates (split so deterministic extractors actually run):
+        # _needs_llm  — the LLM provider must be threaded into the graph cfg
+        #   (fact_extractor in {"llm","llm+lede"} + an endpoint). Drives the
+        #   config-level skip_extraction and the llm_base_url/_model/_api_key
+        #   cfg keys. Without an endpoint, "llm"/"llm+lede" degrade to no
+        #   extraction (pure vector) — the documented opt-in default.
+        # _extraction_active — ANY extraction runs (deterministic OR llm).
+        #   Drives the per-record skip_llm flag. Only "none", or "llm" without
+        #   an endpoint, suppress extraction. CRITICAL: sending skip_llm=True
+        #   for a deterministic extractor (lede_spacy/lede_prose) kills it —
+        #   pg-raggraph's skip_llm_for_this_doc gate short-circuits ALL
+        #   extraction (__init__.py ingest path), so the graph stays empty.
+        self._needs_llm = fact_extractor in ("llm", "llm+lede") and bool(
+            llm_base_url
+        )
+        self._extraction_active = fact_extractor != "none" and (
+            fact_extractor != "llm" or bool(llm_base_url)
+        )
         # Opt-in graph-query tuning. Default ("smart"/False) is the
         # untuned path; with a real graph, ("hybrid"/True) is the
         # documented retrieval lever.
@@ -110,13 +123,13 @@ class PgRaggraphRevisor:
         cfg: dict[str, Any] = dict(
             namespace=self._ns,
             embedding_provider=self._embedding_provider,
-            skip_extraction=not self._llm_extraction,
+            skip_extraction=not self._needs_llm,
             evolution_tier=self._tier,
             retracted_behavior=retracted_behavior,
             supersession_behavior=supersession_behavior,
             fact_extractor=self._fact_extractor,
         )
-        if self._llm_extraction:
+        if self._needs_llm:
             cfg["llm_base_url"] = self._llm_base_url
             if self._llm_model:
                 cfg["llm_model"] = self._llm_model
@@ -176,7 +189,7 @@ class PgRaggraphRevisor:
                             "text": text,
                             "source_id": stele_ref,
                             "metadata": meta,
-                            "skip_llm": not self._llm_extraction,
+                            "skip_llm": not self._extraction_active,
                         }
                     ],
                     namespace=namespace,
