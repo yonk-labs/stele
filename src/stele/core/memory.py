@@ -20,6 +20,7 @@ from stele.core.memory_record import (
     ScoredMemoryHit,
     evolved_confidence,
     memory_text_hash,
+    parse_event_date,
 )
 from stele.pii.regex import RegexPIIScrubber
 from stele.pii.scrubber import DisabledPIIScrubber
@@ -98,6 +99,12 @@ class Memory:
         s_action = self._scrub_optional(action, flags)
         now = datetime.now(UTC)
         supersedes_ids = supersedes or []
+        meta = metadata or {}
+        # Valid-time, not write-time: a fact carrying metadata.event_date (#88)
+        # became TRUE then, even though it is being written now. Without this,
+        # as_of time-travel over a backfilled/imported chain returns nothing,
+        # because every row's validity starts at ingest (#90).
+        effective_from = parse_event_date(meta.get("event_date")) or now
         record = MemoryRecord(
             id=uuid.uuid4().hex,
             text=scrubbed.text,
@@ -111,8 +118,8 @@ class Memory:
             confidence=confidence,
             created_at=now,
             updated_at=now,
-            effective_from=now,
-            metadata=metadata or {},
+            effective_from=effective_from,
+            metadata=dict(meta),
             pii_flags=sorted(flags),
         )
         dup_id = self._store.find_duplicate(
@@ -423,7 +430,7 @@ class Memory:
                 confidence=item.confidence,
                 created_at=now,
                 updated_at=now,
-                effective_from=now,
+                effective_from=parse_event_date(item.metadata.get("event_date")) or now,
                 metadata=dict(item.metadata),
                 pii_flags=sorted(flags),
             )

@@ -7,6 +7,24 @@ out of `0.x`.
 
 ## [Unreleased]
 
+### Fixed
+- **`as_of` now time-travels on event-time, not wall-clock (#90).** A
+  supersession chain whose truth-time is asserted via `metadata.event_date`
+  (#88) but written NOW (backfill, import, replay) could not be replayed:
+  every historical `as_of` predated all rows' wall-clock existence and
+  returned nothing, even though the data to answer was stored. The store was
+  already bitemporal (`effective_from`/`effective_until` = valid time,
+  `created_at`/`updated_at` = transaction time) and `as_of` already filtered
+  on valid time; the bug was at write time, where `Memory.add` collapsed
+  valid-time onto transaction-time by hardcoding `effective_from = now`.
+  Now a record carrying `event_date` gets `effective_from = event_date`, and
+  supersession closes the old row's interval at the successor's
+  `effective_from` (clamped by `max`/`GREATEST` so an out-of-order backfill
+  cannot produce a negative interval) instead of at `now`. Facts without an
+  `event_date` keep wall-clock semantics exactly as before, so live usage is
+  unchanged and no new query parameter is needed. Fixed across the memory,
+  sqlite, and postgres memory stores.
+
 ## [0.6.12] - 2026-07-13
 
 ### Fixed

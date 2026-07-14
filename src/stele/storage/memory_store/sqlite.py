@@ -178,6 +178,18 @@ _INSERT_SQL = (
 )
 
 
+# Valid-time close for a superseded row: the successor's effective_from (its
+# event_date when backfilled), so the chain tiles the timeline and as_of can
+# replay it (#90). max() clamps to the row's own effective_from so an
+# out-of-order backfill can't produce a negative validity interval. ISO-8601
+# UTC strings sort lexicographically, which is what the rest of the temporal
+# SQL here already relies on.
+_SUPERSEDE_SQL = (
+    "UPDATE memories SET status='superseded', "
+    "effective_until=max(effective_from, ?), updated_at=? WHERE id=?"
+)
+
+
 def _record_to_row(r: MemoryRecord) -> dict[str, object]:
     return {
         "id": r.id,
@@ -288,14 +300,13 @@ class SQLiteMemoryStore:
         supersedes: list[str],
     ) -> tuple[MemoryRecord, list[str]]:
         now = datetime.now(UTC).isoformat()
+        until = record.effective_from.isoformat()
         cur = self.conn.cursor()
         try:
             cur.execute("BEGIN")
             for old_id in supersedes:
                 affected = cur.execute(
-                    "UPDATE memories SET status='superseded', "
-                    "effective_until=?, updated_at=? WHERE id=?",
-                    (now, now, old_id),
+                    _SUPERSEDE_SQL, (until, now, old_id)
                 ).rowcount
                 if affected == 0:
                     raise ArtifactNotFound(f"memory not found: {old_id}")
@@ -320,12 +331,11 @@ class SQLiteMemoryStore:
             # Supersede in one executemany pass per item-supersedes pair.
             # We must verify rowcount per UPDATE because executemany does
             # not surface per-row affected counts on stdlib sqlite3.
-            for _, sups in items:
+            for rec, sups in items:
+                until = rec.effective_from.isoformat()
                 for old_id in sups:
                     affected = cur.execute(
-                        "UPDATE memories SET status='superseded', "
-                        "effective_until=?, updated_at=? WHERE id=?",
-                        (now, now, old_id),
+                        _SUPERSEDE_SQL, (until, now, old_id)
                     ).rowcount
                     if affected == 0:
                         raise ArtifactNotFound(f"memory not found: {old_id}")

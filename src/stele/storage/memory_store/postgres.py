@@ -156,6 +156,15 @@ def _temporal_sql(
     return " ".join(parts), params
 
 
+# Valid-time close for a superseded row: the successor's effective_from (its
+# event_date when backfilled), so the chain tiles the timeline and as_of can
+# replay it (#90). GREATEST clamps to the row's own effective_from so an
+# out-of-order backfill can't produce a negative validity interval.
+_SUPERSEDE_SQL = (
+    "UPDATE memories SET status='superseded', "
+    "effective_until=GREATEST(effective_from, %s), updated_at=%s WHERE id=%s"
+)
+
 _INSERT_SQL = (
     "INSERT INTO memories ("
     "id, text, summary, detail, action, kind,"
@@ -297,9 +306,8 @@ class PostgresMemoryStore:
             with self.conn.cursor() as cur:
                 for old_id in supersedes:
                     affected = cur.execute(
-                        "UPDATE memories SET status='superseded', "
-                        "effective_until=%s, updated_at=%s WHERE id=%s",
-                        (now, now, old_id),
+                        _SUPERSEDE_SQL,
+                        (record.effective_from, now, old_id),
                     ).rowcount
                     if affected == 0:
                         raise ArtifactNotFound(f"memory not found: {old_id}")
@@ -322,12 +330,11 @@ class PostgresMemoryStore:
                 # Supersedes: per-id UPDATE; rowcount must be verified per row.
                 # We can't use executemany for these because we need to detect
                 # missing IDs individually.
-                for _, sups in items:
+                for rec, sups in items:
                     for old_id in sups:
                         affected = cur.execute(
-                            "UPDATE memories SET status='superseded', "
-                            "effective_until=%s, updated_at=%s WHERE id=%s",
-                            (now, now, old_id),
+                            _SUPERSEDE_SQL,
+                            (rec.effective_from, now, old_id),
                         ).rowcount
                         if affected == 0:
                             raise ArtifactNotFound(f"memory not found: {old_id}")
