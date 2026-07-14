@@ -7,6 +7,8 @@ out of `0.x`.
 
 ## [Unreleased]
 
+## [0.6.13] - 2026-07-14
+
 ### Added
 - **`GraphConfig.llm_max_tokens` — opt-in cap for the graph extraction LLM.**
   pg-raggraph sends `max_tokens` on its JSON-mode extraction calls only when
