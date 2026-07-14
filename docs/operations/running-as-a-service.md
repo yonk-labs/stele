@@ -85,6 +85,14 @@ embedding tier across all paths requires WS1+WS2+WS3.
 >    shared embedding deployment and the shared LLM deployment must be one
 >    OpenAI-compatible endpoint, or you must run graph extraction without
 >    `fact_extractor="llm"`.
+> 3. **If your LLM server has a small completion cap, set
+>    `GraphConfig.llm_max_tokens`.** Extraction replies in JSON; a server that
+>    truncates the completion (mlx-lm defaults to 512) cuts the JSON
+>    mid-object, which then parses as empty — you get a chunks-only store with
+>    **zero entities** and no error, the same silent-empty-graph symptom as
+>    #91. The default (`0`) omits `max_tokens` from the request so the server's
+>    own default applies; `4096` is a safe value for extraction outputs. Only
+>    consulted when the extractor actually calls an LLM.
 >
 > See `docs/archive/embedding-fix-plan.md` → "Known pg-raggraph 0.3.0a3 limitations
 > (WS1)". A future pg-raggraph with a dedicated embedding endpoint (or WS3's

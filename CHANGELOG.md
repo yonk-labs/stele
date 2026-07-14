@@ -7,6 +7,20 @@ out of `0.x`.
 
 ## [Unreleased]
 
+### Added
+- **`GraphConfig.llm_max_tokens` — opt-in cap for the graph extraction LLM.**
+  pg-raggraph sends `max_tokens` on its JSON-mode extraction calls only when
+  this is `> 0`. An LLM server with a small completion default (mlx-lm caps at
+  512) truncates the extraction JSON mid-object; it then parses as empty and
+  yields a chunks-only store with **zero entities** and no error — the same
+  silent-empty-graph symptom as the 0.6.12 graph-extraction fix, arriving from
+  the server side rather than the config side. The default (`0`) OMITS the
+  field entirely, so the server's own default applies and the request is
+  byte-identical to before this knob existed; `4096` is a safe value for
+  extraction outputs. Only threaded when the extractor actually calls an LLM
+  (`fact_extractor="llm"` / `"llm+lede"`); a deterministic extractor never
+  sees it.
+
 ### Fixed
 - **`as_of` now time-travels on event-time, not wall-clock (#90).** A
   supersession chain whose truth-time is asserted via `metadata.event_date`

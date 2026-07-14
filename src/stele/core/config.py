@@ -269,6 +269,16 @@ class GraphConfig(BaseModel):
     llm_base_url: str | None = None
     llm_model: str | None = None
     llm_api_key: str = ""
+    # max_tokens sent on the graph's JSON-mode extraction calls. 0 (default)
+    # OMITS the field entirely, so the server's own default applies and the
+    # request is byte-identical to not having this knob. Set it when the LLM
+    # server has a small completion default: mlx-lm caps at 512, which
+    # silently truncates the extraction JSON — it then parses as empty and
+    # yields a chunks-only store with zero entities (the #91 failure mode,
+    # arriving from the server side instead of the config side). 4096 is a
+    # safe value for extraction outputs. Only meaningful when the extractor
+    # actually calls an LLM (``fact_extractor="llm"`` or ``"llm+lede"``).
+    llm_max_tokens: int = Field(default=0, ge=0)
     # Opt-in graph-query tuning. Default ("smart"/False) is the untuned
     # path; with a real graph, ("hybrid"/True) is the documented lever.
     query_mode: Literal[
