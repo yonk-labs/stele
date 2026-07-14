@@ -17,7 +17,11 @@ from stele.core.exceptions import (
     SteleError,
     ValidationError,
 )
-from stele.core.memory_record import MemoryScope, canonical_scope_key
+from stele.core.memory_record import (
+    MemoryScope,
+    canonical_scope_key,
+    parse_event_date,
+)
 from stele.extraction.candidates import extract_candidates
 from stele.extraction.classifier import classify_kind
 from stele.extraction.consolidation import (
@@ -56,22 +60,11 @@ def _record_recency(metadata: dict[str, object], effective_from: datetime) -> fl
 
 
 def _parse_event_date(value: object) -> float | None:
-    """ISO-8601 date the fact became true (#88) -> POSIX timestamp. Tolerant of a
-    bare year ("2023") or year-month ("2023-06"); returns None when absent or
-    unparseable (never guesses). ponytail: this covers the YYYY[-MM[-DD]] /
-    full-ISO forms the prompt asks for; wider natural-language grammar -> dateutil."""
-    if not isinstance(value, str) or not value.strip():
-        return None
-    s = value.strip()
-    if len(s) == 4:
-        s = f"{s}-01-01"
-    elif len(s) == 7:
-        s = f"{s}-01"
-    try:
-        d = datetime.fromisoformat(s)
-    except ValueError:
-        return None
-    return (d.replace(tzinfo=UTC) if d.tzinfo is None else d).timestamp()
+    """ISO-8601 date the fact became true (#88) -> POSIX timestamp. One grammar,
+    shared with the valid-time write path (#90) so supersession ordering and
+    ``effective_from`` can never disagree about what a date means."""
+    d = parse_event_date(value)
+    return d.timestamp() if d is not None else None
 
 
 def _cross_session_superseded(

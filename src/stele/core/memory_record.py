@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -161,6 +161,29 @@ class ScoredMemoryHit(BaseModel):
 def canonical_scope_key(scope: MemoryScope) -> str:
     """Stable string for scope used in hashing."""
     return json.dumps(scope.model_dump(), sort_keys=True, separators=(",", ":"))
+
+
+def parse_event_date(value: object) -> datetime | None:
+    """`metadata["event_date"]` (#88) — the truth-time a fact became valid — as a
+    UTC datetime. Tolerant of a bare year ("2024"), year-month ("2024-06"), or a
+    full ISO timestamp. None when absent or unparseable (never guesses).
+
+    This is what separates valid-time from transaction-time: a backfilled or
+    imported fact is written NOW but became TRUE at `event_date`, so it is what
+    `effective_from` should be (issue #90). ponytail: covers the YYYY[-MM[-DD]]
+    forms the extraction prompt asks for; wider grammar -> dateutil."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    s = value.strip()
+    if len(s) == 4:
+        s = f"{s}-01-01"
+    elif len(s) == 7:
+        s = f"{s}-01"
+    try:
+        d = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    return d.replace(tzinfo=UTC) if d.tzinfo is None else d
 
 
 def memory_text_hash(text: str, scope: MemoryScope) -> str:

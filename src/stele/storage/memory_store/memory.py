@@ -31,6 +31,16 @@ def _is_valid_at(record: MemoryRecord, when: datetime) -> bool:
     return record.effective_until is None or record.effective_until > when
 
 
+def _supersede_until(old: MemoryRecord, new: MemoryRecord) -> datetime:
+    """Valid-time close for a superseded row: the successor's ``effective_from``
+    (its truth-time, which is ``event_date`` for a backfilled fact), so the chain
+    tiles the timeline with no gap and as_of can replay it (#90). Clamped to the
+    old row's own ``effective_from`` so an out-of-order backfill (successor dated
+    BEFORE the row it supersedes) cannot produce a negative validity interval;
+    such a row simply becomes valid for zero width."""
+    return max(new.effective_from, old.effective_from)
+
+
 def _passes_scope_and_temporal(
     record: MemoryRecord,
     scope: MemoryScope,
@@ -77,7 +87,7 @@ class InProcessMemoryStore:
             updated = existing.model_copy(
                 update={
                     "status": "superseded",
-                    "effective_until": now,
+                    "effective_until": _supersede_until(existing, record),
                     "updated_at": now,
                 }
             )

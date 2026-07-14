@@ -785,3 +785,61 @@ def test_find_precedent_excludes_superseded(tmp_path: Path, backend: str) -> Non
     )
     hits = s.memory.find_precedent(scope, match=meta, kind="fact")
     assert [h.id for h in hits] == [new.record.id]
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_as_of_replays_event_dated_chain(tmp_path: Path, backend: str) -> None:
+    """Issue #90: a supersession chain whose truth-time is asserted via
+    metadata.event_date (#88) but written NOW must be replayable with as_of.
+
+    Before the fix, valid-time was a copy of write-time, so every historical
+    as_of predated all three rows and time-travel returned nothing."""
+    s = _stele(tmp_path, backend)
+    scope = MemoryScope(user_id=_unique_user())
+    versions = [("100", "2024-01-10"), ("200", "2024-03-10"), ("300", "2024-06-10")]
+    prev: str | None = None
+    ids: dict[str, str] = {}
+    for value, event_date in versions:
+        res = s.memory.add(
+            text=f"k is {value}",
+            kind="fact",
+            source_refs=["stele://default/a"],
+            scope=scope,
+            metadata={"event_date": event_date},
+            supersedes=[prev] if prev else None,
+        )
+        prev = res.record.id
+        ids[value] = res.record.id
+
+    def _at(when: datetime) -> list[str]:
+        hits = s.memory.search(
+            MemoryQuery(query="k", scope=scope, as_of=when, limit=10)
+        )
+        return [h.id for h in hits]
+
+    # Each as_of sees exactly the version that was TRUE then, not the one that
+    # had been written by then.
+    assert _at(datetime(2024, 2, 1, tzinfo=UTC)) == [ids["100"]]
+    assert _at(datetime(2024, 4, 1, tzinfo=UTC)) == [ids["200"]]
+    assert _at(datetime(2024, 7, 1, tzinfo=UTC)) == [ids["300"]]
+    # Live usage is unchanged: as_of=now still yields the active head.
+    assert _at(datetime.now(UTC)) == [ids["300"]]
+    # Before the first fact was true, there is nothing to see.
+    assert _at(datetime(2023, 1, 1, tzinfo=UTC)) == []
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_as_of_unaffected_without_event_date(tmp_path: Path, backend: str) -> None:
+    """Undated facts keep wall-clock semantics: effective_from is write-time."""
+    s = _stele(tmp_path, backend)
+    scope = MemoryScope(user_id=_unique_user())
+    before = datetime.now(UTC) - timedelta(seconds=1)
+    r = s.memory.add(
+        text="undated fact",
+        kind="fact",
+        source_refs=["stele://default/a"],
+        scope=scope,
+    )
+    assert r.record.effective_from >= before
+    q = MemoryQuery(query="undated", scope=scope, as_of=before, limit=10)
+    assert s.memory.search(q) == []
