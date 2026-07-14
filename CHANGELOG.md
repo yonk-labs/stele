@@ -7,6 +7,17 @@ out of `0.x`.
 
 ## [Unreleased]
 
+## [0.6.14] - 2026-07-14
+
+### Added
+- **`DistilledItem.memory_id` — exact view-item → store-row join (#93).**
+  Every 1:1 distilled view item (facts, state, precedents, skills,
+  best-practices, rules) carries the id of its source memory record;
+  dedup keeps the first occurrence's id, and synthesized aggregates
+  (episodes/spans) leave it empty. Consumers can resolve a view item
+  with `memory.get(item.memory_id)` instead of string-matching on
+  `detail` (bento#962).
+
 ## [0.6.13] - 2026-07-14
 
 ### Added
