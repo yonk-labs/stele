@@ -32,7 +32,7 @@ from stele.revisor.pg_raggraph_revisor import PgRaggraphRevisor
 _DSN = "postgresql://x:y@localhost:1/db"
 
 
-def _rev(**kw: object) -> PgRaggraphRevisor:
+def _rev(**kw: Any) -> PgRaggraphRevisor:
     return PgRaggraphRevisor(
         dsn=_DSN, namespace="n", evolution_tier="structural", **kw
     )

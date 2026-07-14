@@ -44,6 +44,7 @@ class PgRaggraphRevisor:
         llm_base_url: str | None = None,
         llm_model: str | None = None,
         llm_api_key: str = "",
+        llm_max_tokens: int = 0,
         query_mode: str = "smart",
         rerank: bool = False,
         embedding_provider: str = "local",
@@ -65,6 +66,7 @@ class PgRaggraphRevisor:
         self._llm_base_url = llm_base_url
         self._llm_model = llm_model
         self._llm_api_key = llm_api_key
+        self._llm_max_tokens = llm_max_tokens
         # Two distinct gates (split so deterministic extractors actually run):
         # _needs_llm  — the LLM provider must be threaded into the graph cfg
         #   (fact_extractor in {"llm","llm+lede"} + an endpoint). Drives the
@@ -134,6 +136,11 @@ class PgRaggraphRevisor:
             if self._llm_model:
                 cfg["llm_model"] = self._llm_model
             cfg["llm_api_key"] = self._llm_api_key
+            # Opt-in only: 0 omits the key, so pg-raggraph omits max_tokens
+            # from the request and the server default applies (byte-identical
+            # to before this knob existed).
+            if self._llm_max_tokens > 0:
+                cfg["llm_max_tokens"] = self._llm_max_tokens
         # Remote embedding keys are added ONLY for a non-"local" provider,
         # so the default path's dict stays byte-identical to pre-WS1.
         if self._embedding_provider != "local":

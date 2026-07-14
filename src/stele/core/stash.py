@@ -1126,6 +1126,7 @@ class Stele:
                     llm_base_url=self.config.graph.llm_base_url,
                     llm_model=self.config.graph.llm_model,
                     llm_api_key=self.config.graph.llm_api_key,
+                    llm_max_tokens=self.config.graph.llm_max_tokens,
                     query_mode=self.config.graph.query_mode,
                     rerank=self.config.graph.rerank,
                     **emb,
