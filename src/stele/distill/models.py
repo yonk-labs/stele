@@ -14,6 +14,13 @@ class DistilledItem(BaseModel):
     detail: str = ""
     confidence: float = 1.0
     source_refs: list[str] = Field(default_factory=list)
+    # Id of the source memory when the item maps 1:1 to a stored record
+    # (facts/state/precedents/skills/best_practices/rules; dedup keeps the
+    # first occurrence's id, matching its "first record wins" convention).
+    # Empty for synthesized aggregates (episodes/spans). Lets consumers join
+    # a view item back to the store exactly instead of by string equality on
+    # detail (bento#962).
+    memory_id: str = ""
 
 
 class Rule(DistilledItem):

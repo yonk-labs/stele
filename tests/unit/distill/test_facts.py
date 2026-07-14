@@ -76,3 +76,25 @@ def test_distill_facts_excludes_superseded_facts():
     )
     assert "us-west-2" in view.items[0].summary
     assert "us-east-1" not in view.items[0].summary
+
+
+def test_distill_items_carry_source_memory_id() -> None:
+    """Every 1:1 view item joins back to its store row exactly (bento#962):
+    item.memory_id == the id memory.add returned, and memory.get(memory_id)
+    resolves. Dedup keeps the FIRST occurrence's id."""
+    s = Stele.from_config({"backend": {"type": "memory"}})
+    ns = "t-facts-memid"
+    scope = MemoryScope(namespace=ns)
+    ref = str(s.store("evidence", namespace=ns).reference)
+    first = s.memory.add(
+        text="the audit_window is 455", kind="fact",
+        source_refs=[ref], scope=scope,
+    )
+    s.memory.add(  # normalized duplicate — collapses into `first`
+        text="The audit_window is 455", kind="fact",
+        source_refs=[ref], scope=scope,
+    )
+    view = asyncio.run(s.distill.facts(scope))
+    assert len(view.items) == 1
+    assert view.items[0].memory_id == first.record.id
+    assert s.memory.get(view.items[0].memory_id) is not None

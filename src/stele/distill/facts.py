@@ -22,6 +22,7 @@ async def distill_facts(d: object, scope: MemoryScope) -> DistilledView:
                 detail=m.detail or "",
                 confidence=m.confidence,
                 source_refs=list(m.source_refs),
+                memory_id=m.id,
             )
         )
     return DistilledView(

@@ -11,6 +11,7 @@ def _item(record: object) -> DistilledItem:
         detail=record.detail or "",             # type: ignore[attr-defined]
         confidence=record.confidence,           # type: ignore[attr-defined]
         source_refs=list(record.source_refs),   # type: ignore[attr-defined]
+        memory_id=record.id,                    # type: ignore[attr-defined]
     )
 
 

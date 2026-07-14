@@ -122,12 +122,14 @@ def _refine(
                 summary=dont, dont=dont, do_instead=do_instead,
                 domain=getattr(src, "domain", "prose"),
                 confidence=src.confidence, source_refs=list(src.source_refs),
+                memory_id=src.memory_id,
             ))
         else:
             text = str(obj.get("text") or src.summary).strip()
             refined.append(DistilledItem(
                 summary=text, detail=src.detail,
                 confidence=src.confidence, source_refs=list(src.source_refs),
+                memory_id=src.memory_id,
             ))
     return refined
 
@@ -147,7 +149,8 @@ def _dedup(records: Sequence[MemoryRecord]) -> list[MemoryRecord]:
 def _plain_view(records: Sequence[MemoryRecord], mode: str, d: object) -> DistilledView:
     items: list[DistilledItem] = [
         DistilledItem(summary=m.summary or m.text, detail=m.detail or "",
-                      confidence=m.confidence, source_refs=list(m.source_refs))
+                      confidence=m.confidence, source_refs=list(m.source_refs),
+                      memory_id=m.id)
         for m in _dedup(records)
     ]
     llm, allowed = _llm_and_allowed(d)
@@ -196,6 +199,7 @@ async def distill_rules(d: object, scope: MemoryScope) -> DistilledView:
             summary=dont, dont=dont, do_instead=do_instead,
             domain=str((m.metadata or {}).get("domain", "prose") or "prose"),
             confidence=m.confidence, source_refs=list(m.source_refs),
+            memory_id=m.id,
         ))
     items: list[DistilledItem] = candidates
     if allowed and llm is not None:

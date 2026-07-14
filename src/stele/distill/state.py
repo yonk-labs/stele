@@ -34,6 +34,7 @@ async def distill_state(d: object, scope: MemoryScope) -> DistilledView:
             detail=_classify_state(m.text),
             confidence=m.confidence,
             source_refs=list(m.source_refs),
+            memory_id=m.id,
         )
     items = list(by_entity.values())
     return DistilledView(mode="state", items=items, used_llm=False,
